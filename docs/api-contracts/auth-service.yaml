@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: auth-service
+  version: 0.1.0
+  description: Authentification et emission de tokens JWT (HS256).
+servers:
+  - url: http://localhost:8005/api
+paths:
+  /health:
+    get:
+      summary: Etat du service
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+  /register:
+    post:
+      summary: Creer un compte (role client par defaut)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "201":
+          description: Compte cree
+        "422":
+          description: Donnees invalides
+  /login:
+    post:
+      summary: Connexion, retourne un JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Connexion reussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  token_type: { type: string, example: Bearer }
+                  expires_in: { type: integer, example: 3600 }
+        "401":
+          description: Identifiants invalides
+  /me:
+    get:
+      summary: Utilisateur du token courant
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Utilisateur
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  email: { type: string }
+                  role: { type: string, enum: [client, admin] }
+        "401":
+          description: Token absent ou invalide
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

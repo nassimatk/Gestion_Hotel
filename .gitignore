@@ -1,0 +1,21 @@
+# Secrets
+.env
+*.env.local
+# Node / React
+node_modules/
+dist/
+# Laravel
+vendor/
+storage/logs/
+.phpunit.result.cache
+# Spring Boot / Java
+target/
+build/
+*.class
+# Python
+__pycache__/
+.venv/
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

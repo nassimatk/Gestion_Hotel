@@ -1,0 +1,10 @@
+# Remplacer par les vrais pseudos GitHub
+/services/auth-service/          @pseudo-membre1
+/services/chambres-service/       @pseudo-membre1
+/services/avis-service/           @pseudo-membre2
+/services/disponibilites-service/ @pseudo-membre3
+/services/tarifs-service/         @pseudo-membre4
+/frontend/                        @pseudo-cheffe-projet
+/infra/                           @pseudo-cheffe-projet
+/docs/                            @pseudo-cheffe-projet
+/GUIDE.md                         @pseudo-cheffe-projet
