@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -38,7 +39,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErreurResponse> handleAutre(Exception e) {
         return erreur(HttpStatus.INTERNAL_SERVER_ERROR, "Erreur interne du serveur");
     }
-
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErreurResponse> handleCorpsInvalide(HttpMessageNotReadableException e) {
+        return erreur(HttpStatus.BAD_REQUEST, "Corps de la requete invalide");
+    }
     private ResponseEntity<ErreurResponse> erreur(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(new ErreurResponse(message, status.value()));
     }
