@@ -30,11 +30,10 @@ public class DisponibiliteService {
     }
 
     @Transactional
-    public Reservation creer(ReservationRequest req) {
-        if (req.chambreId() == null || req.clientId() == null
-                || req.dateDebut() == null || req.dateFin() == null) {
+    public Reservation creer(ReservationRequest req, Long clientId) {
+        if (req.chambreId() == null || req.dateDebut() == null || req.dateFin() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "chambre_id, client_id, date_debut et date_fin sont obligatoires");
+                    "chambre_id, date_debut et date_fin sont obligatoires");
         }
         verifierPeriodeEtChambre(req.chambreId(), req.dateDebut(), req.dateFin());
 
@@ -45,7 +44,7 @@ public class DisponibiliteService {
 
         Reservation reservation = new Reservation();
         reservation.setChambreId(req.chambreId());
-        reservation.setClientId(req.clientId());
+        reservation.setClientId(clientId);
         reservation.setDateDebut(req.dateDebut());
         reservation.setDateFin(req.dateFin());
         return reservationRepository.save(reservation);
