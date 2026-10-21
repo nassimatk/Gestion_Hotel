@@ -1,5 +1,8 @@
 # Base de données
 
+> [!TIP]
+> Pour le guide de démarrage complet, la configuration de **pgAdmin 4** et les commandes Docker, consultez [`docs/DB.md`](DB.md).
+
 Un serveur PostgreSQL, une base `hotel_db`, **un schéma et un utilisateur par service**. Chaque utilisateur n'a accès qu'à son schéma : tout accès croisé est refusé par PostgreSQL.
 
 | Service | Schéma | Utilisateur |

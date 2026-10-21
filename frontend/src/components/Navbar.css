@@ -1,0 +1,127 @@
+/* ============================================================
+   Navbar – HotelHub
+   ============================================================ */
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(229, 224, 216, 0.6);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Logo */
+.navbar__logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-dark);
+  letter-spacing: -0.3px;
+}
+
+.navbar__logo-icon {
+  width: 26px;
+  height: 26px;
+  background: var(--color-dark);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-gold);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-serif);
+}
+
+/* Navigation links */
+.navbar__links {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.navbar__link {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  position: relative;
+  padding-bottom: 2px;
+  transition: color var(--transition);
+}
+
+.navbar__link:hover,
+.navbar__link.active {
+  color: var(--color-dark);
+}
+
+.navbar__link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-dark);
+  border-radius: 2px;
+}
+
+/* Right actions */
+.navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar__globe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  transition: all var(--transition);
+}
+.navbar__globe:hover {
+  border-color: var(--color-dark);
+  color: var(--color-dark);
+}
+
+.navbar__connexion {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition: color var(--transition);
+  background: none;
+  padding: 6px 4px;
+}
+.navbar__connexion:hover {
+  color: var(--color-dark);
+}
+
+.navbar__inscription {
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--color-dark);
+  color: var(--color-white);
+  padding: 9px 20px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), transform var(--transition);
+}
+.navbar__inscription:hover {
+  background: #243549;
+  transform: translateY(-1px);
+}
