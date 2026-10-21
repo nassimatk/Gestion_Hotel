@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-
+import java.util.List;
 @Service
 public class DisponibiliteService {
 
@@ -35,6 +35,7 @@ public class DisponibiliteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "chambre_id, date_debut et date_fin sont obligatoires");
         }
+
         verifierPeriodeEtChambre(req.chambreId(), req.dateDebut(), req.dateFin());
 
         if (compterChevauchements(req.chambreId(), req.dateDebut(), req.dateFin()) > 0) {
@@ -48,6 +49,27 @@ public class DisponibiliteService {
         reservation.setDateDebut(req.dateDebut());
         reservation.setDateFin(req.dateFin());
         return reservationRepository.save(reservation);
+    }
+
+    public List<Reservation> listerMesReservations(Long clientId) {
+        return reservationRepository.findByClientIdOrderByDateDebutDesc(clientId);
+    }
+
+    public List<Reservation> listerToutes() {
+        return reservationRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Transactional
+    public void annuler(Long id, Long clientId, boolean admin) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Reservation introuvable"));
+
+        if (!admin && !reservation.getClientId().equals(clientId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acces refuse");
+        }
+        reservation.setStatut(StatutReservation.ANNULEE);
+        reservationRepository.save(reservation);
     }
 
     private void verifierPeriodeEtChambre(Long chambreId, LocalDate dateDebut, LocalDate dateFin) {
