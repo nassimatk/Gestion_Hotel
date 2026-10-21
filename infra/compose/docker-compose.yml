@@ -82,6 +82,7 @@ services:
       DB_SCHEMA: avis
       JWT_SECRET: ${JWT_SECRET}
       CHAMBRES_SERVICE_URL: http://chambres-service:8000/api
+      CHAMBRES_MOCK: ${CHAMBRES_MOCK:-false}
     depends_on:
       postgres: { condition: service_healthy }
     networks: [hotelhub]
