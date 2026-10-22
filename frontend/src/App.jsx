@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import HomePage from "./pages/client/HomePage";
+import ReservationPage from "./pages/client/ReservationPage";
 
 export default function App() {
   return (
@@ -14,6 +15,8 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
 
           {/* pages/client/* : ajouter ici les routes client */}
+          <Route path="/reservation" element={<ReservationPage />} />
+
           {/* pages/admin/* : ajouter ici les routes admin */}
         </Routes>
       </main>
