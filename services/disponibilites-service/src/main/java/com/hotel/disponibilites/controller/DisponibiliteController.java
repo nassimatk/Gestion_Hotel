@@ -1,5 +1,6 @@
 package com.hotel.disponibilites.controller;
 
+import com.hotel.disponibilites.dto.ChambresOccupeesResponse;
 import com.hotel.disponibilites.dto.DisponibiliteResponse;
 import com.hotel.disponibilites.service.DisponibiliteService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,5 +30,12 @@ public class DisponibiliteController {
 
         boolean libre = disponibiliteService.estLibre(id, dateDebut, dateFin);
         return new DisponibiliteResponse(id, libre, dateDebut, dateFin);
+    }
+    @GetMapping
+    public ChambresOccupeesResponse occupees(
+            @RequestParam("date_debut") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam("date_fin") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin) {
+        return new ChambresOccupeesResponse(dateDebut, dateFin,
+                disponibiliteService.chambresOccupees(dateDebut, dateFin));
     }
 }

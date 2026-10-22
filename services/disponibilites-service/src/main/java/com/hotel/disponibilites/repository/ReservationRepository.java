@@ -25,4 +25,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByClientIdOrderByDateDebutDesc(Long clientId);
 
     List<Reservation> findAllByOrderByCreatedAtDesc();
+    @Query("""
+            select distinct r.chambreId from Reservation r
+            where r.statut = :statut
+              and r.dateDebut < :dateFin
+              and r.dateFin > :dateDebut
+            order by r.chambreId
+            """)
+    List<Long> chercherChambresOccupees(@Param("statut") StatutReservation statut,
+                                        @Param("dateDebut") LocalDate dateDebut,
+                                        @Param("dateFin") LocalDate dateFin);
 }

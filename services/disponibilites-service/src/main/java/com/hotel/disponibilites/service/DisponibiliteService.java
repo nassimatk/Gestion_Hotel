@@ -86,4 +86,12 @@ public class DisponibiliteService {
         return reservationRepository.compterChevauchements(
                 chambreId, StatutReservation.CONFIRMEE, dateDebut, dateFin);
     }
+    public List<Long> chambresOccupees(LocalDate dateDebut, LocalDate dateFin) {
+        if (!dateFin.isAfter(dateDebut)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "date_fin doit etre apres date_debut");
+        }
+        return reservationRepository.chercherChambresOccupees(
+                StatutReservation.CONFIRMEE, dateDebut, dateFin);
+    }
 }
