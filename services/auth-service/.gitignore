@@ -5,6 +5,7 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+tests-report.html
 /.fleet
 /.idea
 /.nova
