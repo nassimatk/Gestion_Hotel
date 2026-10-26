@@ -1,59 +1,172 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🔐 Auth Service — HotelHub
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Service d'authentification et de gestion des identités du projet **HotelHub**.  
+Il est responsable de l'identification des utilisateurs (`register`, `login`, `me`) et de **l'émission des tokens JWT (HS256)** permettant de sécuriser l'ensemble de l'architecture microservices.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Informations générales
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+* **Technologie** : PHP 8.2 / Laravel 12
+* **Port hôte** : `8005` (port interne conteneur : `8000`)
+* **Base de données** : PostgreSQL 16
+  * **Schéma dédié** : `auth` (isolé dans `hotel_db`)
+  * **Utilisateur BDD** : `auth_user`
+* **Sécurité** : JWT (JSON Web Token) signé en **HS256** avec `JWT_SECRET` partagé
+* **Contrat OpenAPI** : [`docs/api-contracts/auth-service.yaml`](../../docs/api-contracts/auth-service.yaml)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🗄️ Modèle de données (Schéma `auth`)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Le schéma respecte le diagramme de classes UML avec 4 tables :
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```
+roles (id, name, description)
+  ▲
+  │ (1 à N)
+users (id, name, email, password, role_id)
+  
+roles (id) ◄─── role_permission (role_id, permission_id) ───► permissions (id, name, description)
+```
 
-## Laravel Sponsors
+* **`roles`** : `client` (par défaut pour les nouveaux inscrits) et `admin`.
+* **`permissions`** : permissions modulaires du système (ex. `chambres.write`, `avis.moderate`, `users.list`).
+* **`role_permission`** : table pivot associant les permissions aux rôles.
+* **`users`** : utilisateurs avec mot de passe haché par **bcrypt**.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+> **Données initiales créées par le Seeder :**
+> * Compte administrateur par défaut : `admin@hotelhub.com` / `admin_secret` (rôle : `admin`).
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## 🚀 Endpoints API REST développés
 
-## Contributing
+Tous les endpoints sont préfixés par `/api` et communiquent exclusivement en `application/json` avec format d'erreur uniforme `{"error": "message", "code": HTTP_CODE}`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 1. Contrôle de santé
+* **`GET /api/health`**
+  * **Description** : Vérifie la disponibilité du service.
+  * **Réponse 200 OK** :
+    ```json
+    { "status": "ok" }
+    ```
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 2. Inscription d'un nouveau client
+* **`POST /api/register`**
+  * **Description** : Crée un nouvel utilisateur et lui assigne automatiquement le rôle `client`.
+  * **Corps de la requête (JSON)** :
+    ```json
+    {
+      "name": "Éléonore de Montmirail",
+      "email": "eleonore@prestige.com",
+      "password": "password123"
+    }
+    ```
+  * **Réponse 201 Created** :
+    ```json
+    {
+      "id": 2,
+      "name": "Éléonore de Montmirail",
+      "email": "eleonore@prestige.com",
+      "role": "client"
+    }
+    ```
+  * **Erreurs possibles** :
+    * `422 Unprocessable Content` : `{"error": "Email déjà utilisé", "code": 422}`
+    * `422 Unprocessable Content` : `{"error": "Données invalides", "code": 422}` (mot de passe < 8 caractères ou champ manquant)
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 3. Connexion utilisateur & Émission JWT
+* **`POST /api/login`**
+  * **Description** : Vérifie l'email et le mot de passe puis génère un jeton JWT HS256 valide 1 heure (3600 secondes).
+  * **Corps de la requête (JSON)** :
+    ```json
+    {
+      "email": "admin@hotelhub.com",
+      "password": "admin_secret"
+    }
+    ```
+  * **Réponse 200 OK** :
+    ```json
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token_type": "Bearer",
+      "expires_in": 3600
+    }
+    ```
+  * **Erreurs possibles** :
+    * `401 Unauthorized` : `{"error": "Identifiants invalides", "code": 401}` (même message si email inconnu ou mot de passe faux pour éviter l'énumération de comptes)
+    * `422 Unprocessable Content` : `{"error": "Données invalides", "code": 422}`
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Profil de l'utilisateur connecté
+* **`GET /api/me`**
+  * **Description** : Renvoie les informations de l'utilisateur authentifié via son token.
+  * **En-tête HTTP obligatoire** :
+    ```http
+    Authorization: Bearer <votre_token_jwt>
+    ```
+  * **Réponse 200 OK** :
+    ```json
+    {
+      "id": 1,
+      "name": "Administrateur HotelHub",
+      "email": "admin@hotelhub.com",
+      "role": "admin"
+    }
+    ```
+  * **Erreurs possibles** :
+    * `401 Unauthorized` : `{"error": "Token manquant", "code": 401}`
+    * `401 Unauthorized` : `{"error": "Token invalide ou expiré", "code": 401}`
+
+---
+
+## 🔑 Rôle du token JWT dans l'architecture Microservices
+
+Le jeton émis par `auth-service` est **autonome (stateless)** et contient les informations essentielles :
+
+```json
+{
+  "iss": "hotelhub-auth-service",
+  "sub": 1,
+  "name": "Administrateur HotelHub",
+  "email": "admin@hotelhub.com",
+  "role": "admin",
+  "iat": 1792955311,
+  "exp": 1792958911
+}
+```
+
+> **Validation locale :**  
+> Les autres microservices (`chambres-service`, `disponibilites-service`, `avis-service`, etc.) reçoivent ce token dans leurs requêtes REST et le **valident localement** en vérifiant la signature HS256 avec la même variable `JWT_SECRET`.  
+> Ils n'ont pas besoin de surcharger `auth-service` par des requêtes de vérification.
+
+---
+
+## 🧪 Tests unitaires et fonctionnels
+
+Une suite de **12 tests automatisés (36 assertions)** est incluse pour garantir la conformité aux diagrammes de séquence UML :
+
+```bash
+# Exécuter les tests dans le terminal
+php artisan test
+```
+
+---
+
+## 🐳 Démarrage avec Docker
+
+Le service est automatiquement orchestré depuis la racine du projet :
+
+```bash
+# Démarrer auth-service avec sa base de données
+docker compose --env-file .env -f infra/compose/docker-compose.yml up -d --build auth-service
+
+# Voir les logs du service
+docker logs -f hotelhub-auth-service-1
+```
