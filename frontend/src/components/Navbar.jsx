@@ -1,8 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Navbar.css";
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const links = [
     { to: "/", label: "Accueil" },
@@ -45,8 +47,43 @@ export default function Navbar() {
           </svg>
         </button>
 
-        <button className="navbar__connexion">Connexion</button>
-        <button className="navbar__inscription">Inscription</button>
+        {isAuthenticated ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "13.5px", fontWeight: "500", color: "var(--color-dark)" }}>
+              Bonjour, <strong>{user?.name?.split(" ")[0]}</strong>
+              {user?.role === "admin" && (
+                <span style={{
+                  marginLeft: "6px",
+                  fontSize: "10px",
+                  background: "var(--color-gold)",
+                  color: "#fff",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  textTransform: "uppercase",
+                  fontWeight: "700"
+                }}>
+                  Admin
+                </span>
+              )}
+            </span>
+            <button
+              onClick={logout}
+              className="navbar__connexion"
+              style={{ color: "#dc2626" }}
+            >
+              Déconnexion
+            </button>
+          </div>
+        ) : (
+          <>
+            <Link to="/login" className="navbar__connexion">
+              Connexion
+            </Link>
+            <Link to="/register" className="navbar__inscription">
+              Inscription
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );

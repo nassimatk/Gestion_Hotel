@@ -82,6 +82,29 @@ paths:
                   role: { type: string, enum: [client, admin] }
         "401":
           description: Token absent ou invalide
+  /users/{id}:
+    get:
+      summary: Recuperer un utilisateur par son ID (usage inter-services / REST)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Utilisateur trouve
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  email: { type: string }
+                  role: { type: string, enum: [client, admin] }
+        "404":
+          description: Utilisateur introuvable
 components:
   securitySchemes:
     bearerAuth:

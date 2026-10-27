@@ -122,4 +122,28 @@ class AuthController extends Controller
             'role' => $user->role ? $user->role->name : 'client',
         ], 200);
     }
+
+    /**
+     * GET /api/users/{id}
+     * Permet aux autres microservices (ex. avis-service) de récupérer
+     * les informations d'un utilisateur à partir de son identifiant.
+     */
+    public function getUserById($id)
+    {
+        $user = User::with('role')->find($id);
+
+        if (!$user) {
+            return response()->json([
+                'error' => 'Utilisateur introuvable',
+                'code' => 404,
+            ], 404);
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role ? $user->role->name : 'client',
+        ], 200);
+    }
 }

@@ -126,6 +126,23 @@ Tous les endpoints sont préfixés par `/api` et communiquent exclusivement en `
 
 ---
 
+### 5. Consultation utilisateur par ID (Appels inter-services)
+* **`GET /api/users/{id}`**
+  * **Description** : Permet aux autres microservices (ex: `avis-service`) d'obtenir les informations d'un utilisateur par son ID sans décoder le JWT.
+  * **Réponse 200 OK** :
+    ```json
+    {
+      "id": 1,
+      "name": "Administrateur HotelHub",
+      "email": "admin@hotelhub.com",
+      "role": "admin"
+    }
+    ```
+  * **Erreurs possibles** :
+    * `404 Not Found` : `{"error": "Utilisateur introuvable", "code": 404}`
+
+---
+
 ## 🔑 Rôle du token JWT dans l'architecture Microservices
 
 Le jeton émis par `auth-service` est **autonome (stateless)** et contient les informations essentielles :
@@ -150,7 +167,7 @@ Le jeton émis par `auth-service` est **autonome (stateless)** et contient les i
 
 ## 🧪 Tests unitaires et fonctionnels
 
-Une suite de **12 tests automatisés (36 assertions)** est incluse pour garantir la conformité aux diagrammes de séquence UML :
+Une suite de **14 tests automatisés (40 assertions)** est incluse pour garantir la conformité aux diagrammes de séquence UML :
 
 ```bash
 # Exécuter les tests dans le terminal

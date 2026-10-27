@@ -1,0 +1,328 @@
+/* ============================================================
+   Auth Pages (Connexion & Inscription) – HotelHub
+   ============================================================ */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: #fafaf8;
+  background-image: radial-gradient(#d5d1c8 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
+  padding: 24px 32px 32px;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  color: var(--color-dark);
+}
+
+/* ─── HEADER ─── */
+.auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px 0;
+}
+
+.auth-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #4b5563;
+  transition: color var(--transition);
+}
+
+.auth-header__back:hover {
+  color: var(--color-dark);
+}
+
+.auth-header__logo {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-header__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  display: inline-block;
+}
+
+.auth-header__link {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-gold);
+  transition: color var(--transition);
+}
+
+.auth-header__link:hover {
+  color: var(--color-gold-light);
+  text-decoration: underline;
+}
+
+/* ─── CONTAINER & TITRES ─── */
+.auth-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 24px auto;
+  width: 100%;
+  max-width: 480px;
+}
+
+.auth-title {
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 700;
+  color: var(--color-dark);
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.auth-subtitle {
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  text-align: center;
+  line-height: 1.6;
+  max-width: 380px;
+  margin: 0 auto 24px;
+}
+
+/* ─── CARTE FORMULAIRE ─── */
+.auth-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  padding: 32px 32px 28px;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Accent doré en haut de la carte */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #c9a84c, #e0bc6c);
+}
+
+/* Message d'erreur */
+.auth-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Groupes de champs */
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+
+.auth-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-dark);
+}
+
+.auth-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 12px 42px 12px 42px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--color-dark);
+  background: #ffffff;
+  transition: all var(--transition);
+  box-sizing: border-box;
+}
+
+.auth-input::placeholder {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--color-dark);
+  box-shadow: 0 0 0 3px rgba(26, 43, 60, 0.08);
+}
+
+.auth-input-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition);
+}
+
+.auth-input-toggle:hover {
+  color: var(--color-dark);
+}
+
+/* Ligne options (se souvenir de moi / mot de passe oublié) */
+.auth-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0 22px;
+  font-size: 12.5px;
+}
+
+.auth-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.auth-checkbox-label input[type="checkbox"] {
+  accent-color: var(--color-dark);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.auth-forgot {
+  color: var(--color-gold);
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.auth-forgot:hover {
+  color: var(--color-gold-light);
+  text-decoration: underline;
+}
+
+/* Bouton principal */
+.auth-submit-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--color-dark);
+  color: var(--color-white);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background var(--transition), transform var(--transition);
+  border: none;
+  cursor: pointer;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background: #243549;
+  transform: translateY(-1px);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Lien de bascule vers l'autre page */
+.auth-switch {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.auth-switch a {
+  color: var(--color-gold);
+  font-weight: 600;
+  margin-left: 4px;
+  transition: color var(--transition);
+}
+
+.auth-switch a:hover {
+  color: var(--color-gold-light);
+  text-decoration: underline;
+}
+
+/* ─── FOOTER ─── */
+.auth-footer {
+  text-align: center;
+  padding-top: 24px;
+}
+
+.auth-footer__links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.auth-footer__links a {
+  color: #6b7280;
+  transition: color var(--transition);
+}
+
+.auth-footer__links a:hover {
+  color: var(--color-dark);
+}
+
+.auth-footer__copy {
+  font-size: 11.5px;
+  color: #9ca3af;
+}

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import "./HomePage.css";
 
 /* ── Données statiques (remplacées par API plus tard) ── */
@@ -136,7 +137,7 @@ export default function HomePage() {
             <a href="/chambres" className="btn-outline">
               Découvrir nos chambres →
             </a>
-            <button className="btn-gold">Créer un compte</button>
+            <Link to="/register" className="btn-gold">Créer un compte</Link>
           </div>
         </div>
       </section>
@@ -278,9 +279,9 @@ export default function HomePage() {
             prioritaires, de cocktails de bienvenue et d'attentions exclusives.
           </p>
         </div>
-        <button className="cta-section__btn">
+        <Link to="/register" className="cta-section__btn">
           Rejoindre HotelHub →
-        </button>
+        </Link>
       </section>
     </>
   );

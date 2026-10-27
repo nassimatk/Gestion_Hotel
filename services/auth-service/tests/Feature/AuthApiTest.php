@@ -212,4 +212,35 @@ class AuthApiTest extends TestCase
                      'code' => 401,
                  ]);
     }
+
+    public function test_get_user_by_id_returns_user_data(): void
+    {
+        $user = User::create([
+            'name' => 'Sophie Bernard',
+            'email' => 'sophie@example.com',
+            'password' => Hash::make('secret1234'),
+            'role_id' => $this->clientRole->id,
+        ]);
+
+        $response = $this->getJson("/api/users/{$user->id}");
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'id' => $user->id,
+                     'name' => 'Sophie Bernard',
+                     'email' => 'sophie@example.com',
+                     'role' => 'client',
+                 ]);
+    }
+
+    public function test_get_user_by_id_returns_404_when_not_found(): void
+    {
+        $response = $this->getJson('/api/users/999999');
+
+        $response->assertStatus(404)
+                 ->assertJson([
+                     'error' => 'Utilisateur introuvable',
+                     'code' => 404,
+                 ]);
+    }
 }
