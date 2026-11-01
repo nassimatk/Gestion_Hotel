@@ -1,0 +1,23 @@
+[2026-10-31 23:45:19] local.ERROR: The "--columns" option does not exist. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\RuntimeException(code: 0): The \"--columns\" option does not exist. at C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Input/ArgvInput.php:226)
+[stacktrace]
+#0 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Input/ArgvInput.php(153): Symfony/Component/Console/Input/ArgvInput->addLongOption()
+#1 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Input/ArgvInput.php(88): Symfony/Component/Console/Input/ArgvInput->parseLongOption()
+#2 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Input/ArgvInput.php(77): Symfony/Component/Console/Input/ArgvInput->parseToken()
+#3 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Input/Input.php(53): Symfony/Component/Console/Input/ArgvInput->parse()
+#4 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Command/Command.php(295): Symfony/Component/Console/Input/Input->bind()
+#5 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/laravel/framework/src/Illuminate/Console/Command.php(180): Symfony/Component/Console/Command/Command->run()
+#6 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Application.php(1127): Illuminate/Console/Command->run()
+#7 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Application.php(357): Symfony/Component/Console/Application->doRunCommand()
+#8 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Application.php(196): Symfony/Component/Console/Application->doRun()
+#9 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run()
+#10 C:/Users/utente/Desktop/hotelhub/services/chambres-service/artisan(16): Illuminate/Foundation/Console/Kernel->handle()
+#11 {main}
+"} 
+[2026-10-31 23:46:39] local.ERROR: Command "tinker" is not defined. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"tinker\" is not defined. at C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Application.php:760)
+[stacktrace]
+#0 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Application.php(299): Symfony/Component/Console/Application->find()
+#1 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/symfony/console/Application.php(196): Symfony/Component/Console/Application->doRun()
+#2 C:/Users/utente/Desktop/hotelhub/services/chambres-service/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run()
+#3 C:/Users/utente/Desktop/hotelhub/services/chambres-service/artisan(16): Illuminate/Foundation/Console/Kernel->handle()
+#4 {main}
+"} 
