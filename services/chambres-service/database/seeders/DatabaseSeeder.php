@@ -16,7 +16,9 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('chambres')->truncate();
+        // Supprime les données existantes et remet l'auto-increment à 1
+        // Utilise SQL direct pour garantir le bon search_path (schema chambres)
+        DB::statement('TRUNCATE TABLE chambres.chambres RESTART IDENTITY CASCADE');
 
         $chambres = [
             [

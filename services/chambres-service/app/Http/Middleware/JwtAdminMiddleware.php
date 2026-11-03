@@ -33,8 +33,8 @@ class JwtAdminMiddleware
         $token  = substr($authHeader, 7);
         $secret = env('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? '');
 
-        // Désactiver la vérification du décalage temporel (timestamps futurs tolérés)
-        \Firebase\JWT\JWT::$leeway = 9999999999;
+        // Tolérance de dérive d'horloge standard (60 secondes)
+        \Firebase\JWT\JWT::$leeway = 60;
 
         try {
             $payload = JWT::decode($token, new Key($secret, 'HS256'));

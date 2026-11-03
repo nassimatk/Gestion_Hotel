@@ -1,0 +1,883 @@
+{
+  "info": {
+    "_postman_id": "8e33feb1-4223-41cd-b261-9cf3eb3465ca",
+    "name": "HotelHub — Chambres Service Test Suite",
+    "description": "Suite complète de tests Postman pour le microservice chambres-service (Port 8001). Couvre : Health check, Endpoints publics (lecture, filtres), Contrôle d'accès RBAC JWT, CRUD Admin et Soft Deletes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "56940907",
+    "_collection_link": "https://go.postman.co/collection/56940907-8e33feb1-4223-41cd-b261-9cf3eb3465ca?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 - Health Check & Supervision",
+      "item": [
+        {
+          "name": "GET /api/health (Service Status)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Service status is ok\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"ok\");",
+                  "    pm.expect(jsonData.service).to.eql(\"chambres-service\");",
+                  "});",
+                  "pm.test(\"Response time is under 300ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(300);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Consultation Publique (Sans Token)",
+      "item": [
+        {
+          "name": "GET /api/chambres (Catalogue complet)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Catalogue contains data and total count\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"data\");",
+                  "    pm.expect(jsonData).to.have.property(\"total\");",
+                  "    pm.expect(jsonData.data).to.be.an(\"array\");",
+                  "    pm.expect(jsonData.total).to.be.above(0);",
+                  "    if (jsonData.data.length > 0) {",
+                  "        pm.collectionVariables.set(\"first_chambre_id\", jsonData.data[0].id);",
+                  "    }",
+                  "});",
+                  "pm.test(\"Chamber object has required fields\", function () {",
+                  "    var first = pm.response.json().data[0];",
+                  "    pm.expect(first).to.have.property(\"id\");",
+                  "    pm.expect(first).to.have.property(\"numero\");",
+                  "    pm.expect(first).to.have.property(\"type\");",
+                  "    pm.expect(first).to.have.property(\"prix_nuit\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chambres?type=suite (Filtre par type)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"All returned rooms are suites\", function () {",
+                  "    var data = pm.response.json().data;",
+                  "    data.forEach(function(room) {",
+                  "        pm.expect(room.type).to.eql(\"suite\");",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres?type=suite",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "suite"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chambres?prix_max=500 (Filtre par budget max)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"All prices are below or equal to 500 MAD\", function () {",
+                  "    var data = pm.response.json().data;",
+                  "    data.forEach(function(room) {",
+                  "        pm.expect(room.prix_nuit).to.be.at.most(500);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres?prix_max=500",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ],
+              "query": [
+                {
+                  "key": "prix_max",
+                  "value": "500"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chambres/{{first_chambre_id}} (Détail d'une chambre)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Chambre detail matches requested ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.id).to.eql(Number(pm.collectionVariables.get(\"first_chambre_id\")));",
+                  "    pm.expect(jsonData.data).to.have.property(\"equipements\");",
+                  "    pm.expect(jsonData.data).to.have.property(\"superficie\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres/{{first_chambre_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "{{first_chambre_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chambres/99999 (Chambre inconnue -> 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Error message is standard JSON\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.eql(\"Chambre introuvable.\");",
+                  "    pm.expect(jsonData.code).to.eql(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres/99999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "99999"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Sécurité & Contrôle d'Accès (RBAC JWT)",
+      "item": [
+        {
+          "name": "POST /api/chambres (Rejet sans token -> 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"Error indicates missing JWT token\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.eql(\"Token JWT manquant.\");",
+                  "    pm.expect(jsonData.code).to.eql(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"numero\":\"999\",\"type\":\"simple\",\"capacite\":1,\"prix_nuit\":500}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chambres (Rejet token invalide/falsifié -> 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"Invalid signature error detected\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{bearer_token_19ee}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"numero\":\"999\",\"type\":\"simple\",\"capacite\":1,\"prix_nuit\":500}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chambres (Rejet rôle client non-admin -> 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test(\"Error message forbids non-admin\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.eql(\"Accès réservé aux administrateurs.\");",
+                  "    pm.expect(jsonData.code).to.eql(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{client_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"numero\":\"999\",\"type\":\"simple\",\"capacite\":1,\"prix_nuit\":500}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Opérations CRUD Admin",
+      "item": [
+        {
+          "name": "POST /api/chambres (Création chambre valide -> 201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"New chamber created with ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property(\"id\");",
+                  "    pm.expect(jsonData.data.numero).to.eql(\"POST-901\");",
+                  "    pm.expect(jsonData.data.type).to.eql(\"suite\");",
+                  "    pm.expect(jsonData.data.prix_nuit).to.eql(1350);",
+                  "    pm.collectionVariables.set(\"created_chambre_id\", jsonData.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"numero\": \"POST-901\",\n    \"type\": \"suite\",\n    \"capacite\": 3,\n    \"prix_nuit\": 1350,\n    \"description\": \"Suite de test cr\\u00e9\\u00e9e via Postman collection.\",\n    \"superficie\": 55,\n    \"etage\": 3,\n    \"vue\": \"Piscine & Oc\\u00e9an\",\n    \"equipements\": [\n        \"Wi-Fi 6\",\n        \"Jacuzzi\",\n        \"Minibar VIP\"\n    ],\n    \"images\": [\n        \"postman_test.jpg\"\n    ],\n    \"statut\": \"disponible\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chambres (Validation 422 - Champs obligatoires manquants)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 Unprocessable Content\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "pm.test(\"Errors bag lists missing fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"errors\");",
+                  "    pm.expect(jsonData.errors).to.have.property(\"numero\");",
+                  "    pm.expect(jsonData.errors).to.have.property(\"prix_nuit\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"simple\",\"capacite\":1}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chambres (Validation 422 - Numéro déjà existant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "pm.test(\"Numero uniqueness constraint validated\", function () {",
+                  "    var errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"numero\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"numero\":\"101\",\"type\":\"simple\",\"capacite\":1,\"prix_nuit\":450}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/chambres/{{created_chambre_id}} (Mise à jour tarif & statut -> 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Updated values are persisted\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.prix_nuit).to.eql(1500);",
+                  "    pm.expect(jsonData.data.statut).to.eql(\"occupee\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"prix_nuit\": 1500,\n    \"statut\": \"occupee\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chambres/{{created_chambre_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "{{created_chambre_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/chambres/{{created_chambre_id}} (Suppression Soft Delete -> 204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204 No Content\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.test(\"Response body is empty\", function () {",
+                  "    pm.expect(pm.response.text()).to.eql(\"\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres/{{created_chambre_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "{{created_chambre_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chambres/{{created_chambre_id}} (Vérification post-suppression -> 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Deleted room is excluded (404 Not Found)\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Returns standard error message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.eql(\"Chambre introuvable.\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres/{{created_chambre_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "{{created_chambre_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Simulation Appels Interservices",
+      "item": [
+        {
+          "name": "GET /api/chambres/1 (Appel depuis Tarifs / Disponibilités)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 (Chambre existe)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Payload has required fields for price calculation\", function () {",
+                  "    var chambre = pm.response.json().data;",
+                  "    pm.expect(chambre.id).to.eql(1);",
+                  "    pm.expect(chambre.prix_nuit).to.be.a(\"number\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "User-Agent",
+                "value": "HotelHub-TarifsService/1.0"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chambres/1 (Appel depuis Avis Service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 (Infos chambre pour avis)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns room description and numero\", function () {",
+                  "    var chambre = pm.response.json().data;",
+                  "    pm.expect(chambre).to.have.property(\"numero\");",
+                  "    pm.expect(chambre).to.have.property(\"description\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "User-Agent",
+                "value": "HotelHub-AvisService/1.0"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chambres/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chambres",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001/api"
+    },
+    {
+      "key": "auth_url",
+      "value": "http://localhost:8005/api"
+    },
+    {
+      "key": "admin_token",
+      "value": "{{json_web_token_0jdi}}"
+    },
+    {
+      "key": "client_token",
+      "value": "{{json_web_token_0hxp}}"
+    },
+    {
+      "key": "first_chambre_id",
+      "value": "1"
+    },
+    {
+      "key": "created_chambre_id",
+      "value": ""
+    },
+    {
+      "key": "bearer_token_19ee",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0jdi",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0hxp",
+      "secret": true
+    }
+  ]
+}

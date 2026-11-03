@@ -21,7 +21,7 @@ return [
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', env('DB_NAME', 'hotel_db')),
             'username' => env('DB_USERNAME', env('DB_USER', 'chambres_user')),
-            'password' => env('DB_PASSWORD', 'chambres_pass'),
+            'password' => env('DB_PASSWORD') ?: 'chambres_pass',
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
