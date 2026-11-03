@@ -1,0 +1,402 @@
+/* =========================================================
+   STYLE GENERAL ET REINITIALISATION
+   ========================================================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #fcfbf7; /* Fond beige/crème clair */
+    color: #2c3e50;
+}
+
+/* Container principal de la page */
+.chamber-page {
+    padding: 40px 20px;
+    background-color: #fcfbf7;
+    min-height: 100vh;
+}
+
+.chamber-container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+/* =========================================================
+   FIL D'ARIANE (BREADCRUMB) ET EN-TETE
+   ========================================================= */
+.chamber-breadcrumb {
+    font-size: 13px;
+    color: #7f8c8d;
+    margin-bottom: 20px;
+}
+
+.chamber-breadcrumb span, 
+.chamber-breadcrumb strong {
+    margin-right: 8px;
+}
+
+.breadcrumb-separator {
+    color: #bdc3c7;
+}
+
+/* Header principal avec titre et statut */
+.chamber-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+
+.chamber-title-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chamber-title-line h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a252f;
+    font-family: serif; /* Style élégant pour le titre */
+}
+
+/* Badges */
+.new-room-badge {
+    background-color: #f5eedc;
+    color: #a07830;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.chamber-header p {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+/* Statut à droite */
+.chamber-status {
+    background-color: #f7f5ed;
+    border: 1px solid #e8e2d5;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #e67e22;
+    border-radius: 50%;
+}
+
+.status-divider {
+    color: #bdc3c7;
+}
+
+/* =========================================================
+   FORMULAIRE ET DISPOSITION EN GRID (2 COLONNES)
+   ========================================================= */
+.chamber-form {
+    display: grid;
+    grid-template-columns: 360px 1fr; /* Colonne gauche plus étroite */
+    gap: 30px;
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid #eee8db;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+/* Titres de sections */
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-heading h2 {
+    font-size: 18px;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.section-heading span {
+    font-size: 12px;
+    color: #95a5a6;
+}
+
+.subsection-heading {
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+/* Séparateur horizontal */
+.form-divider {
+    height: 1px;
+    background-color: #f0ebe1;
+    margin: 25px 0;
+}
+
+/* =========================================================
+   COLONNE GAUCHE : PHOTO
+   ========================================================= */
+.photo-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Bloc aperçu image */
+.photo-preview {
+    border: 1px solid #e8e2d5;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #faf8f5;
+}
+
+.photo-preview img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-placeholder {
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #bdc3c7;
+    gap: 8px;
+}
+
+.placeholder-icon {
+    font-size: 24px;
+}
+
+.photo-caption {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background-color: #ffffff;
+    font-size: 12px;
+    color: #7f8c8d;
+    border-top: 1px solid #f0ebe1;
+}
+
+/* Zone pour uploader (Drag & Drop) */
+.upload-zone {
+    border: 2px dashed #e2d9c8;
+    background-color: #fcfbf8;
+    border-radius: 12px;
+    padding: 25px 15px;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.upload-zone:hover {
+    border-color: #cbb892;
+    background-color: #f7f3eb;
+}
+
+.upload-zone input[type="file"] {
+    display: none; /* On cache l'input réel */
+}
+
+.upload-icon {
+    font-size: 22px;
+    color: #b08d4b;
+}
+
+.upload-zone strong {
+    font-size: 13px;
+    color: #2c3e50;
+}
+
+.upload-zone small {
+    font-size: 12px;
+    color: #95a5a6;
+}
+
+.choose-file {
+    margin-top: 10px;
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #dcd3c1;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4a4a4a;
+    font-weight: 500;
+}
+
+/* Consignes sous le bloc photo */
+.photo-guidelines {
+    background-color: #fdfbf7;
+    border: 1px solid #f3eee3;
+    padding: 12px 15px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #7f8c8d;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.guideline-icon {
+    margin-right: 5px;
+    color: #b08d4b;
+}
+
+.guideline-success {
+    color: #27ae60;
+}
+
+.guideline-success span {
+    margin-right: 5px;
+}
+
+/* =========================================================
+   COLONNE DROITE : DETAILS ET FORMULAIRE
+   ========================================================= */
+.details-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.field-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.field-block label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #34495e;
+}
+
+.field-block label span {
+    color: #e74c3c; /* Astérisque rouge pour obligatoire */
+}
+
+/* Input, Textarea, Select */
+.field-block input,
+.field-block textarea,
+.field-block select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #e0d8c8;
+    border-radius: 8px;
+    background-color: #fdfdfd;
+    font-size: 14px;
+    color: #2c3e50;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.field-block input:focus,
+.field-block textarea:focus,
+.field-block select:focus {
+    border-color: #b08d4b;
+    background-color: #ffffff;
+}
+
+.field-block textarea {
+    resize: vertical;
+}
+
+.field-block small {
+    font-size: 12px;
+    color: #95a5a6;
+}
+
+/* Grille pour regrouper plusieurs petits champs */
+.fields-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.price-grid {
+    grid-template-columns: 2fr 1fr;
+}
+
+/* =========================================================
+   BOUTONS D'ACTION
+   ========================================================= */
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #f0ebe1;
+}
+
+.btn-cancel {
+    background-color: #ffffff;
+    border: 1px solid #dcd3c1;
+    color: #555555;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-cancel:hover {
+    background-color: #f7f5ed;
+}
+
+.btn-submit {
+    background-color: #2c3e50;
+    color: #ffffff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.btn-submit:hover {
+    background-color: #1a252f;
+}
+
+/* =========================================================
+   RESPONSIVE (Adaptation sur mobile/tablette)
+   ========================================================= */
+@media (max-width: 850px) {
+    .chamber-form {
+        grid-template-columns: 1fr; /* Passage sur une seule colonne */
+    }
+
+    .fields-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

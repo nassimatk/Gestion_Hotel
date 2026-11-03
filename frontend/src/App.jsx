@@ -1,47 +1,58 @@
-import { Routes, Route, useLocation } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import HomePage from "./pages/client/HomePage";
 
-// Modules Administration
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+
 import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminChamberPageAdd from "./pages/admin/chambres/AdminChamberPageAdd";
 import AdminAvisPage from "./pages/admin/avis/AdminAvisPage";
-import AdminTarifsPage from "./pages/admin/tarifs/AdminTarifsPage";
-import AdminDisponibilitesPage from "./pages/admin/disponibilites/AdminDisponibilitesPage";
+import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
 
 export default function App() {
-  const { pathname } = useLocation();
-  const isAdmin = pathname.startsWith("/admin");
-
-  // Affichage du Dashboard Admin avec sa propre Sidebar (sans Navbar client ni Footer)
-  if (isAdmin) {
-    return (
-      <Routes>
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="chambres" element={<AdminChambresPage />} />
-          <Route path="avis" element={<AdminAvisPage />} />
-          <Route path="tarifs" element={<AdminTarifsPage />} />
-          <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
-        </Route>
-      </Routes>
-    );
-  }
-
-  // Affichage du site client public
   return (
-    <>
-      <Navbar />
+    <Routes>
+      {/* Accueil */}
+      <Route
+        path="/"
+        element={<Navigate to="/admin/dashboard" replace />}
+      />
 
-      <main>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-        </Routes>
-      </main>
+      {/* Administration */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route
+          index
+          element={<Navigate to="dashboard" replace />}
+        />
 
-      <Footer />
-    </>
+        {/* Dashboard */}
+        <Route
+          path="dashboard"
+          element={<AdminDashboard />}
+        />
+
+        {/* Gestion des chambres */}
+        <Route
+          path="chambres"
+          element={<AdminChambresPage />}
+        />
+
+        <Route
+          path="chambres/ajouter"
+          element={<AdminChamberPageAdd />}
+        />
+
+        {/* Avis */}
+        <Route
+          path="avis"
+          element={<AdminAvisPage />}
+        />
+      </Route>
+
+      {/* Routes inconnues */}
+      <Route
+        path="*"
+        element={<Navigate to="/admin/dashboard" replace />}
+      />
+    </Routes>
   );
 }

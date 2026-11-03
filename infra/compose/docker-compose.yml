@@ -81,6 +81,7 @@ services:
       DB_PASSWORD: ${AVIS_DB_PASSWORD}
       DB_SCHEMA: avis
       JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:8000
       CHAMBRES_SERVICE_URL: http://chambres-service:8000/api
     depends_on:
       postgres: { condition: service_healthy }
