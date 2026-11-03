@@ -47,8 +47,8 @@ class JwtAuthenticate
             ], 401);
         }
 
-        // Associer l'utilisateur connecté à la requête
-        $request->merge(['auth_user' => $user]);
+        // Associer l'utilisateur connecté à la requête via attributes (non overridable par le body)
+        $request->attributes->set('auth_user', $user);
 
         return $next($request);
     }

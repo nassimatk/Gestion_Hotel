@@ -6,10 +6,35 @@ import HomePage from "./pages/client/HomePage";
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 
+// Modules Administration
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
+import AdminAvisPage from "./pages/admin/avis/AdminAvisPage";
+import AdminTarifsPage from "./pages/admin/tarifs/AdminTarifsPage";
+import AdminDisponibilitesPage from "./pages/admin/disponibilites/AdminDisponibilitesPage";
+
 function AppContent() {
   const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
+  // Affichage du Dashboard Admin avec sa propre Sidebar (sans Navbar client ni Footer)
+  if (isAdmin) {
+    return (
+      <Routes>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="chambres" element={<AdminChambresPage />} />
+          <Route path="avis" element={<AdminAvisPage />} />
+          <Route path="tarifs" element={<AdminTarifsPage />} />
+          <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // Pages d'authentification (sans Navbar ni Footer)
   if (isAuthPage) {
     return (
       <Routes>
@@ -19,13 +44,14 @@ function AppContent() {
     );
   }
 
+  // Affichage du site client public
   return (
     <>
       <Navbar />
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          {/* pages/client/* et pages/admin/* à enrichir ici */}
+          {/* pages/client/* à enrichir ici au fil du développement */}
         </Routes>
       </main>
       <Footer />

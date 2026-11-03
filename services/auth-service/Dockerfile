@@ -17,5 +17,10 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 EXPOSE 8000
 
-# Lancer les migrations puis demarrer le serveur Laravel sur le port 8000
-CMD sh -c "php artisan migrate --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=8000"
+# Generer la cle d'application, migrer la DB, seeder, puis demarrer le serveur
+CMD sh -c " \
+    php artisan key:generate --no-interaction --force 2>/dev/null || true && \
+    php artisan migrate --force --no-interaction && \
+    php artisan db:seed --force --no-interaction && \
+    php artisan serve --host=0.0.0.0 --port=8000 --no-interaction \
+"

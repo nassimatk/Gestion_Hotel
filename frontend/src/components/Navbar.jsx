@@ -9,7 +9,7 @@ export default function Navbar() {
   const links = [
     { to: "/", label: "Accueil" },
     { to: "/chambres", label: "Chambres" },
-    { to: "/apropos", label: "À propos" },
+    { to: "/apropos", label: "\u00C0 propos" },
     { to: "/contact", label: "Contact" },
   ];
 
@@ -37,7 +37,7 @@ export default function Navbar() {
 
       {/* Actions droite */}
       <div className="navbar__actions">
-        {/* Icône langue */}
+        {/* Icone langue */}
         <button className="navbar__globe" aria-label="Changer de langue">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -71,7 +71,7 @@ export default function Navbar() {
               className="navbar__connexion"
               style={{ color: "#dc2626" }}
             >
-              Déconnexion
+              D\u00E9connexion
             </button>
           </div>
         ) : (

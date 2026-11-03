@@ -113,7 +113,7 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
-        $user = $request->get('auth_user');
+        $user = $request->attributes->get('auth_user');
 
         return response()->json([
             'id' => $user->id,
