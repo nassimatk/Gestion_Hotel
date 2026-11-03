@@ -117,7 +117,7 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   className="auth-input"
-                  placeholder="•••••••••••••"
+                  placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
@@ -157,9 +157,9 @@ export default function LoginPage() {
                 Se souvenir de moi
               </label>
 
-              <a href="#" className="auth-forgot" onClick={(e) => e.preventDefault()}>
+              <Link to="/forgot-password" className="auth-forgot">
                 Mot de passe oublié ?
-              </a>
+              </Link>
             </div>
 
             {/* Bouton de soumission */}
@@ -183,12 +183,12 @@ export default function LoginPage() {
       {/* ── FOOTER ── */}
       <footer className="auth-footer">
         <div className="auth-footer__links">
-          <a href="#">Conditions d'utilisation</a>
-          <span>·</span>
-          <a href="#">Politique de confidentialité</a>
+          <a href="#" onClick={(e) => e.preventDefault()}>Conditions d'utilisation</a>
+          <span>•</span>
+          <a href="#" onClick={(e) => e.preventDefault()}>Politique de confidentialité</a>
         </div>
         <p className="auth-footer__copy">
-          © 2025 HotelHub. Tous droits réservés.
+          © 2026 HotelHub. Tous droits réservés.
         </p>
       </footer>
     </div>

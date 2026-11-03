@@ -9,7 +9,7 @@ export default function Navbar() {
   const links = [
     { to: "/", label: "Accueil" },
     { to: "/chambres", label: "Chambres" },
-    { to: "/apropos", label: "\u00C0 propos" },
+    { to: "/apropos", label: "À propos" },
     { to: "/contact", label: "Contact" },
   ];
 
@@ -71,7 +71,7 @@ export default function Navbar() {
               className="navbar__connexion"
               style={{ color: "#dc2626" }}
             >
-              D\u00E9connexion
+              Déconnexion
             </button>
           </div>
         ) : (

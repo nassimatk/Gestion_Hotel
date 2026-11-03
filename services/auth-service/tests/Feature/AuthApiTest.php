@@ -243,4 +243,89 @@ class AuthApiTest extends TestCase
                      'code' => 404,
                  ]);
     }
+
+    public function test_forgot_password_generates_token_for_existing_user(): void
+    {
+        User::create([
+            'name' => 'Reset Test',
+            'email' => 'reset@hotelhub.com',
+            'password' => Hash::make('oldpassword'),
+            'role_id' => $this->clientRole->id,
+        ]);
+
+        $response = $this->postJson('/api/forgot-password', [
+            'email' => 'reset@hotelhub.com'
+        ]);
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure(['message', 'reset_token', 'expires_at']);
+
+        $this->assertDatabaseHas('password_resets', [
+            'email' => 'reset@hotelhub.com'
+        ]);
+    }
+
+    public function test_forgot_password_generic_message_when_user_not_found(): void
+    {
+        $response = $this->postJson('/api/forgot-password', [
+            'email' => 'notfound@hotelhub.com'
+        ]);
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'message' => 'Si cet email existe, un lien de réinitialisation a été envoyé.'
+                 ]);
+    }
+
+    public function test_reset_password_updates_password_successfully(): void
+    {
+        $user = User::create([
+            'name' => 'Reset Test',
+            'email' => 'reset@hotelhub.com',
+            'password' => Hash::make('oldpassword'),
+            'role_id' => $this->clientRole->id,
+        ]);
+
+        $token = str_repeat('a', 64);
+        \Illuminate\Support\Facades\DB::table('password_resets')->insert([
+            'email' => 'reset@hotelhub.com',
+            'token' => $token,
+            'expires_at' => now()->addHour(),
+            'created_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/reset-password', [
+            'token' => $token,
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ]);
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'message' => 'Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.'
+                 ]);
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('newpassword123', $user->password));
+
+        // Token doit être supprimé après usage
+        $this->assertDatabaseMissing('password_resets', [
+            'token' => $token
+        ]);
+    }
+
+    public function test_reset_password_fails_with_invalid_token(): void
+    {
+        $response = $this->postJson('/api/reset-password', [
+            'token' => str_repeat('b', 64),
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ]);
+
+        $response->assertStatus(400)
+                 ->assertJson([
+                     'error' => 'Token invalide ou déjà utilisé',
+                     'code' => 400
+                 ]);
+    }
 }
