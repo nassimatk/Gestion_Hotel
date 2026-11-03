@@ -9,3 +9,8 @@ export const login = async (data) => {
 };
 export const logout = () => localStorage.removeItem("token");
 export const me = () => http.get("/me");
+
+export const forgotPassword = (email) => http.post("/forgot-password", { email });
+export const resetPassword = (data) => http.post("/reset-password", data);
+export const validateResetToken = (token) => http.get(`/reset-password/validate/${token}`);
+export const changePasswordDirect = (data) => http.post("/change-password-direct", data);
