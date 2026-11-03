@@ -169,7 +169,7 @@ export default function ReservationPage() {
                   <div className="reservation__action">
                     {prix != null && (
                       <span className="reservation__price">
-                        {prix} €<small> / nuit</small>
+                        {prix} {c.devise ?? "MAD"}<small> / nuit</small>
                       </span>
                     )}
                     <button
