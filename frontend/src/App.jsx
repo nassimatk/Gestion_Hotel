@@ -1,7 +1,12 @@
 import { Routes, Route, useLocation } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import HomePage from "./pages/client/HomePage";
+import LoginPage from "./pages/client/LoginPage";
+import RegisterPage from "./pages/client/RegisterPage";
+import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/client/ResetPasswordPage";
 
 // Modules Administration
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -11,9 +16,14 @@ import AdminAvisPage from "./pages/admin/avis/AdminAvisPage";
 import AdminTarifsPage from "./pages/admin/tarifs/AdminTarifsPage";
 import AdminDisponibilitesPage from "./pages/admin/disponibilites/AdminDisponibilitesPage";
 
-export default function App() {
+function AppContent() {
   const { pathname } = useLocation();
   const isAdmin = pathname.startsWith("/admin");
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password";
 
   // Affichage du Dashboard Admin avec sa propre Sidebar (sans Navbar client ni Footer)
   if (isAdmin) {
@@ -30,18 +40,37 @@ export default function App() {
     );
   }
 
+  // Pages d'authentification (sans Navbar ni Footer)
+  if (isAuthPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+      </Routes>
+    );
+  }
+
   // Affichage du site client public
   return (
     <>
       <Navbar />
-
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          {/* pages/client/* à enrichir ici au fil du développement */}
         </Routes>
       </main>
-
       <Footer />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
