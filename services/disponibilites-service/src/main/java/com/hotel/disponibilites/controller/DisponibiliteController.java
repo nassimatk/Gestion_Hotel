@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.hotel.disponibilites.client.TarifsClient;
 
 import java.time.LocalDate;
 
@@ -17,9 +18,11 @@ import java.time.LocalDate;
 public class DisponibiliteController {
 
     private final DisponibiliteService disponibiliteService;
+    private final TarifsClient tarifsClient;
 
-    public DisponibiliteController(DisponibiliteService disponibiliteService) {
+    public DisponibiliteController(DisponibiliteService disponibiliteService , TarifsClient tarifsClient) {
         this.disponibiliteService = disponibiliteService;
+        this.tarifsClient = tarifsClient;
     }
 
     @GetMapping("/chambres/{id}")
@@ -29,7 +32,11 @@ public class DisponibiliteController {
             @RequestParam("date_fin") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin) {
 
         boolean libre = disponibiliteService.estLibre(id, dateDebut, dateFin);
-        return new DisponibiliteResponse(id, libre, dateDebut, dateFin);
+        Double prix = null;
+        if (libre){
+            prix = tarifsClient.obtenirPrix(id, dateDebut, dateFin);
+        }
+        return new DisponibiliteResponse(id, libre, dateDebut, dateFin,prix);
     }
     @GetMapping
     public ChambresOccupeesResponse occupees(
