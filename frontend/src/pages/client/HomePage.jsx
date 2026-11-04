@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
 
 /* ── Données statiques (remplacées par API plus tard) ── */
@@ -71,7 +73,7 @@ const FEATURES = [
   },
 ];
 
-/* ── Icône d'aménitié ── */
+/* ── Icône aménitié ── */
 function AmenityIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -115,36 +117,39 @@ function RoomCard({ room }) {
 
 /* ── Page principale ── */
 export default function HomePage() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <>
-      {/* ══ HERO ══════════════════════════════════════════════ */}
+      {/* HERO */}
       <section className="hero">
         <div className="hero__bg" />
         <div className="hero__overlay" />
         <div className="hero__content">
           <div className="hero__badge">
-            Hôtellerie d'exception &amp; séjours sur-mesure
+            Hôtellerie d&apos;exception &amp; séjours sur-mesure
           </div>
           <h1 className="hero__title">
             Votre prochaine expérience<br />commence ici
           </h1>
           <p className="hero__subtitle">
-            Découvrez des hébergements d'exception soigneusement sélectionnés
-            pour vos séjours d'affaires et de loisirs.
+            Découvrez des hébergements d&apos;exception soigneusement sélectionnés
+            pour vos séjours d&apos;affaires et de loisirs.
           </p>
           <div className="hero__cta">
             <a href="/chambres" className="btn-outline">
               Découvrir nos chambres →
             </a>
-            <button className="btn-gold">Créer un compte</button>
+            {!isAuthenticated && (
+              <Link to="/register" className="btn-gold">Créer un compte</Link>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ══ BARRE DE RECHERCHE ════════════════════════════════ */}
+      {/* BARRE DE RECHERCHE */}
       <div className="search-bar-wrapper">
         <div className="search-bar">
-          {/* Destination */}
           <div className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -159,7 +164,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Arrivée */}
           <div className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -171,12 +175,11 @@ export default function HomePage() {
               </svg>
             </span>
             <div className="search-bar__info">
-              <span className="search-bar__label">Date d'arrivée</span>
+              <span className="search-bar__label">{"Date d'arrivée"}</span>
               <span className="search-bar__value">18 Juin 2025</span>
             </div>
           </div>
 
-          {/* Départ */}
           <div className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -193,7 +196,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Voyageurs */}
           <div className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -210,7 +212,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Bouton */}
           <button className="search-bar__btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -222,7 +223,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ══ CHAMBRES ══════════════════════════════════════════ */}
+      {/* CHAMBRES */}
       <section className="rooms-section">
         <div className="rooms-section__header">
           <div className="rooms-section__header-left">
@@ -237,7 +238,6 @@ export default function HomePage() {
             <button className="filter-btn active">Toutes</button>
           </div>
         </div>
-
         <div className="rooms-grid">
           {ROOMS.map((room) => (
             <RoomCard key={room.id} room={room} />
@@ -245,7 +245,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ FEATURES ══════════════════════════════════════════ */}
+      {/* FEATURES */}
       <section className="features-section">
         <div className="features-section__header">
           <span className="badge">Excellence &amp; Sérénité</span>
@@ -266,21 +266,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ CTA ═══════════════════════════════════════════════ */}
+      {/* CTA */}
       <section className="cta-section">
         <div className="cta-section__left">
           <span className="cta-section__badge">Expérience Membre Exclusif</span>
           <h2 className="cta-section__title">
-            Prêt à planifier votre prochain<br />séjour d'exception ?
+            Prêt à planifier votre prochain<br />séjour d&apos;exception ?
           </h2>
           <p className="cta-section__subtitle">
             Rejoignez le cercle privilégié HotelHub et bénéficiez de surclassements
-            prioritaires, de cocktails de bienvenue et d'attentions exclusives.
+            prioritaires, de cocktails de bienvenue et d&apos;attentions exclusives.
           </p>
         </div>
-        <button className="cta-section__btn">
-          Rejoindre HotelHub →
-        </button>
+        {!isAuthenticated ? (
+          <Link to="/register" className="cta-section__btn">
+            Rejoindre HotelHub →
+          </Link>
+        ) : (
+          <Link to="/chambres" className="cta-section__btn">
+            Voir nos chambres →
+          </Link>
+        )}
       </section>
     </>
   );
