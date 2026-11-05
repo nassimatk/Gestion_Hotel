@@ -1,0 +1,10 @@
+.mes__badge--annulee {
+  background: #eceff2;
+  color: #5b6672;
+}
+
+.reservation__book.mes__cancel {
+  background: #fff;
+  color: #a12a1f;
+  border: 1px solid #a12a1f;
+}
