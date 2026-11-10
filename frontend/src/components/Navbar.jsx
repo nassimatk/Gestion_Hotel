@@ -6,11 +6,14 @@ export default function Navbar() {
   const { pathname } = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
 
+  const isAdmin = user?.role === "admin" || user?.role?.name === "admin";
+
   const links = [
     { to: "/", label: "Accueil" },
     { to: "/chambres", label: "Chambres" },
     { to: "/apropos", label: "À propos" },
     { to: "/contact", label: "Contact" },
+    ...(isAdmin ? [{ to: "/admin", label: "Dashboard" }] : []),
   ];
 
   return (
@@ -51,7 +54,7 @@ export default function Navbar() {
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span style={{ fontSize: "13.5px", fontWeight: "500", color: "var(--color-dark)" }}>
               Bonjour, <strong>{user?.name?.split(" ")[0]}</strong>
-              {user?.role === "admin" && (
+              {isAdmin && (
                 <span style={{
                   marginLeft: "6px",
                   fontSize: "10px",

@@ -1,38 +1,49 @@
 import { useState, useEffect } from "react";
 import { createChambre, updateChambre } from "../../../services/chambresApi";
+import "./AdminChambres.css";
 
 export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
   const isEditing = Boolean(chambre);
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const [formData, setFormData] = useState({
-    numero_etage: 1,
-    nom: "",
+    numero: "",
+    type: "simple",
+    capacite: 2,
+    prix_nuit: 750,
+    etage: 1,
+    superficie: 30,
+    vue: "Mer",
+    statut: "disponible",
     description: "",
-    capacite_max: 2,
-    nombre_lits: 1,
-    type_lits: "King Size",
-    surface: 35,
-    prix_nuit: 1200,
-    devise: "MAD",
-    statut: "active",
+    equipementsText: "Wi-Fi, Climatisation, TV, Coffre-fort",
+    imageUrl: "",
   });
 
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-
+  // Pré-remplir en mode édition
   useEffect(() => {
     if (chambre) {
+      const eqList = Array.isArray(chambre.equipements)
+        ? chambre.equipements.join(", ")
+        : chambre.equipements || "";
+      const imgFirst = Array.isArray(chambre.images) && chambre.images.length > 0
+        ? chambre.images[0]
+        : "";
+
       setFormData({
-        numero_etage: chambre.numero_etage || 1,
-        nom: chambre.nom || "",
+        numero: chambre.numero || "",
+        type: chambre.type || "simple",
+        capacite: chambre.capacite || 2,
+        prix_nuit: chambre.prix_nuit || 750,
+        etage: chambre.etage !== undefined && chambre.etage !== null ? chambre.etage : 1,
+        superficie: chambre.superficie || 30,
+        vue: chambre.vue || "Mer",
+        statut: chambre.statut || "disponible",
         description: chambre.description || "",
-        capacite_max: chambre.capacite_max || 2,
-        nombre_lits: chambre.nombre_lits || 1,
-        type_lits: chambre.type_lits || "King Size",
-        surface: chambre.surface || 35,
-        prix_nuit: chambre.prix_nuit || 1200,
-        devise: chambre.devise || "MAD",
-        statut: chambre.statut || "active",
+        equipementsText: eqList,
+        imageUrl: imgFirst,
       });
     }
   }, [chambre]);
@@ -47,153 +58,237 @@ export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
-    setErrorMsg("");
+    setError("");
+
+    if (!formData.numero) {
+      setError("Le numéro de chambre est obligatoire.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
+      // Préparation du payload conforme à la base de données de chambres-service
+      const payload = {
+        numero: String(formData.numero).trim(),
+        type: formData.type,
+        capacite: Number(formData.capacite),
+        prix_nuit: Number(formData.prix_nuit),
+        etage: Number(formData.etage),
+        superficie: Number(formData.superficie),
+        vue: formData.vue,
+        statut: formData.statut,
+        description: formData.description,
+        equipements: formData.equipementsText
+          ? formData.equipementsText.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        images: formData.imageUrl ? [formData.imageUrl.trim()] : [],
+      };
+
       if (isEditing) {
-        await updateChambre(chambre.id, formData);
+        await updateChambre(chambre.id, payload);
       } else {
-        await createChambre(formData);
+        await createChambre(payload);
       }
+
       onSuccess();
     } catch (err) {
-      setErrorMsg(err.message || "Erreur lors de l'enregistrement de la chambre.");
+      setError(err.message || "Erreur lors de l'enregistrement de la chambre.");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="admin-modal-backdrop" onClick={onClose}>
-      <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+    <div className="admin-modal-overlay" onClick={onClose}>
+      <div className="admin-modal-box" onClick={(e) => e.stopPropagation()}>
+        {/* En-tête de la modale */}
         <div className="admin-modal-header">
-          <h3 className="admin-modal-title">
-            {isEditing ? `Modifier la Chambre #${chambre.id}` : "Ajouter une Nouvelle Chambre"}
-          </h3>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
+          <div>
+            <h2 className="admin-modal-title">
+              {isEditing ? `Modifier la Chambre N° ${chambre.numero}` : "Ajouter une Nouvelle Chambre"}
+            </h2>
+            <p className="admin-modal-subtitle">
+              Renseignez les spécifications techniques et tarifaires (en dirhams MAD).
+            </p>
+          </div>
+          <button type="button" className="admin-modal-close" onClick={onClose}>
+            ✕
+          </button>
         </div>
 
-        {errorMsg && (
-          <div className="admin-chambres__alert admin-chambres__alert--error" style={{ margin: "16px 24px 0" }}>
-            <span>⚠️ {errorMsg}</span>
+        {error && (
+          <div className="admin-modal-error">
+            <span>⚠️ {error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="admin-modal-form">
+          {/* Ligne 1 : Numéro & Type */}
           <div className="admin-modal-row">
-            <div className="admin-modal-field">
-              <label>Nom de la chambre *</label>
+            <div className="admin-form-group">
+              <label className="admin-form-label">Numéro de chambre *</label>
               <input
                 type="text"
-                name="nom"
-                required
-                value={formData.nom}
+                name="numero"
+                className="admin-form-input"
+                placeholder="Ex: 101, 204, 501"
+                value={formData.numero}
                 onChange={handleChange}
-                placeholder="Ex. Suite Royale Atlas"
+                required
               />
             </div>
-            <div className="admin-modal-field" style={{ maxWidth: "120px" }}>
-              <label>Étage *</label>
-              <input
-                type="number"
-                name="numero_etage"
-                min="0"
-                required
-                value={formData.numero_etage}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
 
-          <div className="admin-modal-field">
-            <label>Description</label>
-            <textarea
-              name="description"
-              rows="3"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Description de la vue, des équipements de luxe, etc."
-            />
-          </div>
-
-          <div className="admin-modal-grid3">
-            <div className="admin-modal-field">
-              <label>Capacité max (pers.) *</label>
-              <input
-                type="number"
-                name="capacite_max"
-                min="1"
-                required
-                value={formData.capacite_max}
+            <div className="admin-form-group">
+              <label className="admin-form-label">Type de chambre *</label>
+              <select
+                name="type"
+                className="admin-form-select"
+                value={formData.type}
                 onChange={handleChange}
-              />
-            </div>
-            <div className="admin-modal-field">
-              <label>Nb. de lits *</label>
-              <input
-                type="number"
-                name="nombre_lits"
-                min="1"
                 required
-                value={formData.nombre_lits}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="admin-modal-field">
-              <label>Type de lits *</label>
-              <select name="type_lits" value={formData.type_lits} onChange={handleChange}>
-                <option value="King Size">King Size</option>
-                <option value="Queen Size">Queen Size</option>
-                <option value="2 Lits Simples">2 Lits Simples</option>
-                <option value="Lit Double">Lit Double</option>
+              >
+                <option value="simple">Simple</option>
+                <option value="double">Double</option>
+                <option value="suite">Suite</option>
+                <option value="presidentielle">Présidentielle</option>
               </select>
             </div>
           </div>
 
-          <div className="admin-modal-grid3">
-            <div className="admin-modal-field">
-              <label>Surface (m²) *</label>
+          {/* Ligne 2 : Prix en MAD & Capacité */}
+          <div className="admin-modal-row">
+            <div className="admin-form-group">
+              <label className="admin-form-label">Prix / Nuit (MAD) *</label>
               <input
                 type="number"
-                step="0.1"
-                min="1"
-                name="surface"
-                required
-                value={formData.surface}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="admin-modal-field">
-              <label>Prix par nuit *</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
                 name="prix_nuit"
-                required
+                className="admin-form-input"
+                min="0"
+                step="10"
                 value={formData.prix_nuit}
                 onChange={handleChange}
+                required
               />
             </div>
-            <div className="admin-modal-field">
-              <label>Devise</label>
+
+            <div className="admin-form-group">
+              <label className="admin-form-label">Capacité (personnes) *</label>
               <input
-                type="text"
-                name="devise"
-                readOnly
-                value={formData.devise}
-                style={{ backgroundColor: "#f1f5f9" }}
+                type="number"
+                name="capacite"
+                className="admin-form-input"
+                min="1"
+                max="10"
+                value={formData.capacite}
+                onChange={handleChange}
+                required
               />
             </div>
           </div>
 
-          <div className="admin-modal-footer">
-            <button type="button" className="admin-chambres__btn-secondary" onClick={onClose} disabled={submitting}>
+          {/* Ligne 3 : Étage, Superficie & Vue */}
+          <div className="admin-modal-row three-cols">
+            <div className="admin-form-group">
+              <label className="admin-form-label">Étage</label>
+              <input
+                type="number"
+                name="etage"
+                className="admin-form-input"
+                min="0"
+                max="20"
+                value={formData.etage}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="admin-form-group">
+              <label className="admin-form-label">Superficie (m²)</label>
+              <input
+                type="number"
+                name="superficie"
+                className="admin-form-input"
+                min="10"
+                max="500"
+                value={formData.superficie}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="admin-form-group">
+              <label className="admin-form-label">Vue</label>
+              <input
+                type="text"
+                name="vue"
+                className="admin-form-input"
+                placeholder="Mer, Jardin, Piscine..."
+                value={formData.vue}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          {/* Ligne 4 : Statut */}
+          <div className="admin-form-group">
+            <label className="admin-form-label">Statut d'occupation *</label>
+            <select
+              name="statut"
+              className="admin-form-select"
+              value={formData.statut}
+              onChange={handleChange}
+            >
+              <option value="disponible">Disponible</option>
+              <option value="occupee">Occupée</option>
+              <option value="maintenance">En Maintenance</option>
+            </select>
+          </div>
+
+          {/* Ligne 5 : URL de la photo principale */}
+          <div className="admin-form-group">
+            <label className="admin-form-label">URL de l'image</label>
+            <input
+              type="url"
+              name="imageUrl"
+              className="admin-form-input"
+              placeholder="https://images.unsplash.com/photo-..."
+              value={formData.imageUrl}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Ligne 6 : Équipements */}
+          <div className="admin-form-group">
+            <label className="admin-form-label">Équipements (séparés par des virgules)</label>
+            <input
+              type="text"
+              name="equipementsText"
+              className="admin-form-input"
+              placeholder="Wi-Fi, Climatisation, Mini-bar, Jacuzzi..."
+              value={formData.equipementsText}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Ligne 7 : Description */}
+          <div className="admin-form-group">
+            <label className="admin-form-label">Description détaillée</label>
+            <textarea
+              name="description"
+              className="admin-form-textarea"
+              rows="3"
+              placeholder="Description raffinée de la chambre pour la clientèle..."
+              value={formData.description}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Boutons d'action */}
+          <div className="admin-modal-actions">
+            <button type="button" className="admin-btn-cancel" onClick={onClose} disabled={loading}>
               Annuler
             </button>
-            <button type="submit" className="admin-chambres__btn-add" disabled={submitting}>
-              {submitting ? "Enregistrement..." : isEditing ? "Enregistrer les modifications" : "Créer la chambre"}
+            <button type="submit" className="admin-btn-save" disabled={loading}>
+              {loading ? "Enregistrement..." : isEditing ? "Mettre à jour" : "Créer la chambre"}
             </button>
           </div>
         </form>

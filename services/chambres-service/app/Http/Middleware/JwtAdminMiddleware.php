@@ -13,9 +13,10 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * JwtAdminMiddleware
  *
- * Valide le Bearer token JWT ET vérifie que le rôle est 'admin'.
+ * Valide le Bearer token JWT ET vérifie que le rôle est 'admin'
+ * ou que l'utilisateur possède la permission 'chambres.write'.
  * Retourne 401 si token absent/invalide/expiré.
- * Retourne 403 si l'utilisateur n'est pas admin.
+ * Retourne 403 si l'utilisateur n'est pas autorisé.
  */
 class JwtAdminMiddleware
 {
@@ -57,9 +58,14 @@ class JwtAdminMiddleware
             ], 401);
         }
 
-        // Vérification du rôle admin
+        // Vérification du rôle admin ou de la permission 'chambres.write'
         $role = $payload->role ?? null;
-        if ($role !== 'admin') {
+        $permissions = isset($payload->permissions) ? (array) $payload->permissions : [];
+
+        $isAdmin = ($role === 'admin');
+        $hasPermission = in_array('chambres.write', $permissions);
+
+        if (!$isAdmin && !$hasPermission) {
             return response()->json([
                 'error' => 'Accès réservé aux administrateurs.',
                 'code'  => 403,

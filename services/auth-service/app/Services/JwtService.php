@@ -21,14 +21,19 @@ class JwtService
     }
 
     /**
-     * Génère un token JWT HS256 avec sub, role, iat, exp, iss
+     * Génère un token JWT HS256 avec sub, role, permissions, iat, exp, iss
      */
     public function generateToken(User $user, int $expiresIn = 3600): array
     {
-        $user->loadMissing('role');
+        $user->loadMissing('role.permissions');
 
         $issuedAt = time();
         $expire = $issuedAt + $expiresIn;
+
+        $permissions = [];
+        if ($user->role && $user->role->permissions) {
+            $permissions = $user->role->permissions->pluck('name')->values()->toArray();
+        }
 
         $payload = [
             'iss' => 'hotelhub-auth-service',
@@ -36,6 +41,7 @@ class JwtService
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role ? $user->role->name : 'client',
+            'permissions' => $permissions,
             'iat' => $issuedAt,
             'exp' => $expire,
         ];

@@ -1,13 +1,22 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { login as apiLogin, register as apiRegister, logout as apiLogout, me as apiMe } from "../services/authApi";
 
 const AuthContext = createContext(null);
 
+/**
+ * Vérifie si un objet utilisateur a le rôle "admin".
+ * Compatible avec { role: "admin" } et { role: { name: "admin" } }
+ */
+function checkIsAdmin(user) {
+  if (!user) return false;
+  return user.role === "admin" || user?.role?.name === "admin";
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Charger le profil de l'utilisateur si un token existe
+  // ── Chargement initial : rehydrater depuis le token localStorage ──────────
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -20,7 +29,7 @@ export function AuthProvider({ children }) {
         setUser(res.data);
       })
       .catch(() => {
-        // Token invalide ou expiré
+        // Token invalide ou expiré → nettoyage
         localStorage.removeItem("token");
         setUser(null);
       })
@@ -29,28 +38,40 @@ export function AuthProvider({ children }) {
       });
   }, []);
 
-  const login = async (email, password) => {
+  // ── login ─────────────────────────────────────────────────────────────────
+  const login = useCallback(async (email, password) => {
     const res = await apiLogin({ email, password });
-    // Récupérer les informations de l'utilisateur connecté
+    // Récupérer le profil complet (incluant le rôle)
     const meRes = await apiMe();
     setUser(meRes.data);
-    return res;
-  };
+    return meRes.data;          // ← retourne l'utilisateur (avec son rôle)
+  }, []);
 
-  const register = async (name, email, password) => {
+  // ── register ──────────────────────────────────────────────────────────────
+  const register = useCallback(async (name, email, password) => {
     const res = await apiRegister({ name, email, password });
     // Auto-login après inscription
-    await login(email, password);
-    return res;
-  };
+    return await login(email, password);
+  }, [login]);
 
-  const logout = () => {
+  // ── logout ────────────────────────────────────────────────────────────────
+  const logout = useCallback(() => {
     apiLogout();
     setUser(null);
-  };
+  }, []);
+
+  const isAdmin = checkIsAdmin(user);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      register,
+      logout,
+      isAuthenticated: !!user,
+      isAdmin,
+    }}>
       {children}
     </AuthContext.Provider>
   );

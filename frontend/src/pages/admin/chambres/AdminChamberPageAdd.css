@@ -1,0 +1,540 @@
+/* =========================================================
+   STYLE GENERAL ET MISE EN PAGE PRESTIGE
+   ========================================================= */
+
+.chamber-page {
+  padding: 32px 36px 60px;
+  background-color: #faf9f5;
+  min-height: 100vh;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1f2937;
+}
+
+.chamber-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* =========================================================
+   FIL D'ARIANE (BREADCRUMB) & EN-TÊTE
+   ========================================================= */
+
+.chamber-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 14px;
+}
+
+.chamber-breadcrumb a {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.chamber-breadcrumb a:hover {
+  color: #111827;
+}
+
+.chamber-breadcrumb strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.chamber-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.chamber-title-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.chamber-title-line h1 {
+  font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', serif;
+  font-size: 34px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.new-room-badge {
+  background-color: #f7edd7;
+  color: #926b1c;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  letter-spacing: 0.3px;
+}
+
+.chamber-header p {
+  font-size: 14px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+.chamber-status {
+  background-color: #f5f2e9;
+  border: 1px solid #e5dec9;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  color: #4b5563;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #d97706;
+  border-radius: 50%;
+}
+
+.status-divider {
+  color: #9ca3af;
+}
+
+/* =========================================================
+   FORMULAIRE GRILLE 2 COLONNES
+   ========================================================= */
+
+.chamber-form-card {
+  display: grid;
+  grid-template-columns: 410px 1fr;
+  gap: 36px;
+  background-color: #ffffff;
+  padding: 36px;
+  border-radius: 16px;
+  border: 1px solid #e7e2d4;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.03);
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
+}
+
+.section-heading h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.section-heading span {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* =========================================================
+   COLONNE GAUCHE (PHOTOGRAPHIE PRINCIPALE)
+   ========================================================= */
+
+.photo-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Aperçu image avec tag overlay */
+.photo-preview-wrapper {
+  position: relative;
+  border: 1px solid #e5dec9;
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: #fbfaf7;
+}
+
+.photo-preview-img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-preview-tag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(17, 24, 39, 0.85);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.photo-preview-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  border-top: 1px solid #f0eae1;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Zone Drag & Drop */
+.upload-dropzone {
+  border: 2px dashed #dcd4c0;
+  background-color: #fdfcf9;
+  border-radius: 14px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.upload-dropzone:hover {
+  border-color: #bfa15f;
+  background-color: #f9f6ed;
+}
+
+.upload-dropzone-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #fbf8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  color: #a17822;
+}
+
+.upload-dropzone strong {
+  font-size: 13.5px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.upload-dropzone small {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.upload-btn-choose {
+  margin-top: 12px;
+  padding: 8px 18px;
+  background-color: #ffffff;
+  border: 1px solid #d5cbaf;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Consignes sous upload */
+.photo-guidelines-box {
+  background-color: #fcfbf7;
+  border: 1px solid #ede7d8;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.photo-guideline-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-guideline-item.success {
+  color: #059669;
+  font-weight: 500;
+}
+
+/* =========================================================
+   COLONNE DROITE (CARACTÉRISTIQUES ARCHITECTURALES & TARIFS)
+   ========================================================= */
+
+.details-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group-block {
+  margin-bottom: 22px;
+}
+
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+
+.form-label-row label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.form-label-row .label-tag {
+  font-size: 11.5px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.form-input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-input-with-icon .input-prefix-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.form-input-with-icon .input-suffix-icon {
+  position: absolute;
+  right: 14px;
+  color: #059669;
+  display: flex;
+  align-items: center;
+}
+
+.form-input-with-icon .input-suffix-unit {
+  position: absolute;
+  right: 14px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.form-input-field {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #d5cbaf;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.form-input-field.has-prefix {
+  padding-left: 42px;
+}
+
+.form-input-field.has-suffix {
+  padding-right: 42px;
+}
+
+.form-input-field:focus {
+  border-color: #a88438;
+  box-shadow: 0 0 0 3px rgba(168, 132, 56, 0.12);
+}
+
+.form-helper-text {
+  font-size: 12px;
+  color: #059669;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.form-helper-muted {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 6px;
+}
+
+.form-textarea-field {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d5cbaf;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #111827;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.form-textarea-field:focus {
+  border-color: #a88438;
+  box-shadow: 0 0 0 3px rgba(168, 132, 56, 0.12);
+}
+
+/* Grilles multi-colonnes */
+.grid-3-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.grid-2-cols {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.grid-2-cols-equal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+/* Carte Récapitulative Tarifaire calculée */
+.pricing-recap-box {
+  background-color: #f7f4ec;
+  border: 1px solid #e5dec9;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  margin-bottom: 24px;
+}
+
+.pricing-recap-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pricing-recap-icon {
+  color: #a17822;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+.pricing-recap-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.pricing-recap-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.pricing-recap-total {
+  text-align: right;
+}
+
+.pricing-recap-number {
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.pricing-recap-devise {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* Barre d'action finale */
+.chamber-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid #f0eae1;
+}
+
+.btn-form-cancel {
+  background-color: #ffffff;
+  border: 1px solid #d5cbaf;
+  color: #4b5563;
+  padding: 11px 22px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-form-cancel:hover {
+  background-color: #fbf9f2;
+  color: #111827;
+}
+
+.btn-form-submit {
+  background-color: #0f1d2d;
+  color: #ffffff;
+  border: none;
+  padding: 11px 26px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(15, 29, 45, 0.15);
+}
+
+.btn-form-submit:hover:not(:disabled) {
+  background-color: #1b2f46;
+  transform: translateY(-1px);
+}
+
+.btn-form-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 950px) {
+  .chamber-form-card {
+    grid-template-columns: 1fr;
+  }
+}

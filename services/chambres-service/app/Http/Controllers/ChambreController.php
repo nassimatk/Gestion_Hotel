@@ -100,6 +100,7 @@ class ChambreController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'nom'          => 'nullable|string|max:150',
             'numero'       => 'required|string|max:10|unique:chambres,numero',
             'type'         => 'required|in:simple,double,suite,presidentielle',
             'capacite'     => 'required|integer|min:1|max:10',
@@ -142,6 +143,7 @@ class ChambreController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'nom'          => 'nullable|string|max:150',
             'numero'       => 'sometimes|string|max:10|unique:chambres,numero,' . $id,
             'type'         => 'sometimes|in:simple,double,suite,presidentielle',
             'capacite'     => 'sometimes|integer|min:1|max:10',

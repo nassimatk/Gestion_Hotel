@@ -22,6 +22,7 @@ class Chambre extends Model
      * Attributs assignables en masse (Mass Assignment Protection).
      */
     protected $fillable = [
+        'nom',
         'numero',
         'type',
         'capacite',

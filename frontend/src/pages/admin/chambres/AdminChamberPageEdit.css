@@ -1,0 +1,587 @@
+/* =========================================================
+   STYLE PAGE DE MODIFICATION DE CHAMBRE - HOTELHUB PRESTIGE
+   ========================================================= */
+
+.edit-chamber-page {
+  padding: 30px 40px 100px;
+  background-color: #faf9f5;
+  min-height: 100vh;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1f2937;
+}
+
+.edit-chamber-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* =========================================================
+   FIL D'ARIANE & EN-TÊTE
+   ========================================================= */
+
+.edit-chamber-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 14px;
+}
+
+.edit-chamber-nav a {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.edit-chamber-nav a:hover {
+  color: #111827;
+}
+
+.edit-chamber-nav span.separator {
+  color: #9ca3af;
+}
+
+.edit-chamber-nav strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* En-tête principal */
+.edit-chamber-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.edit-chamber-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-chamber-title-row h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.4px;
+}
+
+.edit-status-pill {
+  padding: 4px 12px;
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edit-status-pill.occupee {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border-color: #e5e7eb;
+}
+
+.edit-status-pill.maintenance {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.edit-status-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.edit-chamber-sub {
+  font-size: 14px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+.edit-chamber-sub strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Badge ID & Synchro à droite */
+.edit-chamber-meta-box {
+  background-color: #f5f2e9;
+  border: 1px solid #e2dac7;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-chamber-meta-box strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.meta-divider {
+  color: #d1c7b2;
+}
+
+/* =========================================
+   BANNIÈRE SYNCHRONISATION EN TEMPS RÉEL
+   ========================================= */
+
+.sync-banner {
+  background-color: #ffffff;
+  border: 1px solid #e7dfce;
+  border-left: 4px solid #b38e44;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.sync-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sync-banner-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: #fbf7ee;
+  border: 1px solid #ecdcb8;
+  color: #926b1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.sync-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.sync-banner-sub {
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.sync-badge-pill {
+  padding: 4px 12px;
+  background-color: #fcf6e8;
+  border: 1px solid #eed6a6;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8c6314;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* =========================================
+   BLOCS DE CONTENU ÉLÉGANTS (CARTES BLANCHES)
+   ========================================= */
+
+.edit-card-block {
+  background: #ffffff;
+  border: 1px solid #e7e2d4;
+  border-radius: 14px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.025);
+}
+
+.edit-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 20px;
+}
+
+.edit-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.edit-card-title-icon {
+  font-size: 16px;
+  color: #926b1c;
+}
+
+.edit-card-meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* =========================================
+   SECTION PHOTOGRAPHIE & ACTIONS
+   ========================================= */
+
+.photo-management-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 28px;
+  align-items: center;
+}
+
+.photo-preview-large {
+  position: relative;
+  height: 250px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5dec9;
+  background-color: #fbfaf7;
+}
+
+.photo-preview-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-preview-overlay-tag {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(15, 29, 45, 0.85) 100%);
+  padding: 20px 14px 10px;
+  border-radius: 0 0 12px 12px;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.photo-tag-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.photo-actions-panel {
+  background-color: #fdfcf9;
+  border: 1px solid #f1ece1;
+  border-radius: 12px;
+  padding: 22px;
+}
+
+.photo-actions-panel h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.photo-actions-panel p {
+  font-size: 12.5px;
+  color: #6b7280;
+  line-height: 1.45;
+  margin: 0 0 18px;
+}
+
+.photo-btn-replace {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  border: 1px solid #d5cbaf;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.photo-btn-replace:hover {
+  background-color: #f7f4ec;
+  border-color: #bfa15f;
+  color: #111827;
+}
+
+.photo-btn-delete {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.photo-btn-delete:hover {
+  background-color: #fef2f2;
+}
+
+.photo-spec-note {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* =========================================
+   FORMULAIRES & CHAMPS
+   ========================================= */
+
+.edit-form-field {
+  margin-bottom: 20px;
+}
+
+.edit-form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+
+.edit-form-label-row label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.edit-form-label-row .field-count {
+  font-size: 11.5px;
+  color: #9ca3af;
+}
+
+.edit-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.edit-input-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.edit-input-success-icon {
+  position: absolute;
+  right: 14px;
+  color: #059669;
+  display: flex;
+  align-items: center;
+}
+
+.edit-input-unit {
+  position: absolute;
+  right: 14px;
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.edit-input-control {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #dcd5c4;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.edit-input-control.has-icon {
+  padding-left: 42px;
+}
+
+.edit-input-control:focus {
+  border-color: #a88438;
+  box-shadow: 0 0 0 3px rgba(168, 132, 56, 0.12);
+}
+
+.edit-input-control.price-bold {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.edit-textarea-control {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #dcd5c4;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #111827;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.edit-textarea-control:focus {
+  border-color: #a88438;
+  box-shadow: 0 0 0 3px rgba(168, 132, 56, 0.12);
+}
+
+.edit-field-subtext {
+  font-size: 11.5px;
+  color: #9ca3af;
+  margin-top: 5px;
+}
+
+/* Grilles */
+.edit-grid-4-cols {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.edit-grid-3-cols {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1.2fr;
+  gap: 16px;
+}
+
+/* =========================================
+   BARRE FLOTTANTE D'ENREGISTREMENT EN BAS
+   ========================================= */
+
+.floating-action-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  border: 1px solid #e2dac7;
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  z-index: 99;
+}
+
+.floating-btn-cancel {
+  background-color: #ffffff;
+  border: 1px solid #dcd5c4;
+  color: #4b5563;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.floating-btn-cancel:hover {
+  background-color: #f7f4ec;
+  color: #111827;
+}
+
+.floating-btn-preview {
+  background-color: #fbf8f0;
+  border: 1px solid #e5dec9;
+  color: #8c6314;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.floating-btn-preview:hover {
+  background-color: #f7edd7;
+}
+
+.floating-btn-save {
+  background-color: #0f1d2d;
+  color: #ffffff;
+  border: none;
+  padding: 9px 22px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.floating-btn-save:hover:not(:disabled) {
+  background-color: #1b2f46;
+}
+
+.floating-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.save-dot-status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .photo-management-grid {
+    grid-template-columns: 1fr;
+  }
+  .edit-grid-4-cols,
+  .edit-grid-3-cols {
+    grid-template-columns: 1fr;
+  }
+}
