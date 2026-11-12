@@ -7,7 +7,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
-
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import java.time.Duration;
 @Component
 public class ChambreClient {
 
@@ -16,8 +17,10 @@ public class ChambreClient {
 
     public ChambreClient(@Value("${chambres.service.url}") String baseUrl,
                          @Value("${chambres.mock}") boolean mock) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
-        this.mock = mock;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(2));
+        factory.setReadTimeout(Duration.ofSeconds(3));
+        this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();        this.mock = mock;
     }
 
     public boolean existe(Long chambreId) {

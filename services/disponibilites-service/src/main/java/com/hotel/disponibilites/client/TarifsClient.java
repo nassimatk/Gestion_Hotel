@@ -1,10 +1,12 @@
 package com.hotel.disponibilites.client;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.Duration;
 import java.time.LocalDate;
 
 @Component
@@ -15,8 +17,10 @@ public class TarifsClient {
 
     public TarifsClient(@Value("${tarifs.service.url}") String baseUrl,
                         @Value("${tarifs.mock}") boolean mock) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
-        this.mock = mock;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(2));
+        factory.setReadTimeout(Duration.ofSeconds(3));
+        this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();        this.mock = mock;
     }
 
     public Double obtenirPrix(Long chambreId, LocalDate dateDebut, LocalDate dateFin) {
