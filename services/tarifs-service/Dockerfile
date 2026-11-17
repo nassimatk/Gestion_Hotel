@@ -20,4 +20,4 @@ ENV DB_CONNECTION=pgsql \
     APP_DEBUG=false
 
 EXPOSE 8000
-CMD ["sh", "-c", "php artisan key:generate --force && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+CMD ["sh", "-c", "php artisan key:generate --force && php artisan migrate --force && php -S 0.0.0.0:8000 -t public"]
