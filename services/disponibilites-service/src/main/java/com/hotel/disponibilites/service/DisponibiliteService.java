@@ -35,8 +35,26 @@ public class DisponibiliteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "chambre_id, date_debut et date_fin sont obligatoires");
         }
+        if (req.nombrePersonnes() == null || req.nombrePersonnes() < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "nombre_personnes doit etre au moins 1");
+        }
+        if (req.telephone() == null || req.telephone().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le telephone est obligatoire");
+        }
+        if (!req.dateFin().isAfter(req.dateDebut())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "date_fin doit etre apres date_debut");
+        }
 
-        verifierPeriodeEtChambre(req.chambreId(), req.dateDebut(), req.dateFin());
+        Integer capaciteMax = chambreClient.getCapacite(req.chambreId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chambre introuvable"));
+
+        if (req.nombrePersonnes() > capaciteMax) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le nombre de personnes depasse la capacite de la chambre (" + capaciteMax + ")");
+        }
 
         if (compterChevauchements(req.chambreId(), req.dateDebut(), req.dateFin()) > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -48,8 +66,11 @@ public class DisponibiliteService {
         reservation.setClientId(clientId);
         reservation.setDateDebut(req.dateDebut());
         reservation.setDateFin(req.dateFin());
+        reservation.setNombrePersonnes(req.nombrePersonnes());
+        reservation.setTelephone(req.telephone().trim());
         return reservationRepository.save(reservation);
     }
+
 
     public List<Reservation> listerMesReservations(Long clientId) {
         return reservationRepository.findByClientIdOrderByDateDebutDesc(clientId);

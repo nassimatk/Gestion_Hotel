@@ -114,12 +114,35 @@ class DisponibiliteServiceTest {
         assertThat(service.estLibre(1L, DEBUT, FIN)).isFalse();
     }
 
+
     // ---------- creer ----------
+
+    private static ReservationRequest requeteValide(Long chambreId, LocalDate debut, LocalDate fin) {
+        return new ReservationRequest(chambreId, debut, fin, 2, "0612345678");
+    }
 
     @Test
     @DisplayName("creer : chambre_id manquant -> 400 sans aucun appel")
     void creer_champManquant() {
-        ReservationRequest requete = new ReservationRequest(null, DEBUT, FIN);
+        ReservationRequest requete = requeteValide(null, DEBUT, FIN);
+
+        assertErreur(() -> service.creer(requete, 7L), 400);
+        verifyNoInteractions(repository, chambreClient);
+    }
+
+    @Test
+    @DisplayName("creer : telephone manquant -> 400 sans aucun appel")
+    void creer_telephoneManquant() {
+        ReservationRequest requete = new ReservationRequest(1L, DEBUT, FIN, 2, "  ");
+
+        assertErreur(() -> service.creer(requete, 7L), 400);
+        verifyNoInteractions(repository, chambreClient);
+    }
+
+    @Test
+    @DisplayName("creer : nombre de personnes invalide -> 400 sans aucun appel")
+    void creer_nombrePersonnesInvalide() {
+        ReservationRequest requete = new ReservationRequest(1L, DEBUT, FIN, 0, "0612345678");
 
         assertErreur(() -> service.creer(requete, 7L), 400);
         verifyNoInteractions(repository, chambreClient);
@@ -128,7 +151,7 @@ class DisponibiliteServiceTest {
     @Test
     @DisplayName("creer : dates inversees -> 400 et rien n'est enregistre")
     void creer_datesInversees() {
-        ReservationRequest requete = new ReservationRequest(1L, FIN, DEBUT);
+        ReservationRequest requete = requeteValide(1L, FIN, DEBUT);
 
         assertErreur(() -> service.creer(requete, 7L), 400);
         verifyNoInteractions(repository, chambreClient);
@@ -137,32 +160,42 @@ class DisponibiliteServiceTest {
     @Test
     @DisplayName("creer : chambre inconnue -> 404 et rien n'est enregistre")
     void creer_chambreInconnue() {
-        when(chambreClient.existe(99L)).thenReturn(false);
+        when(chambreClient.getCapacite(99L)).thenReturn(java.util.Optional.empty());
 
-        assertErreur(() -> service.creer(new ReservationRequest(99L, DEBUT, FIN), 7L), 404);
+        assertErreur(() -> service.creer(requeteValide(99L, DEBUT, FIN), 7L), 404);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("creer : capacite depassee -> 400 et rien n'est enregistre")
+    void creer_capaciteDepassee() {
+        when(chambreClient.getCapacite(1L)).thenReturn(java.util.Optional.of(2));
+        ReservationRequest requete = new ReservationRequest(1L, DEBUT, FIN, 4, "0612345678");
+
+        assertErreur(() -> service.creer(requete, 7L), 400);
         verify(repository, never()).save(any());
     }
 
     @Test
     @DisplayName("creer : chevauchement -> 409 et rien n'est enregistre")
     void creer_chevauchement() {
-        when(chambreClient.existe(1L)).thenReturn(true);
+        when(chambreClient.getCapacite(1L)).thenReturn(java.util.Optional.of(4));
         when(repository.compterChevauchements(1L, StatutReservation.CONFIRMEE, DEBUT, FIN))
                 .thenReturn(1L);
 
-        assertErreur(() -> service.creer(new ReservationRequest(1L, DEBUT, FIN), 7L), 409);
+        assertErreur(() -> service.creer(requeteValide(1L, DEBUT, FIN), 7L), 409);
         verify(repository, never()).save(any());
     }
 
     @Test
-    @DisplayName("creer : succes -> reservation CONFIRMEE avec le client_id fourni par le jeton")
+    @DisplayName("creer : succes -> reservation CONFIRMEE avec tous les champs")
     void creer_succes() {
-        when(chambreClient.existe(1L)).thenReturn(true);
+        when(chambreClient.getCapacite(1L)).thenReturn(java.util.Optional.of(4));
         when(repository.compterChevauchements(1L, StatutReservation.CONFIRMEE, DEBUT, FIN))
                 .thenReturn(0L);
         when(repository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Reservation resultat = service.creer(new ReservationRequest(1L, DEBUT, FIN), 7L);
+        Reservation resultat = service.creer(requeteValide(1L, DEBUT, FIN), 7L);
 
         ArgumentCaptor<Reservation> captor = ArgumentCaptor.forClass(Reservation.class);
         verify(repository).save(captor.capture());
@@ -171,6 +204,8 @@ class DisponibiliteServiceTest {
         assertThat(enregistree.getClientId()).isEqualTo(7L);
         assertThat(enregistree.getDateDebut()).isEqualTo(DEBUT);
         assertThat(enregistree.getDateFin()).isEqualTo(FIN);
+        assertThat(enregistree.getNombrePersonnes()).isEqualTo(2);
+        assertThat(enregistree.getTelephone()).isEqualTo("0612345678");
         assertThat(enregistree.getStatut()).isEqualTo(StatutReservation.CONFIRMEE);
         assertThat(resultat).isSameAs(enregistree);
     }

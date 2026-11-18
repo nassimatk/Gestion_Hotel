@@ -25,6 +25,12 @@ public class Reservation {
     @Column(nullable = false)
     private LocalDate dateFin;
 
+    @Column(nullable = false)
+    private Integer nombrePersonnes;
+
+    @Column(nullable = false)
+    private String telephone;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutReservation statut = StatutReservation.CONFIRMEE;
@@ -50,6 +56,12 @@ public class Reservation {
 
     public LocalDate getDateFin() { return dateFin; }
     public void setDateFin(LocalDate dateFin) { this.dateFin = dateFin; }
+
+    public Integer getNombrePersonnes() { return nombrePersonnes; }
+    public void setNombrePersonnes(Integer nombrePersonnes) { this.nombrePersonnes = nombrePersonnes; }
+
+    public String getTelephone() { return telephone; }
+    public void setTelephone(String telephone) { this.telephone = telephone; }
 
     public StatutReservation getStatut() { return statut; }
     public void setStatut(StatutReservation statut) { this.statut = statut; }
