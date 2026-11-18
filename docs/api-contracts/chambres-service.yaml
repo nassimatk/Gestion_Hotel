@@ -1,19 +1,288 @@
 openapi: 3.0.3
 info:
   title: chambres-service
-  version: 0.1.0
+  version: 1.0.0
+  description: >
+    Microservice de gestion des chambres de l'hôtel HotelHub.
+    Fournit un CRUD complet (liste, détail, création, modification, suppression)
+    avec authentification JWT admin et gestion multi-images Base64.
 servers:
   - url: http://localhost:8001/api
+    description: Développement local (Docker)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Chambre:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nom:
+          type: string
+          example: nassima
+        numero:
+          type: string
+          example: "101"
+        type:
+          type: string
+          enum: [simple, double, suite, presidentielle]
+          example: suite
+        statut:
+          type: string
+          enum: [disponible, occupee, maintenance, brouillon]
+          example: disponible
+        etage:
+          type: integer
+          example: 2
+        capacite:
+          type: integer
+          example: 3
+        superficie:
+          type: number
+          format: float
+          example: 65.0
+        prix_nuit:
+          type: number
+          format: float
+          example: 4200.00
+        description:
+          type: string
+          example: "Baignée d'une lumière d'or tamisée, cette suite d'exception offre une terrasse privée..."
+        equipements:
+          type: array
+          items:
+            type: string
+          example: ["WiFi", "Climatisation", "Minibar", "Coffre-fort"]
+        images:
+          type: array
+          description: >
+            Tableau d'images en Base64 (data:image/jpeg;base64,...).
+            Le premier élément est l'image principale affichée dans les catalogues.
+          items:
+            type: string
+          example: ["data:image/jpeg;base64,/9j/4AAQ..."]
+        vue:
+          type: string
+          example: "mer"
+        lit:
+          type: string
+          example: "1 Lit King Size"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ChambreInput:
+      type: object
+      required: [numero, type, capacite, prix_nuit]
+      properties:
+        nom:
+          type: string
+          example: nassima
+        numero:
+          type: string
+          example: "305"
+        type:
+          type: string
+          enum: [simple, double, suite, presidentielle]
+        statut:
+          type: string
+          enum: [disponible, occupee, maintenance, brouillon]
+          default: brouillon
+        etage:
+          type: integer
+        capacite:
+          type: integer
+        superficie:
+          type: number
+        prix_nuit:
+          type: number
+        description:
+          type: string
+        equipements:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          items:
+            type: string
+            description: Image encodée en Base64 (data URI)
+        vue:
+          type: string
+        lit:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+
 paths:
   /health:
     get:
       summary: Etat du service
+      tags: [Monitoring]
       responses:
         "200":
-          description: OK
+          description: Service opérationnel
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status: { type: string, example: ok }
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: chambres-service
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /chambres:
+    get:
+      summary: Liste toutes les chambres (avec filtres optionnels)
+      tags: [Chambres]
+      parameters:
+        - name: statut
+          in: query
+          schema:
+            type: string
+            enum: [disponible, occupee, maintenance, brouillon]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [simple, double, suite, presidentielle]
+        - name: capacite
+          in: query
+          schema:
+            type: integer
+        - name: prix_min
+          in: query
+          schema:
+            type: number
+        - name: prix_max
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Liste des chambres
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Chambre'
+                  total:
+                    type: integer
+
+    post:
+      summary: Créer une nouvelle chambre (admin uniquement)
+      tags: [Chambres]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChambreInput'
+      responses:
+        "201":
+          description: Chambre créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chambre'
+        "422":
+          description: Validation échouée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "401":
+          description: Non authentifié
+
+  /chambres/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+
+    get:
+      summary: Détail d'une chambre
+      tags: [Chambres]
+      responses:
+        "200":
+          description: Chambre trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chambre'
+        "404":
+          description: Chambre introuvable
+
+    put:
+      summary: Modifier une chambre (admin uniquement)
+      tags: [Chambres]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChambreInput'
+      responses:
+        "200":
+          description: Chambre mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chambre'
+        "404":
+          description: Chambre introuvable
+        "401":
+          description: Non authentifié
+
+    delete:
+      summary: Supprimer une chambre (admin uniquement, soft delete)
+      tags: [Chambres]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Chambre supprimée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Chambre supprimée avec succès"
+        "404":
+          description: Chambre introuvable
+        "401":
+          description: Non authentifié

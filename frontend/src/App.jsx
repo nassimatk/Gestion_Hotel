@@ -2,8 +2,14 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import RequireAdmin from "./components/RequireAdmin";
+
 import HomePage from "./pages/client/HomePage";
+<<<<<<< HEAD
 import ReservationPage from "./pages/client/ReservationPage";
+=======
+import ChambresPage from "./pages/client/ChambresPage";
+>>>>>>> origin/dev
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
@@ -14,6 +20,8 @@ import MesReservationsPage from "./pages/client/MesReservationsPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
+import AdminChamberPageAdd from "./pages/admin/chambres/AdminChamberPageAdd";
+import AdminChamberPageEdit from "./pages/admin/chambres/AdminChamberPageEdit";
 import AdminAvisPage from "./pages/admin/avis/AdminAvisPage";
 import AdminTarifsPage from "./pages/admin/tarifs/AdminTarifsPage";
 import AdminDisponibilitesPage from "./pages/admin/disponibilites/AdminDisponibilitesPage";
@@ -27,22 +35,30 @@ function AppContent() {
     pathname === "/forgot-password" ||
     pathname === "/reset-password";
 
-  // Affichage du Dashboard Admin avec sa propre Sidebar (sans Navbar client ni Footer)
+  // ─── Zone Administration ───────────────────────────────────────────────────
+  // RequireAdmin vérifie : token valide + rôle === "admin"
+  // Si non connecté  → redirige /login
+  // Si client        → affiche page "Accès refusé"
   if (isAdmin) {
     return (
-      <Routes>
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="chambres" element={<AdminChambresPage />} />
-          <Route path="avis" element={<AdminAvisPage />} />
-          <Route path="tarifs" element={<AdminTarifsPage />} />
-          <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
-        </Route>
-      </Routes>
+      <RequireAdmin>
+        <Routes>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="chambres" element={<AdminChambresPage />} />
+            <Route path="chambres/ajouter" element={<AdminChamberPageAdd />} />
+            <Route path="chambres/modifier/:id" element={<AdminChamberPageEdit />} />
+            <Route path="avis" element={<AdminAvisPage />} />
+            <Route path="tarifs" element={<AdminTarifsPage />} />
+            <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
+          </Route>
+        </Routes>
+      </RequireAdmin>
     );
   }
 
-  // Pages d'authentification (sans Navbar ni Footer)
+  // ─── Pages d'authentification ──────────────────────────────────────────────
   if (isAuthPage) {
     return (
       <Routes>
@@ -54,13 +70,14 @@ function AppContent() {
     );
   }
 
-  // Affichage du site client public
+  // ─── Site client public ────────────────────────────────────────────────────
   return (
     <>
       <Navbar />
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+<<<<<<< HEAD
 
           {/* pages/client/* : ajouter ici les routes client */}
           <Route path="/mes-reservations" element={<MesReservationsPage />} />
@@ -68,6 +85,9 @@ function AppContent() {
           <Route path="/reservation/:chambreId" element={<ReservationPage />} />
           {/* pages/admin/* : ajouter ici les routes admin */}
           {/* pages/client/* à enrichir ici au fil du développement */}
+=======
+          <Route path="/chambres" element={<ChambresPage />} />
+>>>>>>> origin/dev
         </Routes>
       </main>
       <Footer />
