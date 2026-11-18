@@ -65,7 +65,7 @@ function AppContent() {
           {/* pages/client/* : ajouter ici les routes client */}
           <Route path="/mes-reservations" element={<MesReservationsPage />} />
           <Route path="/reservation" element={<ReservationPage />} />
-
+          <Route path="/reservation/:chambreId" element={<ReservationPage />} />
           {/* pages/admin/* : ajouter ici les routes admin */}
           {/* pages/client/* à enrichir ici au fil du développement */}
         </Routes>
