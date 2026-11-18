@@ -1,4 +1,3 @@
-
 package com.hotel.disponibilites.client;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +14,8 @@ import java.util.Optional;
 
 @Component
 public class ChambreClient {
+
+    private record ChambreResponse(ChambreInfo data, Long id, Integer capacite) {}
 
     private record ChambreInfo(Long id, Integer capacite) {}
 
@@ -41,10 +42,18 @@ public class ChambreClient {
                     : Optional.empty();
         }
         try {
-            ChambreInfo info = restClient.get()
+            ChambreResponse response = restClient.get()
                     .uri("/chambres/{id}", chambreId)
                     .retrieve()
-                    .body(ChambreInfo.class);
+                    .body(ChambreResponse.class);
+            if (response == null) {
+                return Optional.empty();
+            }
+            ChambreInfo info = response.data() != null
+                    ? response.data()
+                    : (response.id() != null || response.capacite() != null
+                        ? new ChambreInfo(response.id(), response.capacite())
+                        : null);
             if (info == null) {
                 return Optional.empty();
             }
