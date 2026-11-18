@@ -7,3 +7,4 @@ export const creerReservation = (data) => http.post("/reservations", data);
 export const mesReservations = () => http.get("/reservations/mes");
 export const toutesReservations = () => http.get("/reservations");
 export const annulerReservation = (id) => http.delete(`/reservations/${id}`);
+

@@ -10,6 +10,7 @@ import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/client/ResetPasswordPage";
 
 // Modules Administration
+import MesReservationsPage from "./pages/client/MesReservationsPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
@@ -62,8 +63,9 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
 
           {/* pages/client/* : ajouter ici les routes client */}
+          <Route path="/mes-reservations" element={<MesReservationsPage />} />
           <Route path="/reservation" element={<ReservationPage />} />
-
+          <Route path="/reservation/:chambreId" element={<ReservationPage />} />
           {/* pages/admin/* : ajouter ici les routes admin */}
           {/* pages/client/* à enrichir ici au fil du développement */}
         </Routes>
@@ -71,7 +73,6 @@ function AppContent() {
       <Footer />
     </>
   );
-}
 }
 
 export default function App() {
