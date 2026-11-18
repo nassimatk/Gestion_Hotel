@@ -64,13 +64,21 @@ function AmenityIcon() {
 /* ── Carte chambre dynamique ── */
 function RoomCard({ room, index }) {
   // Détermination de l'image
-  const imageSrc =
-    Array.isArray(room.images) && room.images[0] && (room.images[0].startsWith("http") || room.images[0].startsWith("data:"))
-      ? room.images[0]
-      : DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
+  const hasCustomImage =
+    Array.isArray(room.images) &&
+    room.images[0] &&
+    (room.images[0].startsWith("http") ||
+      room.images[0].startsWith("data:") ||
+      room.images[0].startsWith("blob:"));
+
+  const imageSrc = hasCustomImage
+    ? room.images[0]
+    : DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
 
   // Nom éditorial
-  const displayName = room.nom || `Chambre ${room.type ? room.type.toUpperCase() : "STANDARD"} N° ${room.numero}`;
+  const displayName = room.nom
+    ? (room.nom.includes(String(room.numero)) ? room.nom : `${room.nom} (N° ${room.numero})`)
+    : `Chambre ${room.type ? room.type.toUpperCase() : "STANDARD"} N° ${room.numero}`;
 
   // Description
   const displayDesc =

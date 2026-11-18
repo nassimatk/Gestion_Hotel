@@ -9,6 +9,7 @@ export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
   const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
+    nom: "",
     numero: "",
     type: "simple",
     capacite: 2,
@@ -33,6 +34,7 @@ export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
         : "";
 
       setFormData({
+        nom: chambre.nom || "",
         numero: chambre.numero || "",
         type: chambre.type || "simple",
         capacite: chambre.capacite || 2,
@@ -70,6 +72,7 @@ export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
     try {
       // Préparation du payload conforme à la base de données de chambres-service
       const payload = {
+        nom: formData.nom ? formData.nom.trim() : "",
         numero: String(formData.numero).trim(),
         type: formData.type,
         capacite: Number(formData.capacite),
@@ -124,6 +127,19 @@ export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
         )}
 
         <form onSubmit={handleSubmit} className="admin-modal-form">
+          {/* Nom éditorial */}
+          <div className="admin-form-group">
+            <label className="admin-form-label">Nom de la chambre / suite</label>
+            <input
+              type="text"
+              name="nom"
+              className="admin-form-input"
+              placeholder="Ex: Suite Impériale Panorama, Chambre nassima..."
+              value={formData.nom}
+              onChange={handleChange}
+            />
+          </div>
+
           {/* Ligne 1 : Numéro & Type */}
           <div className="admin-modal-row">
             <div className="admin-form-group">

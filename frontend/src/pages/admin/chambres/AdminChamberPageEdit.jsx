@@ -86,12 +86,15 @@ export default function AdminChamberPageEdit() {
       return;
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    setForm((prev) => ({
-      ...prev,
-      photoUrl: previewUrl,
-      photoCaption: file.name,
-    }));
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        photoUrl: reader.result,
+        photoCaption: file.name,
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePhotoDelete = () => {

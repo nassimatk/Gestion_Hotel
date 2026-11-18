@@ -5,6 +5,7 @@ import Footer from "./components/Footer";
 import RequireAdmin from "./components/RequireAdmin";
 
 import HomePage from "./pages/client/HomePage";
+import ChambresPage from "./pages/client/ChambresPage";
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
@@ -71,6 +72,7 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/chambres" element={<ChambresPage />} />
         </Routes>
       </main>
       <Footer />

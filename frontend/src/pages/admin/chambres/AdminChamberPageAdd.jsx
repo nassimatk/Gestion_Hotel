@@ -49,15 +49,17 @@ export default function AdminChamberPageAdd() {
       return;
     }
 
-    const previewUrl = URL.createObjectURL(file);
     const sizeInMo = (file.size / (1024 * 1024)).toFixed(1) + " Mo";
-
-    setForm((prev) => ({
-      ...prev,
-      photoUrl: previewUrl,
-      photoName: file.name,
-      photoSize: sizeInMo,
-    }));
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        photoUrl: reader.result,
+        photoName: file.name,
+        photoSize: sizeInMo,
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
