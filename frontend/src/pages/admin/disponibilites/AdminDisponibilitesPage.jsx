@@ -16,6 +16,25 @@ function formaterDate(dateStr) {
   });
 }
 
+function formaterDateHeure(val) {
+  if (!val) return "—";
+  let d;
+  if (Array.isArray(val)) {
+    const [y, m, day, h = 0, min = 0, s = 0] = val;
+    d = new Date(y, m - 1, day, h, min, s);
+  } else {
+    d = new Date(val);
+  }
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function calculerNuits(debut, fin) {
   if (!debut || !fin) return 0;
   const diff = Math.round((new Date(fin) - new Date(debut)) / 86400000);
@@ -290,6 +309,7 @@ export default function AdminDisponibilitesPage() {
                 <th>Chambre</th>
                 <th>Client &amp; Contact</th>
                 <th>Séjour</th>
+                <th>Créée le</th>
                 <th>Voyageurs</th>
                 <th>Statut</th>
                 <th style={{ textAlign: "right" }}>Actions</th>
@@ -299,6 +319,8 @@ export default function AdminDisponibilitesPage() {
               {reservationsFiltrees.map((r) => {
                 const debut = r.date_debut ?? r.dateDebut;
                 const fin = r.date_fin ?? r.dateFin;
+                const creeLe =
+                  r.created_at ?? r.createdAt ?? r.date_creation ?? r.dateCreation;
                 const nuits = calculerNuits(debut, fin);
                 const chambreId = r.chambre_id ?? r.chambreId;
                 const clientId = r.client_id ?? r.clientId;
@@ -325,10 +347,11 @@ export default function AdminDisponibilitesPage() {
                         {nuits} nuit{nuits > 1 ? "s" : ""}
                       </div>
                     </td>
+                    <td className="adm-res__created">
+                      {formaterDateHeure(creeLe)}
+                    </td>
                     <td>
-                      {personnes != null
-                        ? `${personnes} pers.`
-                        : "—"}
+                      {personnes != null ? `${personnes} pers.` : "—"}
                     </td>
                     <td>
                       <span
