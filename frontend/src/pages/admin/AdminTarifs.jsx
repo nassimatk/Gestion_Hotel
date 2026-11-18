@@ -149,20 +149,12 @@ export default function AdminTarifs() {
   const [onglet, setOnglet] = useState("tarifs");
   const [refreshKey, setRefreshKey] = useState(0);
   const [saisons, setSaisons] = useState([]);
-  const [tokenSaisi, setTokenSaisi] = useState("");
-  const [role, setRole] = useState(lireRole());
+  const role = lireRole();
   const bump = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     tarifsApi.list("saisons").then(setSaisons).catch(() => setSaisons([]));
   }, [refreshKey]);
-
-  const enregistrerToken = () => {
-    localStorage.setItem("token", tokenSaisi.trim());
-    setRole(lireRole());
-    setTokenSaisi("");
-    bump();
-  };
 
   const optionsSaisons = saisons.map((s) => ({ value: s.id, label: s.nom }));
 
@@ -230,16 +222,9 @@ export default function AdminTarifs() {
 
       {role !== "admin" && (
         <div className="tf-msg err">
-          Les modifications sont réservées à l’administrateur : connectez-vous avec un compte admin, ou collez un jeton JWT de test ci-dessous.
+          Cette page est réservée à l’administrateur : <a href="/login">connectez-vous</a> avec un compte admin pour modifier les tarifs.
         </div>
       )}
-      <details style={{ marginBottom: 20 }}>
-        <summary className="tf-hint" style={{ cursor: "pointer" }}>Jeton JWT de test (développement)</summary>
-        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-          <input className="tf-input" placeholder="eyJ..." value={tokenSaisi} onChange={(e) => setTokenSaisi(e.target.value)} />
-          <button className="tf-btn" style={{ marginTop: 0 }} onClick={enregistrerToken}>Enregistrer</button>
-        </div>
-      </details>
 
       <div className="tf-tabs">
         {[["tarifs", "Tarifs"], ["saisons", "Saisons"], ["promotions", "Promotions"]].map(([id, label]) => (
