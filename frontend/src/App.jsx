@@ -5,18 +5,15 @@ import Footer from "./components/Footer";
 import RequireAdmin from "./components/RequireAdmin";
 
 import HomePage from "./pages/client/HomePage";
-<<<<<<< HEAD
-import ReservationPage from "./pages/client/ReservationPage";
-=======
 import ChambresPage from "./pages/client/ChambresPage";
->>>>>>> origin/dev
+import ReservationPage from "./pages/client/ReservationPage";
+import MesReservationsPage from "./pages/client/MesReservationsPage";
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/client/ResetPasswordPage";
 
 // Modules Administration
-import MesReservationsPage from "./pages/client/MesReservationsPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
@@ -36,9 +33,6 @@ function AppContent() {
     pathname === "/reset-password";
 
   // ─── Zone Administration ───────────────────────────────────────────────────
-  // RequireAdmin vérifie : token valide + rôle === "admin"
-  // Si non connecté  → redirige /login
-  // Si client        → affiche page "Accès refusé"
   if (isAdmin) {
     return (
       <RequireAdmin>
@@ -77,17 +71,10 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
-<<<<<<< HEAD
-
-          {/* pages/client/* : ajouter ici les routes client */}
+          <Route path="/chambres" element={<ChambresPage />} />
           <Route path="/mes-reservations" element={<MesReservationsPage />} />
           <Route path="/reservation" element={<ReservationPage />} />
           <Route path="/reservation/:chambreId" element={<ReservationPage />} />
-          {/* pages/admin/* : ajouter ici les routes admin */}
-          {/* pages/client/* à enrichir ici au fil du développement */}
-=======
-          <Route path="/chambres" element={<ChambresPage />} />
->>>>>>> origin/dev
         </Routes>
       </main>
       <Footer />
