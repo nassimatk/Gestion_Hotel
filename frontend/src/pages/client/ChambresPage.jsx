@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getChambres } from "../../services/chambresApi";
@@ -32,18 +32,40 @@ function AmenityIcon() {
   );
 }
 
-/* ── Carte individuelle de chambre ── */
+/* ── Carte individuelle de chambre avec carrousel d'images intégré ── */
 function ClientRoomCard({ room, index, onSelect }) {
-  const hasCustomImage =
-    Array.isArray(room.images) &&
-    room.images[0] &&
-    (room.images[0].startsWith("http") ||
-      room.images[0].startsWith("data:") ||
-      room.images[0].startsWith("blob:"));
+  const [photoIndex, setPhotoIndex] = useState(0);
 
-  const imageSrc = hasCustomImage
-    ? room.images[0]
-    : DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
+  // Liste de toutes les images disponibles pour cette chambre
+  const cardImages = useMemo(() => {
+    if (Array.isArray(room.images) && room.images.length > 0) {
+      return room.images.map((img, i) => {
+        if (
+          typeof img === "string" &&
+          (img.startsWith("http") || img.startsWith("data:") || img.startsWith("blob:"))
+        ) {
+          return img;
+        }
+        return DEFAULT_IMAGES[(index + i) % DEFAULT_IMAGES.length];
+      });
+    }
+    return [DEFAULT_IMAGES[index % DEFAULT_IMAGES.length]];
+  }, [room.images, index]);
+
+  const totalPhotos = cardImages.length;
+  const currentImageSrc = cardImages[photoIndex] || cardImages[0];
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setPhotoIndex((prev) => (prev - 1 + totalPhotos) % totalPhotos);
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setPhotoIndex((prev) => (prev + 1) % totalPhotos);
+  };
 
   // Titre fidèle à la maquette : nom éditorial ou "Chambre TYPE N° NUMERO"
   const displayName = room.nom
@@ -82,13 +104,61 @@ function ClientRoomCard({ room, index, onSelect }) {
     <div className="room-card">
       <div className="room-card__image">
         <img
-          src={imageSrc}
+          key={photoIndex}
+          src={currentImageSrc}
           alt={displayName}
           loading="lazy"
           onError={(e) => {
             e.target.src = DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
           }}
         />
+
+        {/* Flèches de navigation sur la carte si plusieurs images */}
+        {totalPhotos > 1 && (
+          <>
+            <button
+              type="button"
+              className="card-nav-arrow card-nav-prev"
+              onClick={handlePrev}
+              aria-label="Photo précédente"
+              title="Photo précédente"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="card-nav-arrow card-nav-next"
+              onClick={handleNext}
+              aria-label="Photo suivante"
+              title="Photo suivante"
+            >
+              ›
+            </button>
+
+            {/* Pagination par points cliquables sous l'image */}
+            <div className="card-nav-dots" onClick={(e) => e.stopPropagation()}>
+              {cardImages.map((_, dotIdx) => (
+                <button
+                  key={dotIdx}
+                  type="button"
+                  className={`card-nav-dot ${dotIdx === photoIndex ? "active" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setPhotoIndex(dotIdx);
+                  }}
+                  aria-label={`Photo ${dotIdx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Badge discret nombre de photos */}
+            <span className="card-photo-counter">
+              {photoIndex + 1}/{totalPhotos}
+            </span>
+          </>
+        )}
+
         <span className="room-card__tag">{displayTag}</span>
         <span className="room-card__size">{displaySize} m²</span>
       </div>
@@ -132,11 +202,29 @@ export default function ChambresPage() {
   const [error, setError] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
 
   // Remonter en haut de page lors de l'accès
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  // Obtenir toutes les images valides pour la galerie modale
+  const getModalImages = (room) => {
+    if (!room) return [];
+    if (Array.isArray(room.images) && room.images.length > 0) {
+      return room.images.map((img, idx) => {
+        if (
+          typeof img === "string" &&
+          (img.startsWith("http") || img.startsWith("data:") || img.startsWith("blob:"))
+        ) {
+          return img;
+        }
+        return DEFAULT_IMAGES[idx % DEFAULT_IMAGES.length];
+      });
+    }
+    return [DEFAULT_IMAGES[0]];
+  };
 
   const fetchRooms = async () => {
     try {
@@ -258,56 +346,113 @@ export default function ChambresPage() {
                 key={room.id}
                 room={room}
                 index={idx}
-                onSelect={(r) => setSelectedRoom(r)}
+                onSelect={(r) => {
+                  setSelectedRoom(r);
+                  setActivePhotoIdx(0);
+                }}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Modal de détail d'une chambre */}
-      {selectedRoom && (
-        <div
-          className="room-detail-modal-overlay"
-          onClick={() => setSelectedRoom(null)}
-        >
-          <div
-            className="room-detail-modal-box"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="room-detail-close-btn"
-              onClick={() => setSelectedRoom(null)}
-              aria-label="Fermer"
-            >
-              ✕
-            </button>
+      {/* Modal de détail d'une chambre avec Carousel & Galerie */}
+      {selectedRoom && (() => {
+        const modalImages = getModalImages(selectedRoom);
+        const currentImg = modalImages[activePhotoIdx] || modalImages[0];
 
-            <div className="room-detail-modal-content">
-              <div className="room-detail-image-wrapper">
-                <img
-                  src={
-                    Array.isArray(selectedRoom.images) &&
-                    selectedRoom.images[0] &&
-                    (selectedRoom.images[0].startsWith("http") ||
-                      selectedRoom.images[0].startsWith("data:") ||
-                      selectedRoom.images[0].startsWith("blob:"))
-                      ? selectedRoom.images[0]
-                      : DEFAULT_IMAGES[0]
-                  }
-                  onError={(e) => {
-                    e.target.src = DEFAULT_IMAGES[0];
-                  }}
-                  alt={selectedRoom.nom || selectedRoom.numero}
-                />
-                <span className="room-card__tag">
-                  {selectedRoom.vue || "Vue d'exception"}
-                </span>
-                <span className="room-card__size">
-                  {selectedRoom.superficie || 45} m²
-                </span>
-              </div>
+        const handleNextPhoto = (e) => {
+          e.stopPropagation();
+          setActivePhotoIdx((prev) => (prev + 1) % modalImages.length);
+        };
+
+        const handlePrevPhoto = (e) => {
+          e.stopPropagation();
+          setActivePhotoIdx((prev) => (prev - 1 + modalImages.length) % modalImages.length);
+        };
+
+        return (
+          <div
+            className="room-detail-modal-overlay"
+            onClick={() => setSelectedRoom(null)}
+          >
+            <div
+              className="room-detail-modal-box"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="room-detail-close-btn"
+                onClick={() => setSelectedRoom(null)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+
+              <div className="room-detail-modal-content">
+                {/* Galerie / Carousel d'images */}
+                <div className="room-detail-carousel">
+                  <div className="room-detail-image-wrapper">
+                    <img
+                      src={currentImg}
+                      onError={(e) => {
+                        e.target.src = DEFAULT_IMAGES[0];
+                      }}
+                      alt={selectedRoom.nom || selectedRoom.numero}
+                    />
+                    <span className="room-card__tag">
+                      {selectedRoom.vue || "Vue d'exception"}
+                    </span>
+                    <span className="room-card__size">
+                      {selectedRoom.superficie || 45} m²
+                    </span>
+
+                    {/* Contrôles du carousel si plusieurs photos */}
+                    {modalImages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          className="carousel-arrow carousel-arrow-left"
+                          onClick={handlePrevPhoto}
+                          aria-label="Photo précédente"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          className="carousel-arrow carousel-arrow-right"
+                          onClick={handleNextPhoto}
+                          aria-label="Photo suivante"
+                        >
+                          ›
+                        </button>
+                        <div className="carousel-counter-pill">
+                          <span>📷</span>
+                          <span>
+                            {activePhotoIdx + 1} / {modalImages.length}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Bandeau de miniatures */}
+                  {modalImages.length > 1 && (
+                    <div className="room-detail-thumbnails-strip">
+                      {modalImages.map((img, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className={`room-detail-thumb-btn ${i === activePhotoIdx ? "active" : ""}`}
+                          onClick={() => setActivePhotoIdx(i)}
+                          aria-label={`Photo ${i + 1}`}
+                        >
+                          <img src={img} alt={`Miniature ${i + 1}`} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
               <div className="room-detail-body">
                 <h2>
@@ -390,7 +535,8 @@ export default function ChambresPage() {
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      );
+    })()}
+  </div>
+);
 }

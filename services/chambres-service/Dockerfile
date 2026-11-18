@@ -35,6 +35,9 @@ RUN apk add --no-cache \
 # Configuration Nginx
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 
+# Configuration PHP (Upload & mémoire)
+COPY docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 # Configuration Supervisor (nginx + php-fpm)
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

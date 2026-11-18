@@ -3,6 +3,47 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { getChambre, updateChambre } from "../../../services/chambresApi";
 import "./AdminChamberPageEdit.css";
 
+// Compression et redimensionnement HD côté client pour optimiser les performances
+function compressImage(file, maxWidth = 1600, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AdminChamberPageEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -11,6 +52,10 @@ export default function AdminChamberPageEdit() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [successNotice, setSuccessNotice] = useState("");
+
+  // Gestion multi-photos
+  const [photos, setPhotos] = useState([]);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
   const [form, setForm] = useState({
     nom: "Suite Impériale Panorama",
@@ -27,9 +72,6 @@ export default function AdminChamberPageEdit() {
     devise: "MAD • Dirham Marocain",
     statut: "disponible",
     vue: "Vue Mer",
-    photoUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80",
-    photoCaption: "Terrasse Panorama & Suite Impériale",
-    photoResolution: "1920 × 1280 px",
   });
 
   // Charger la chambre existante depuis l'API
@@ -51,11 +93,28 @@ export default function AdminChamberPageEdit() {
               prixNuit: data.prix_nuit || prev.prixNuit,
               statut: data.statut || prev.statut,
               vue: data.vue || prev.vue,
-              photoUrl:
-                Array.isArray(data.images) && data.images.length > 0
-                  ? data.images[0]
-                  : prev.photoUrl,
             }));
+
+            // Charger toutes les photos existantes
+            if (Array.isArray(data.images) && data.images.length > 0) {
+              setPhotos(
+                data.images.map((img, idx) => ({
+                  id: `img-${idx}-${Date.now()}`,
+                  url: img,
+                  name: idx === 0 ? "Photo principale" : `Vue secondaire ${idx + 1}`,
+                  size: "Standard",
+                }))
+              );
+            } else {
+              setPhotos([
+                {
+                  id: "default-0",
+                  url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80",
+                  name: "Photo par défaut",
+                  size: "2.4 Mo",
+                },
+              ]);
+            }
           }
         })
         .catch((err) => {
@@ -77,33 +136,52 @@ export default function AdminChamberPageEdit() {
     }));
   };
 
-  const handlePhotoReplace = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // Upload multi-photos avec compression HD
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert("La taille de l'image ne doit pas dépasser 15 Mo.");
-      return;
+    for (const file of files) {
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`L'image ${file.name} dépasse la limite de 20 Mo.`);
+        continue;
+      }
+
+      const compressedUrl = await compressImage(file, 1600, 0.82);
+      const approxSizeInMo = ((compressedUrl.length * 0.75) / (1024 * 1024)).toFixed(1) + " Mo";
+
+      setPhotos((prev) => [
+        ...prev,
+        {
+          id: Date.now() + Math.random().toString(36).substring(2, 9),
+          url: compressedUrl,
+          name: file.name,
+          size: approxSizeInMo,
+        },
+      ]);
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({
-        ...prev,
-        photoUrl: reader.result,
-        photoCaption: file.name,
-      }));
-    };
-    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
-  const handlePhotoDelete = () => {
-    if (window.confirm("Voulez-vous supprimer l'image de cette chambre ?")) {
-      setForm((prev) => ({
-        ...prev,
-        photoUrl: "",
-        photoCaption: "Aucune image sélectionnée",
-      }));
+  // Définir comme photo principale
+  const handleSetMainPhoto = (index) => {
+    setPhotos((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.unshift(item);
+      return copy;
+    });
+    setSelectedPhotoIndex(0);
+  };
+
+  // Supprimer une photo individuelle
+  const handlePhotoDelete = (index) => {
+    if (window.confirm("Voulez-vous supprimer cette image de la chambre ?")) {
+      setPhotos((prev) => prev.filter((_, i) => i !== index));
+      if (selectedPhotoIndex >= index && selectedPhotoIndex > 0) {
+        setSelectedPhotoIndex((prev) => prev - 1);
+      }
     }
   };
 
@@ -124,7 +202,7 @@ export default function AdminChamberPageEdit() {
         etage: Number(form.etage),
         vue: form.vue,
         statut: form.statut,
-        images: form.photoUrl ? [form.photoUrl] : [],
+        images: photos && photos.length > 0 ? photos.map((p) => p.url) : [],
       };
 
       if (id) {
@@ -236,59 +314,124 @@ export default function AdminChamberPageEdit() {
         )}
 
         <form id="edit-chamber-form" onSubmit={handleSubmit}>
-          {/* ================= BLOC 1 : PHOTOGRAPHIE PRINCIPALE ================= */}
+          {/* ================= BLOC 1 : PHOTOGRAPHIES & GALERIE ================= */}
           <div className="edit-card-block">
             <div className="edit-card-header">
               <h3 className="edit-card-title">
                 <span className="edit-card-title-icon">🖼</span>
-                <span>Photographie principale de la chambre</span>
+                <span>Photographies de la chambre ({photos.length})</span>
               </h3>
-              <span className="edit-card-meta">Format 16:10 recommandé • Haute résolution</span>
+              <span className="edit-card-meta">
+                La photo en 1ère position (★) est l&apos;image principale affichée sur le catalogue
+              </span>
             </div>
 
             <div className="photo-management-grid">
               <div className="photo-preview-large">
-                <img src={form.photoUrl || "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80"} alt={form.nom} />
+                <img
+                  src={
+                    photos[selectedPhotoIndex]?.url ||
+                    photos[0]?.url ||
+                    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80"
+                  }
+                  alt={form.nom}
+                />
                 <div className="photo-preview-overlay-tag">
                   <div>
-                    <span className="photo-tag-badge">Actuelle • {form.vue || "Vue Mer"}</span>
-                    <div style={{ marginTop: "4px", fontWeight: "600" }}>{form.photoCaption}</div>
+                    <span className="photo-tag-badge">
+                      {selectedPhotoIndex === 0
+                        ? "★ Photo principale (Catalogue & Accueil)"
+                        : `Photo ${selectedPhotoIndex + 1} de la galerie`}
+                    </span>
+                    <div style={{ marginTop: "4px", fontWeight: "600" }}>
+                      {photos[selectedPhotoIndex]?.name || form.nom}
+                    </div>
                   </div>
-                  <span style={{ fontSize: "11px", opacity: 0.85 }}>{form.photoResolution}</span>
+                  <span style={{ fontSize: "11px", opacity: 0.85 }}>
+                    {selectedPhotoIndex + 1} / {Math.max(photos.length, 1)}
+                  </span>
                 </div>
               </div>
 
               <div className="photo-actions-panel">
-                <h4>Actions sur le visuel</h4>
+                <h4>Gestion des photos</h4>
                 <p>
-                  Cette image est mise en avant lors des recherches des clients VIP et sur le moteur de réservation direct.
+                  Vous pouvez ajouter plusieurs photos. La première image est l&apos;image vitrine de la chambre.
                 </p>
+
+                {selectedPhotoIndex !== 0 && photos.length > 1 && (
+                  <button
+                    type="button"
+                    className="photo-btn-primary-action"
+                    onClick={() => handleSetMainPhoto(selectedPhotoIndex)}
+                  >
+                    <span>★</span>
+                    <span>Définir comme photo principale</span>
+                  </button>
+                )}
 
                 <label className="photo-btn-replace">
                   <input
                     type="file"
+                    multiple
                     accept="image/*"
-                    onChange={handlePhotoReplace}
+                    onChange={handlePhotoUpload}
                     style={{ display: "none" }}
                   />
-                  <span>✎</span>
-                  <span>Remplacer l'image</span>
+                  <span>＋</span>
+                  <span>Ajouter des photos</span>
                 </label>
 
-                <button
-                  type="button"
-                  className="photo-btn-delete"
-                  onClick={handlePhotoDelete}
-                >
-                  <span>🗑</span>
-                  <span>Supprimer l'image</span>
-                </button>
+                {photos.length > 0 && (
+                  <button
+                    type="button"
+                    className="photo-btn-delete"
+                    onClick={() => handlePhotoDelete(selectedPhotoIndex)}
+                  >
+                    <span>🗑</span>
+                    <span>Supprimer cette photo</span>
+                  </button>
+                )}
 
                 <div className="photo-spec-note">
-                  ⓘ JPG, WebP ou PNG jusqu'à 15 Mo.
+                  ⓘ Formats JPG, WebP ou PNG (Max 8 Mo par image).
                 </div>
               </div>
             </div>
+
+            {/* Miniatures cliquables */}
+            {photos.length > 1 && (
+              <div className="edit-photos-strip">
+                <div className="edit-photos-strip-title">
+                  Galerie complète ({photos.length} photos) — cliquez sur une miniature pour la prévisualiser ou la définir en principale :
+                </div>
+                <div className="edit-photos-grid">
+                  {photos.map((p, idx) => (
+                    <div
+                      key={p.id || idx}
+                      className={`edit-photo-thumb ${idx === selectedPhotoIndex ? "active" : ""} ${
+                        idx === 0 ? "is-main" : ""
+                      }`}
+                      onClick={() => setSelectedPhotoIndex(idx)}
+                    >
+                      <img src={p.url} alt={`Photo ${idx + 1}`} />
+                      {idx === 0 && <span className="edit-photo-badge">★ Principale</span>}
+                      <button
+                        type="button"
+                        className="edit-photo-thumb-del"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePhotoDelete(idx);
+                        }}
+                        title="Supprimer cette photo"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ================= BLOC 2 : IDENTITÉ ÉDITORIALE ================= */}
