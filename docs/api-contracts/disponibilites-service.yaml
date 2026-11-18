@@ -1,13 +1,31 @@
 openapi: 3.0.3
 info:
   title: disponibilites-service
-  version: 0.1.0
+  version: 0.3.0
+  description: |
+    Disponibilite des chambres par date et gestion des reservations.
+    Port hote 8003, port conteneur 8000. Schema Postgres: disponibilites.
+    La capacite et l'existence d'une chambre viennent de chambres-service,
+    le calcul du prix total du sejour vient de tarifs-service (GET /api/tarifs/calcul).
+    Droits: GET /api/disponibilites/** public; POST /api/reservations,
+    GET /api/reservations/mes et DELETE /api/reservations/{id} pour un utilisateur connecte
+    (annulation reservee au proprietaire ou a l'admin); GET /api/reservations reserve a l'admin.
 servers:
-  - url: http://localhost:8003/api
+  - url: http://localhost:8003
+    description: Depuis la machine hote
+  - url: http://disponibilites-service:8000
+    description: Depuis un autre conteneur Docker
+
+tags:
+  - name: Sante
+  - name: Disponibilites
+  - name: Reservations
+
 paths:
-  /health:
+  /api/health:
     get:
-      summary: Etat du service
+      tags: [Sante]
+      summary: Le service est-il vivant
       responses:
         "200":
           description: OK
@@ -16,4 +34,329 @@ paths:
               schema:
                 type: object
                 properties:
-                  status: { type: string, example: ok }
+                  status:
+                    type: string
+                    example: ok
+
+  /api/disponibilites:
+    get:
+      tags: [Disponibilites]
+      summary: Liste des chambres occupees sur une periode
+      description: Permet au front-end de filtrer les chambres disponibles sur la periode demandee.
+      parameters:
+        - $ref: "#/components/parameters/DateDebut"
+        - $ref: "#/components/parameters/DateFin"
+      responses:
+        "200":
+          description: Identifiants des chambres deja reservees sur la periode
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date_debut:
+                    type: string
+                    format: date
+                  date_fin:
+                    type: string
+                    format: date
+                  chambres_occupees:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+                    example: [2, 5]
+        "400":
+          $ref: "#/components/responses/Erreur400"
+
+  /api/disponibilites/chambres/{id}:
+    get:
+      tags: [Disponibilites]
+      summary: Une chambre est-elle libre sur une periode
+      parameters:
+        - $ref: "#/components/parameters/ChambreId"
+        - $ref: "#/components/parameters/DateDebut"
+        - $ref: "#/components/parameters/DateFin"
+      responses:
+        "200":
+          description: Disponibilite de la chambre et prix total estime du sejour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisponibiliteChambre"
+        "400":
+          $ref: "#/components/responses/Erreur400"
+        "404":
+          $ref: "#/components/responses/Erreur404"
+        "503":
+          $ref: "#/components/responses/Erreur503"
+
+  /api/reservations:
+    post:
+      tags: [Reservations]
+      summary: Creer une reservation
+      description: |
+        Le client_id est lu dans le claim sub du JWT.
+        Verifie l'existence de la chambre, sa capacite maximale (nombre_personnes <= capacite),
+        la validite du telephone et l'absence de chevauchement de dates.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservationCreation"
+      responses:
+        "201":
+          description: Reservation creee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          $ref: "#/components/responses/Erreur400"
+        "401":
+          $ref: "#/components/responses/Erreur401"
+        "403":
+          $ref: "#/components/responses/Erreur403"
+        "404":
+          $ref: "#/components/responses/Erreur404"
+        "409":
+          $ref: "#/components/responses/Erreur409"
+        "503":
+          $ref: "#/components/responses/Erreur503"
+    get:
+      tags: [Reservations]
+      summary: Toutes les reservations (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Liste des reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+        "401":
+          $ref: "#/components/responses/Erreur401"
+        "403":
+          $ref: "#/components/responses/Erreur403"
+
+  /api/reservations/mes:
+    get:
+      tags: [Reservations]
+      summary: Reservations du client connecte
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Liste des reservations du client
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+        "401":
+          $ref: "#/components/responses/Erreur401"
+
+  /api/reservations/{id}:
+    delete:
+      tags: [Reservations]
+      summary: Annuler une reservation (statut ANNULEE)
+      description: Reserve au proprietaire de la reservation ou a un admin.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Reservation annulee
+        "401":
+          $ref: "#/components/responses/Erreur401"
+        "403":
+          $ref: "#/components/responses/Erreur403"
+        "404":
+          $ref: "#/components/responses/Erreur404"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT HS256 emis par auth-service (claims sub, role, exp)
+
+  parameters:
+    DateDebut:
+      name: date_debut
+      in: query
+      required: true
+      description: Date d'arrivee (ISO 8601)
+      schema:
+        type: string
+        format: date
+        example: "2026-11-15"
+    DateFin:
+      name: date_fin
+      in: query
+      required: true
+      description: Date de depart (ISO 8601), doit etre apres date_debut
+      schema:
+        type: string
+        format: date
+        example: "2026-11-18"
+    ChambreId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  schemas:
+    DisponibiliteChambre:
+      type: object
+      properties:
+        chambre_id:
+          type: integer
+          format: int64
+          example: 1
+        disponible:
+          type: boolean
+          example: true
+        date_debut:
+          type: string
+          format: date
+        date_fin:
+          type: string
+          format: date
+        prix:
+          type: number
+          nullable: true
+          description: Prix total du sejour calcule par tarifs-service (null si indisponible)
+          example: 1500.0
+    ReservationCreation:
+      type: object
+      required: [chambre_id, date_debut, date_fin, nombre_personnes, telephone]
+      properties:
+        chambre_id:
+          type: integer
+          format: int64
+          example: 1
+        date_debut:
+          type: string
+          format: date
+          example: "2026-11-15"
+        date_fin:
+          type: string
+          format: date
+          example: "2026-11-18"
+        nombre_personnes:
+          type: integer
+          minimum: 1
+          example: 2
+        telephone:
+          type: string
+          example: "0607080910"
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        chambre_id:
+          type: integer
+          format: int64
+        client_id:
+          type: integer
+          format: int64
+        date_debut:
+          type: string
+          format: date
+        date_fin:
+          type: string
+          format: date
+        nombre_personnes:
+          type: integer
+          example: 2
+        telephone:
+          type: string
+          example: "0607080910"
+        statut:
+          type: string
+          enum: [CONFIRMEE, ANNULEE]
+        created_at:
+          type: string
+          format: date-time
+    Erreur:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: integer
+
+  responses:
+    Erreur400:
+      description: Requete invalide (dates incorrectes, champ manquant ou capacite depassee)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+          example:
+            error: Le nombre de personnes depasse la capacite de la chambre (4)
+            code: 400
+    Erreur401:
+      description: Token absent ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+          example:
+            error: Token manquant ou invalide
+            code: 401
+    Erreur403:
+      description: Role insuffisant
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+          example:
+            error: Acces refuse
+            code: 403
+    Erreur404:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+          example:
+            error: Chambre introuvable
+            code: 404
+    Erreur409:
+      description: Chambre deja reservee sur cette periode
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+          example:
+            error: Chambre deja reservee sur cette periode
+            code: 409
+    Erreur503:
+      description: chambres-service indisponible
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+          example:
+            error: Service chambres indisponible
+            code: 503

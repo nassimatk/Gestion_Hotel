@@ -6,6 +6,8 @@ import RequireAdmin from "./components/RequireAdmin";
 
 import HomePage from "./pages/client/HomePage";
 import ChambresPage from "./pages/client/ChambresPage";
+import ReservationPage from "./pages/client/ReservationPage";
+import MesReservationsPage from "./pages/client/MesReservationsPage";
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
@@ -31,9 +33,6 @@ function AppContent() {
     pathname === "/reset-password";
 
   // ─── Zone Administration ───────────────────────────────────────────────────
-  // RequireAdmin vérifie : token valide + rôle === "admin"
-  // Si non connecté  → redirige /login
-  // Si client        → affiche page "Accès refusé"
   if (isAdmin) {
     return (
       <RequireAdmin>
@@ -73,6 +72,9 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/chambres" element={<ChambresPage />} />
+          <Route path="/mes-reservations" element={<MesReservationsPage />} />
+          <Route path="/reservation" element={<ReservationPage />} />
+          <Route path="/reservation/:chambreId" element={<ReservationPage />} />
         </Routes>
       </main>
       <Footer />

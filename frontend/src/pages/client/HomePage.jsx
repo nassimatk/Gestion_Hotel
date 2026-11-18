@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getChambres } from "../../services/chambresApi";
 import "./HomePage.css";
+
+const aujourdhui = new Date().toISOString().slice(0, 10);
+
+function jourSuivant(dateStr) {
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
 
 // Photos de secours haute résolution au standard luxe HotelHub
 const DEFAULT_IMAGES = [
@@ -63,7 +71,6 @@ function AmenityIcon() {
 
 /* ── Carte chambre dynamique ── */
 function RoomCard({ room, index }) {
-  // Détermination de l'image
   const hasCustomImage =
     Array.isArray(room.images) &&
     room.images[0] &&
@@ -75,16 +82,13 @@ function RoomCard({ room, index }) {
     ? room.images[0]
     : DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
 
-  // Nom éditorial
   const displayName = room.nom
     ? (room.nom.includes(String(room.numero)) ? room.nom : `${room.nom} (N° ${room.numero})`)
     : `Chambre ${room.type ? room.type.toUpperCase() : "STANDARD"} N° ${room.numero}`;
 
-  // Description
   const displayDesc =
     room.description || "Un hébergement raffiné où chaque détail honore le calme et le confort absolu.";
 
-  // Tag vue ou standing
   const displayTag =
     room.vue ||
     (room.type === "suite"
@@ -93,16 +97,14 @@ function RoomCard({ room, index }) {
       ? "Piscine Privée & Spa"
       : "Jardin Secret");
 
-  // Surface
-  const displaySize = room.superficie || (room.type === "presidentielle" ? 140 : room.type === "suite" ? 85 : 48);
+  const displaySize =
+    room.superficie || (room.type === "presidentielle" ? 140 : room.type === "suite" ? 85 : 48);
 
-  // Équipements phares (3 max)
   const displayAmenities =
     Array.isArray(room.equipements) && room.equipements.length > 0
       ? room.equipements.slice(0, 3)
       : ["Lit King Size", "Climatisation", "Wi-Fi Haut Débit"];
 
-  // Formatage du tarif
   const formattedPrice = new Intl.NumberFormat("fr-FR").format(Number(room.prix_nuit || 0));
 
   return (
@@ -135,12 +137,9 @@ function RoomCard({ room, index }) {
             <span className="room-card__price-amount">{formattedPrice} MAD</span>
             <span className="room-card__price-unit">/ nuit</span>
           </div>
-          <button
-            className="room-card__btn"
-            onClick={() => alert(`Réservation de la chambre : ${displayName}`)}
-          >
-            Voir les détails
-          </button>
+          <Link to={`/reservation/${room.id}`} className="room-card__btn">
+            Réserver
+          </Link>
         </div>
       </div>
     </div>
@@ -150,6 +149,29 @@ function RoomCard({ room, index }) {
 /* ── Page principale ── */
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // Recherche de disponibilité
+  const [dateDebut, setDateDebut] = useState(aujourdhui);
+  const [dateFin, setDateFin] = useState(jourSuivant(aujourdhui));
+  const [adultes, setAdultes] = useState(2);
+
+  function changerDebut(val) {
+    setDateDebut(val);
+    if (dateFin && dateFin <= val) {
+      setDateFin(jourSuivant(val));
+    }
+  }
+
+  function handleSearch(e) {
+    e.preventDefault();
+    const params = new URLSearchParams({
+      date_debut: dateDebut,
+      date_fin: dateFin,
+      adultes: String(adultes),
+    });
+    navigate(`/reservation?${params.toString()}`);
+  }
 
   // État des chambres dynamiques
   const [rooms, setRooms] = useState([]);
@@ -161,7 +183,6 @@ export default function HomePage() {
     try {
       setLoading(true);
       setError(null);
-      // Récupérer les chambres disponibles depuis l'API publique
       const data = await getChambres({ statut: "disponible" });
       setRooms(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -176,7 +197,6 @@ export default function HomePage() {
     fetchRooms();
   }, []);
 
-  // Filtrage interactif côté client
   const filteredRooms = rooms.filter((r) => {
     if (selectedFilter === "all") return true;
     if (selectedFilter === "suite") return r.type === "suite" || r.type === "presidentielle";
@@ -203,9 +223,9 @@ export default function HomePage() {
             pour vos séjours d&apos;affaires et de loisirs.
           </p>
           <div className="hero__cta">
-            <a href="#chambres-signature" className="btn-outline">
+            <Link to="/reservation" className="btn-outline">
               Découvrir nos chambres →
-            </a>
+            </Link>
             {!isAuthenticated && (
               <Link to="/register" className="btn-gold">Créer un compte</Link>
             )}
@@ -213,9 +233,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* BARRE DE RECHERCHE */}
+      {/* BARRE DE RECHERCHE DYNAMIQUE */}
       <div className="search-bar-wrapper">
-        <div className="search-bar">
+        <form className="search-bar" onSubmit={handleSearch}>
           <div className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -225,12 +245,12 @@ export default function HomePage() {
               </svg>
             </span>
             <div className="search-bar__info">
-              <span className="search-bar__label">Destination ou Hôtel</span>
+              <span className="search-bar__label">Établissement</span>
               <span className="search-bar__value">Marrakech, Palmeraie</span>
             </div>
           </div>
 
-          <div className="search-bar__field">
+          <label className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -242,11 +262,18 @@ export default function HomePage() {
             </span>
             <div className="search-bar__info">
               <span className="search-bar__label">{"Date d'arrivée"}</span>
-              <span className="search-bar__value">Aujourd'hui</span>
+              <input
+                type="date"
+                className="search-bar__input"
+                value={dateDebut}
+                min={aujourdhui}
+                required
+                onChange={(e) => changerDebut(e.target.value)}
+              />
             </div>
-          </div>
+          </label>
 
-          <div className="search-bar__field">
+          <label className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -258,11 +285,18 @@ export default function HomePage() {
             </span>
             <div className="search-bar__info">
               <span className="search-bar__label">Date de Départ</span>
-              <span className="search-bar__value">Dans 3 jours</span>
+              <input
+                type="date"
+                className="search-bar__input"
+                value={dateFin}
+                min={dateDebut ? jourSuivant(dateDebut) : aujourdhui}
+                required
+                onChange={(e) => setDateFin(e.target.value)}
+              />
             </div>
-          </div>
+          </label>
 
-          <div className="search-bar__field">
+          <label className="search-bar__field">
             <span className="search-bar__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -274,11 +308,21 @@ export default function HomePage() {
             </span>
             <div className="search-bar__info">
               <span className="search-bar__label">Voyageurs</span>
-              <span className="search-bar__value">2 Adultes, 1 Suite</span>
+              <select
+                className="search-bar__input"
+                value={adultes}
+                onChange={(e) => setAdultes(Number(e.target.value))}
+              >
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>
+                    {n} {n > 1 ? "personnes" : "personne"}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
+          </label>
 
-          <button className="search-bar__btn" onClick={() => fetchRooms()}>
+          <button type="submit" className="search-bar__btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
@@ -286,7 +330,7 @@ export default function HomePage() {
             </svg>
             Rechercher
           </button>
-        </div>
+        </form>
       </div>
 
       {/* CHAMBRES */}
@@ -448,7 +492,7 @@ export default function HomePage() {
             Rejoindre HotelHub →
           </Link>
         ) : (
-          <Link to="/chambres" className="cta-section__btn">
+          <Link to="/reservation" className="cta-section__btn">
             Voir nos chambres →
           </Link>
         )}
