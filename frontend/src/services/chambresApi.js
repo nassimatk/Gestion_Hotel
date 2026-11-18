@@ -15,15 +15,19 @@ function getAuthHeaders() {
 /**
  * Récupère la liste de toutes les chambres actives (public)
  */
-export async function getChambres() {
-  const res = await fetch(BASE_URL, {
+export async function getChambres(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  const url = query ? `${BASE_URL}?${query}` : BASE_URL;
+
+  const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || `Erreur ${res.status}: Impossible de récupérer les chambres`);
   }
-  return res.json();
+  const json = await res.json();
+  return json.data !== undefined ? json.data : json;
 }
 
 /**
@@ -37,7 +41,8 @@ export async function getChambre(id) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || `Erreur ${res.status}: Chambre introuvable`);
   }
-  return res.json();
+  const json = await res.json();
+  return json.data !== undefined ? json.data : json;
 }
 
 /**
@@ -51,9 +56,11 @@ export async function createChambre(chambreData) {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || `Erreur ${res.status}: Échec de création de la chambre`);
+    const message = errorData.error || (errorData.errors ? Object.values(errorData.errors).flat().join(" ") : `Échec de création (code ${res.status})`);
+    throw new Error(message);
   }
-  return res.json();
+  const json = await res.json();
+  return json.data !== undefined ? json.data : json;
 }
 
 /**
@@ -67,9 +74,11 @@ export async function updateChambre(id, chambreData) {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || `Erreur ${res.status}: Échec de modification`);
+    const message = errorData.error || (errorData.errors ? Object.values(errorData.errors).flat().join(" ") : `Échec de modification (code ${res.status})`);
+    throw new Error(message);
   }
-  return res.json();
+  const json = await res.json();
+  return json.data !== undefined ? json.data : json;
 }
 
 /**
