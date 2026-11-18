@@ -17,6 +17,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt.admin' => \App\Http\Middleware\JwtAdminMiddleware::class,
         ]);
     })
+    
     ->withExceptions(function (Exceptions $exceptions) {
         // Gestion globale des exceptions
-    })->create();
+        $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());
+    $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+        if ($request->is('api/*')) {
+            return response()->json(['error' => 'Ressource introuvable.', 'code' => 404], 404);
+        }
+    });
+    $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
+        if ($request->is('api/*')) {
+            return response()->json(['error' => 'Méthode non autorisée.', 'code' => 405], 405);
+        }
+    });
+    });
+    

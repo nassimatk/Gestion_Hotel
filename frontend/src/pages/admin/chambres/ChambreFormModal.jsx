@@ -85,7 +85,11 @@ export default function ChambreFormModal({ chambre, onClose, onSuccess }) {
         equipements: formData.equipementsText
           ? formData.equipementsText.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
-        images: formData.imageUrl ? [formData.imageUrl.trim()] : [],
+        images: formData.imageUrl
+          ? (formData.imageUrl === (chambre?.images?.[0] || "") && Array.isArray(chambre?.images) && chambre.images.length > 1
+              ? chambre.images
+              : [formData.imageUrl.trim()])
+          : (chambre?.images || []),
       };
 
       if (isEditing) {
