@@ -3,11 +3,64 @@ import { Link, useNavigate } from "react-router-dom";
 import { createChambre } from "../../../services/chambresApi";
 import "./AdminChamberPageAdd.css";
 
+// Compression et redimensionnement HD côté client pour optimiser les performances
+function compressImage(file, maxWidth = 1600, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AdminChamberPageAdd() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Gestion multi-photos
+  const [photos, setPhotos] = useState([
+    {
+      id: "default-1",
+      url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
+      name: "suite-palmeraie-vue-est.webp",
+      size: "2.4 Mo",
+      isDefault: true,
+    },
+  ]);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
   // État du formulaire initialisé avec les valeurs représentatives du design
   const [form, setForm] = useState({
@@ -26,9 +79,6 @@ export default function AdminChamberPageAdd() {
     statut: "disponible",
     vue: "Palmeraie",
     equipementsText: "Terrasse privée, Baignoire îlot, Marbre italien, Boiseries d'ébène, Wi-Fi VIP",
-    photoUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
-    photoName: "suite-palmeraie-vue-est.webp",
-    photoSize: "2.4 Mo",
   });
 
   const handleChange = (e) => {
@@ -39,25 +89,56 @@ export default function AdminChamberPageAdd() {
     }));
   };
 
-  // Simuler le choix d'image par l'utilisateur
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // Upload multi-fichiers avec compression HD et conversion Base64
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("La taille de l'image ne doit pas dépasser 5 Mo.");
-      return;
+    for (const file of files) {
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`L'image ${file.name} dépasse la limite de 20 Mo.`);
+        continue;
+      }
+
+      const compressedUrl = await compressImage(file, 1600, 0.82);
+      const approxSizeInMo = ((compressedUrl.length * 0.75) / (1024 * 1024)).toFixed(1) + " Mo";
+
+      setPhotos((prev) => {
+        // Remplace le placeholder par défaut dès le premier vrai upload
+        const cleanPrev = prev.length === 1 && prev[0].isDefault ? [] : prev;
+        return [
+          ...cleanPrev,
+          {
+            id: Date.now() + Math.random().toString(36).substring(2, 9),
+            url: compressedUrl,
+            name: file.name,
+            size: approxSizeInMo,
+          },
+        ];
+      });
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    const sizeInMo = (file.size / (1024 * 1024)).toFixed(1) + " Mo";
+    e.target.value = "";
+  };
 
-    setForm((prev) => ({
-      ...prev,
-      photoUrl: previewUrl,
-      photoName: file.name,
-      photoSize: sizeInMo,
-    }));
+  // Définir une photo comme photo principale (index 0)
+  const handleSetMainPhoto = (index) => {
+    setPhotos((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.unshift(item);
+      return copy;
+    });
+    setSelectedPhotoIndex(0);
+  };
+
+  // Supprimer une photo individuelle
+  const handleRemovePhoto = (index, e) => {
+    if (e) e.stopPropagation();
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    if (selectedPhotoIndex >= index && selectedPhotoIndex > 0) {
+      setSelectedPhotoIndex((prev) => prev - 1);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -87,7 +168,7 @@ export default function AdminChamberPageAdd() {
         equipements: form.equipementsText
           ? form.equipementsText.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
-        images: form.photoUrl ? [form.photoUrl] : [],
+        images: photos && photos.length > 0 ? photos.map((p) => p.url) : [],
       };
 
       await createChambre(payload);
@@ -146,34 +227,100 @@ export default function AdminChamberPageAdd() {
 
         {/* Formulaire complet en 2 colonnes */}
         <form onSubmit={handleSubmit} className="chamber-form-card">
-          {/* ================= COLONNE GAUCHE (PHOTOGRAPHIE) ================= */}
+          {/* ================= COLONNE GAUCHE (PHOTOGRAPHIES MULTIPLES) ================= */}
           <div className="photo-column">
             <div className="section-heading">
-              <h2>Photographie principale</h2>
-              <span>Recommandé</span>
+              <h2>Photographies ({photos.length})</h2>
+              <span>Galerie &amp; Principale</span>
             </div>
 
-            {/* Aperçu de l'image actuelle */}
-            <div className="photo-preview-wrapper">
-              <div className="photo-preview-tag">
-                <span>✓</span>
-                <span>Aperçu actuel</span>
+            {/* Aperçu de la photo sélectionnée */}
+            {photos.length > 0 ? (
+              <div className="photo-preview-wrapper">
+                <div className={`photo-preview-tag ${selectedPhotoIndex === 0 ? "is-primary" : ""}`}>
+                  <span>{selectedPhotoIndex === 0 ? "★" : "🖼"}</span>
+                  <span>
+                    {selectedPhotoIndex === 0
+                      ? "Photo principale (Catalogue & Accueil)"
+                      : `Photo ${selectedPhotoIndex + 1} (Galerie)`}
+                  </span>
+                </div>
+                <img
+                  src={photos[selectedPhotoIndex]?.url || photos[0]?.url}
+                  alt={photos[selectedPhotoIndex]?.name || "Aperçu de la chambre"}
+                  className="photo-preview-img"
+                />
+                <div className="photo-preview-caption">
+                  <span title={photos[selectedPhotoIndex]?.name}>
+                    {photos[selectedPhotoIndex]?.name}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>{photos[selectedPhotoIndex]?.size}</span>
+                    {selectedPhotoIndex !== 0 && (
+                      <button
+                        type="button"
+                        className="btn-make-primary"
+                        onClick={() => handleSetMainPhoto(selectedPhotoIndex)}
+                        title="Placer cette photo en première position (affichée sur la page d'accueil)"
+                      >
+                        Définir comme principale
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-delete-photo"
+                      onClick={(e) => handleRemovePhoto(selectedPhotoIndex, e)}
+                      title="Supprimer cette photo"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
               </div>
-              <img
-                src={form.photoUrl}
-                alt="Aperçu de la chambre"
-                className="photo-preview-img"
-              />
-              <div className="photo-preview-caption">
-                <span>{form.photoName}</span>
-                <span>{form.photoSize}</span>
+            ) : (
+              <div className="photo-preview-empty">
+                <span>📷</span>
+                <p>Aucune photo sélectionnée</p>
+                <small>Ajoutez au moins une photo pour cette chambre</small>
               </div>
-            </div>
+            )}
 
-            {/* Zone Drag & Drop */}
+            {/* Galerie de miniatures cliquables */}
+            {photos.length > 1 && (
+              <div className="photos-thumbnail-strip">
+                <div className="photos-thumbnail-strip-title">
+                  Toutes les photos ({photos.length}) — <em>cliquez pour inspecter ou réordonner</em>
+                </div>
+                <div className="photos-thumbnail-grid">
+                  {photos.map((p, idx) => (
+                    <div
+                      key={p.id || idx}
+                      className={`photo-thumb-item ${idx === selectedPhotoIndex ? "active" : ""} ${
+                        idx === 0 ? "is-main" : ""
+                      }`}
+                      onClick={() => setSelectedPhotoIndex(idx)}
+                    >
+                      <img src={p.url} alt={p.name} />
+                      {idx === 0 && <span className="photo-thumb-badge">★ Principale</span>}
+                      <button
+                        type="button"
+                        className="photo-thumb-remove"
+                        onClick={(e) => handleRemovePhoto(idx, e)}
+                        title="Supprimer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Zone Drag & Drop Multi-fichiers */}
             <label className="upload-dropzone">
               <input
                 type="file"
+                multiple
                 accept="image/*"
                 onChange={handlePhotoUpload}
                 style={{ display: "none" }}
@@ -186,11 +333,11 @@ export default function AdminChamberPageAdd() {
                   <path d="m16 16-4-4-4 4" />
                 </svg>
               </div>
-              <strong>Glissez-déposez une nouvelle image ici</strong>
-              <small>ou parcourez vos dossiers locaux</small>
+              <strong>Glissez-déposez vos images ici</strong>
+              <small>Sélection multiple autorisée (JPG, PNG, WEBP)</small>
               <span className="upload-btn-choose">
                 <span>📁</span>
-                <span>Choisir une image</span>
+                <span>Ajouter des photos</span>
               </span>
             </label>
 
@@ -198,14 +345,14 @@ export default function AdminChamberPageAdd() {
             <div className="photo-guidelines-box">
               <div className="photo-guideline-item">
                 <span>ⓘ</span>
-                <span>Formats acceptés : <strong>JPG, PNG, WEBP</strong> (Max 5 Mo).</span>
+                <span>La <strong>première photo</strong> sera l&apos;image principale (carte &amp; accueil).</span>
               </div>
               <div className="photo-guideline-item">
-                <span>Résolution recommandée : <strong>1920x1080px</strong>.</span>
+                <span>Toutes les photos suivantes enrichissent la <strong>galerie détaillée</strong>.</span>
               </div>
               <div className="photo-guideline-item success">
                 <span>🛡</span>
-                <span>Optimisation automatique WebP pour chargement ultra-rapide</span>
+                <span>Formats acceptés : JPG, PNG, WEBP jusqu&apos;à 8 Mo par photo.</span>
               </div>
             </div>
           </div>

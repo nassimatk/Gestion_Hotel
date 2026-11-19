@@ -308,6 +308,29 @@
   margin: 0 0 18px;
 }
 
+.photo-btn-primary-action {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #f7edd7;
+  border: 1px solid #dcd4c0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #926b1c;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.photo-btn-primary-action:hover {
+  background-color: #edd9b1;
+  color: #6d4e0e;
+}
+
 .photo-btn-replace {
   width: 100%;
   padding: 10px 16px;
@@ -584,4 +607,99 @@
   .edit-grid-3-cols {
     grid-template-columns: 1fr;
   }
+}
+
+/* =========================================
+   GALERIE MULTI-PHOTOS (EDITION)
+   ========================================= */
+
+.edit-photos-strip {
+  margin-top: 20px;
+  background-color: #fcfbf8;
+  border: 1px solid #e5dec9;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.edit-photos-strip-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.edit-photos-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.edit-photo-thumb {
+  position: relative;
+  width: 90px;
+  height: 68px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  background-color: #f3f4f6;
+  transition: all 0.2s;
+}
+
+.edit-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.edit-photo-thumb:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.edit-photo-thumb.active {
+  border-color: #0f1d2d;
+  box-shadow: 0 0 0 2px rgba(15, 29, 45, 0.25);
+}
+
+.edit-photo-thumb.is-main {
+  border-color: #c5a880;
+}
+
+.edit-photo-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(197, 168, 128, 0.95);
+  color: #0f1d2d;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  padding: 2px 0;
+}
+
+.edit-photo-thumb-del {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  border: none;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.edit-photo-thumb-del:hover {
+  opacity: 1;
+  background: #ef4444;
 }

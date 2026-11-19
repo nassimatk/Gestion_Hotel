@@ -1,0 +1,191 @@
+.mes-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 44px 24px 80px;
+}
+
+.mes-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mes-loading {
+  text-align: center;
+  padding: 48px 0;
+  color: var(--color-text-muted);
+}
+
+/* ── Alertes ── */
+.mes-alert {
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+
+.mes-alert--success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.mes-alert--error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* ── État vide ── */
+.mes-empty-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 48px 24px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.mes-empty-card h3 {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  color: var(--color-dark);
+  margin-bottom: 8px;
+}
+
+.mes-empty-card p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-bottom: 22px;
+}
+
+/* ── Liste & Cartes de réservation ── */
+.mes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mes-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+}
+
+.mes-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.mes-card--annulee {
+  opacity: 0.72;
+}
+
+.mes-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.mes-card__ref {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: 4px;
+}
+
+.mes-card__title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  color: var(--color-dark);
+}
+
+.mes-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+
+.mes-status--confirmee {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mes-status--annulee {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── Grille des détails ── */
+.mes-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  background: var(--color-cream);
+  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 18px;
+}
+
+.mes-card__item span {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-text-muted);
+  margin-bottom: 3px;
+}
+
+.mes-card__item strong {
+  font-size: 14px;
+  color: var(--color-dark);
+}
+
+/* ── Pied de carte & Bouton annuler ── */
+.mes-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.mes-card__payment {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.mes-cancel-btn {
+  padding: 9px 18px;
+  background: transparent;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.mes-cancel-btn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+.mes-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

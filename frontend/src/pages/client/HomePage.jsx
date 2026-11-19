@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getChambres } from "../../services/chambresApi";
+import { verifierChambre } from "../../services/disponibilitesApi";
 import "./HomePage.css";
 
 // ==================================================
@@ -25,7 +26,7 @@ const DEFAULT_IMAGES = [
 const FEATURES = [
   {
     title: "Réservation instantanée",
-    desc: "Confirmation directe sans attente ni frais imprévus. Votre chambre est garantie immédiatement auprès de la direction de l'établissement.",
+    desc: "Confirmation directe sans attente ni frais imprévus.",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -35,7 +36,7 @@ const FEATURES = [
   },
   {
     title: "Transparence totale",
-    desc: "Prix clairs, taxes incluses et descriptions certifiées de chaque suite après audit physique par nos experts hôteliers.",
+    desc: "Prix clairs et descriptions détaillées de chaque chambre.",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -46,7 +47,7 @@ const FEATURES = [
   },
   {
     title: "Sécurité & Assistance",
-    desc: "Paiement bancaire ultra-sécurisé avec chiffrement bancaire et conciergerie dédiée joignable 24h/24 et 7j/7 pour vos demandes spéciales.",
+    desc: "Un accompagnement dédié pour rendre votre séjour agréable.",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,7 +61,7 @@ const FEATURES = [
 ];
 
 // ==================================================
-// FONCTIONS UTILITAIRES
+// DATES
 // ==================================================
 
 const getDateAujourdhui = () => {
@@ -84,6 +85,110 @@ const getDateDemain = () => {
 };
 
 // ==================================================
+// EXTRACTION DES CHAMBRES
+// ==================================================
+
+const extraireListe = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.data?.chambres)) return response.data.chambres;
+  if (Array.isArray(response?.chambres)) return response.chambres;
+
+  return [];
+};
+
+// ==================================================
+// NORMALISATION DES IMAGES
+// ==================================================
+
+const getImageChambre = (room) => {
+  let images = room?.images;
+
+  if (!images) return "";
+
+  if (typeof images === "string") {
+    try {
+      images = JSON.parse(images);
+    } catch {
+      images = [images];
+    }
+  }
+
+  if (!Array.isArray(images)) images = [images];
+
+  const image = images[0];
+
+  if (typeof image === "string") {
+    if (
+      /^https?:\/\//i.test(image) ||
+      image.startsWith("data:") ||
+      image.startsWith("blob:")
+    ) {
+      return image;
+    }
+
+    const base =
+      import.meta.env.VITE_CHAMBRES_STORAGE_URL ||
+      "http://localhost:8001/storage";
+
+    return `${base.replace(/\/+$/, "")}/${image
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/^(public\/)?storage\//, "")}`;
+  }
+
+  if (image && typeof image === "object") {
+    return (
+      image.url ||
+      image.path ||
+      image.chemin ||
+      image.image ||
+      image.src ||
+      ""
+    );
+  }
+
+  return "";
+};
+
+// ==================================================
+// CAPACITÉ D'UNE CHAMBRE
+// ==================================================
+
+const getCapaciteChambre = (room) => {
+  return Number(
+    room.capacite ??
+    room.capacity ??
+    room.nombre_personnes ??
+    room.capacite_max ??
+    room.nombre_lits ??
+    0
+  );
+};
+
+// ==================================================
+// VÉRIFICATION DE LA DISPONIBILITÉ
+// ==================================================
+
+const estChambreDisponible = (response) => {
+  const data = response?.data?.data ?? response?.data ?? response;
+
+  if (typeof data === "boolean") {
+    return data;
+  }
+
+  return (
+    data?.disponible === true ||
+    data?.disponible === 1 ||
+    data?.disponible === "true" ||
+    data?.est_disponible === true ||
+    data?.available === true ||
+    data?.is_available === true
+  );
+};
+
+// ==================================================
 // ICÔNE ÉQUIPEMENT
 // ==================================================
 
@@ -97,68 +202,48 @@ function AmenityIcon() {
 }
 
 // ==================================================
-// CARTE CHAMBRE DYNAMIQUE
+// CARTE CHAMBRE
 // ==================================================
 
 function RoomCard({ room, index, criteresRecherche }) {
+  const imagePersonnalisee = getImageChambre(room);
 
-  // Image de la chambre
-  const hasCustomImage =
-    Array.isArray(room.images) &&
-    room.images[0] &&
-    (
-      room.images[0].startsWith("http") ||
-      room.images[0].startsWith("data:") ||
-      room.images[0].startsWith("blob:")
-    );
+  const imageSrc =
+    imagePersonnalisee || DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
 
-  const imageSrc = hasCustomImage
-    ? room.images[0]
-    : DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
+  const numero = room.numero ?? room.id;
 
-  // Nom de la chambre
   const displayName = room.nom
-    ? (
-        room.nom.includes(String(room.numero))
-          ? room.nom
-          : `${room.nom} (N° ${room.numero})`
-      )
-    : `Chambre ${room.type ? room.type.toUpperCase() : "STANDARD"} N° ${room.numero}`;
+    ? room.nom
+    : `Chambre ${String(room.type || "STANDARD").toUpperCase()} N° ${numero}`;
 
-  // Description
   const displayDesc =
-    room.description ||
-    "Un hébergement raffiné où chaque détail honore le calme et le confort absolu.";
+    room.description || "Découvrez une chambre confortable et élégante.";
 
-  // Vue ou standing
   const displayTag =
     room.vue ||
-    (
-      room.type === "suite"
-        ? "Vue Mer Panoramique"
-        : room.type === "presidentielle"
-        ? "Piscine Privée & Spa"
-        : "Jardin Secret"
-    );
+    (room.type === "suite"
+      ? "Suite"
+      : room.type === "presidentielle"
+      ? "Prestige"
+      : "Confort");
 
-  // Surface
-  const displaySize =
-    room.superficie ||
-    (
-      room.type === "presidentielle"
-        ? 140
-        : room.type === "suite"
-        ? 85
-        : 48
-    );
+  const displaySize = room.superficie || 0;
 
-  // Équipements
-  const displayAmenities =
-    Array.isArray(room.equipements) && room.equipements.length > 0
-      ? room.equipements.slice(0, 3)
-      : ["Lit King Size", "Climatisation", "Wi-Fi Haut Débit"];
+  let amenities = room.equipements || [];
 
-  // Tarif
+  if (typeof amenities === "string") {
+    try {
+      amenities = JSON.parse(amenities);
+    } catch {
+      amenities = amenities.split(",").map((a) => a.trim());
+    }
+  }
+
+  if (!Array.isArray(amenities) || amenities.length === 0) {
+    amenities = ["Climatisation", "Wi-Fi", "Confort"];
+  }
+
   const formattedPrice = new Intl.NumberFormat("fr-FR").format(
     Number(room.prix_nuit || 0)
   );
@@ -166,48 +251,38 @@ function RoomCard({ room, index, criteresRecherche }) {
   return (
     <div className="room-card">
 
-      {/* IMAGE */}
       <div className="room-card__image">
         <img
           src={imageSrc}
           alt={displayName}
           loading="lazy"
           onError={(e) => {
-            e.target.src = DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
+            e.currentTarget.onerror = null;
+            e.currentTarget.src =
+              DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
           }}
         />
 
-        <span className="room-card__tag">
-          {displayTag}
-        </span>
+        <span className="room-card__tag">{displayTag}</span>
 
-        <span className="room-card__size">
-          {displaySize} m²
-        </span>
+        <span className="room-card__size">{displaySize} m²</span>
       </div>
 
-      {/* INFORMATIONS */}
       <div className="room-card__body">
 
-        <h3 className="room-card__name">
-          {displayName}
-        </h3>
+        <h3 className="room-card__name">{displayName}</h3>
 
-        <p className="room-card__desc">
-          {displayDesc}
-        </p>
+        <p className="room-card__desc">{displayDesc}</p>
 
-        {/* ÉQUIPEMENTS */}
         <ul className="room-card__amenities">
-          {displayAmenities.map((a, i) => (
+          {amenities.slice(0, 3).map((a, i) => (
             <li key={i} className="room-card__amenity">
               <AmenityIcon />
-              {a}
+              {typeof a === "object" ? a.nom || a.name : a}
             </li>
           ))}
         </ul>
 
-        {/* PRIX ET DÉTAILS */}
         <div className="room-card__footer">
 
           <div className="room-card__price">
@@ -215,9 +290,7 @@ function RoomCard({ room, index, criteresRecherche }) {
               {formattedPrice} MAD
             </span>
 
-            <span className="room-card__price-unit">
-              / nuit
-            </span>
+            <span className="room-card__price-unit">/ nuit</span>
           </div>
 
           <Link
@@ -239,21 +312,13 @@ function RoomCard({ room, index, criteresRecherche }) {
 // ==================================================
 
 export default function HomePage() {
-
   const { isAuthenticated } = useAuth();
-
-  // --------------------------------------------------
-  // ÉTATS DES CHAMBRES
-  // --------------------------------------------------
 
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedFilter, setSelectedFilter] = useState("all");
 
-  // --------------------------------------------------
-  // ÉTATS DE RECHERCHE
-  // --------------------------------------------------
+  const [selectedFilter, setSelectedFilter] = useState("all");
 
   const [dateDebut, setDateDebut] = useState(getDateAujourdhui);
   const [dateFin, setDateFin] = useState(getDateDemain);
@@ -262,60 +327,61 @@ export default function HomePage() {
   const [criteresRecherche, setCriteresRecherche] = useState(null);
   const [searchError, setSearchError] = useState("");
 
-  // --------------------------------------------------
-  // RÉCUPÉRATION DES CHAMBRES
-  // --------------------------------------------------
+  // Nouveaux états pour la recherche
+  const [searchedRooms, setSearchedRooms] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // ==================================================
+  // CHARGEMENT DES CHAMBRES
+  // ==================================================
 
   const fetchRooms = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const data = await getChambres({
+      const response = await getChambres({
         statut: "disponible",
       });
 
-      setRooms(Array.isArray(data) ? data : []);
+      const liste = extraireListe(response);
+
+      const disponibles = liste.filter((room) => {
+        const statut = String(room.statut || "disponible")
+          .trim()
+          .toLowerCase();
+
+        return ["disponible", "available"].includes(statut);
+      });
+
+      setRooms(disponibles);
 
     } catch (err) {
-      console.error(
-        "Erreur lors de la récupération des chambres :",
-        err
-      );
+      console.error("Erreur récupération chambres :", err);
 
       setError(
+        err.response?.data?.message ||
         err.message ||
         "Impossible de charger les chambres disponibles."
       );
-
     } finally {
       setLoading(false);
     }
   };
 
-  // --------------------------------------------------
-  // CHARGEMENT INITIAL
-  // --------------------------------------------------
-
   useEffect(() => {
     fetchRooms();
   }, []);
 
-  // --------------------------------------------------
-  // VALIDATION ET RECHERCHE
-  // --------------------------------------------------
+  // ==================================================
+  // RECHERCHE AVEC DISPONIBILITÉ ET CAPACITÉ
+  // ==================================================
 
-  const handleSearch = () => {
-
+  const handleSearch = async () => {
     setSearchError("");
 
     if (!dateDebut || !dateFin) {
       setSearchError("Veuillez sélectionner les dates de votre séjour.");
-      return;
-    }
-
-    if (new Date(dateFin) <= new Date(dateDebut)) {
-      setSearchError("La date de départ doit être après la date d'arrivée.");
       return;
     }
 
@@ -324,12 +390,16 @@ export default function HomePage() {
       return;
     }
 
-    if (Number(adultes) < 1) {
+    if (dateFin <= dateDebut) {
+      setSearchError("La date de départ doit être après la date d'arrivée.");
+      return;
+    }
+
+    if (adultes < 1) {
       setSearchError("Le nombre de voyageurs doit être au moins égal à 1.");
       return;
     }
 
-    // IMPORTANT : noms identiques à DetailChambrePage.jsx
     const criteres = {
       dateArrivee: dateDebut,
       dateDepart: dateFin,
@@ -337,35 +407,148 @@ export default function HomePage() {
     };
 
     setCriteresRecherche(criteres);
+    setSearchLoading(true);
+    setSearchedRooms(null);
 
-    console.log("Critères de recherche :", criteres);
+    // Afficher les chambres
+    document.getElementById("chambres-signature")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
 
-    // Actualiser les chambres disponibles
-    fetchRooms();
+    try {
+      // 1. Filtrer selon la capacité
+      const chambresCompatibles = rooms.filter((room) => {
+        return getCapaciteChambre(room) >= Number(adultes);
+      });
+
+      if (chambresCompatibles.length === 0) {
+        setSearchedRooms([]);
+        setSearchError(
+          "Aucune chambre ne possède la capacité demandée."
+        );
+        return;
+      }
+
+      console.log("Chambres compatibles :", chambresCompatibles);
+
+      // 2. Vérifier les disponibilités avec le microservice
+      const verifications = await Promise.all(
+        chambresCompatibles.map(async (room) => {
+          try {
+            const response = await verifierChambre(room.id, {
+              date_arrivee: dateDebut,
+              date_depart: dateFin,
+            });
+
+            console.log(
+              `Disponibilité chambre ${room.id} :`,
+              response.data
+            );
+
+            return {
+              room,
+              disponible: estChambreDisponible(response),
+              erreur: false,
+            };
+
+          } catch (err) {
+            console.error(
+              `Erreur disponibilité chambre ${room.id}:`,
+              err.response?.data || err.message
+            );
+
+            return {
+              room,
+              disponible: false,
+              erreur: true,
+            };
+          }
+        })
+      );
+
+      // 3. Vérifier les réponses du microservice
+      const controlesReussis = verifications.filter(
+        (resultat) => !resultat.erreur
+      );
+
+      if (controlesReussis.length === 0) {
+        throw new Error(
+          "Le service Disponibilités ne répond pas. Vérifiez le service."
+        );
+      }
+
+      // 4. Garder uniquement les chambres disponibles
+      const chambresDisponibles = verifications
+        .filter((resultat) => resultat.disponible)
+        .map((resultat) => resultat.room);
+
+      setSearchedRooms(chambresDisponibles);
+
+      console.log("Critères de recherche :", criteres);
+      console.log("Résultats :", chambresDisponibles);
+
+      if (chambresDisponibles.length === 0) {
+        setSearchError(
+          "Aucune chambre disponible pour ces dates et ce nombre de personnes."
+        );
+      }
+
+    } catch (err) {
+      console.error("Erreur recherche :", err);
+
+      setSearchedRooms([]);
+      setSearchError(
+        err.message ||
+        "Impossible d'effectuer la recherche. Réessayez."
+      );
+
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
-  // --------------------------------------------------
+  // ==================================================
   // FILTRAGE DES CHAMBRES
-  // --------------------------------------------------
+  // ==================================================
 
-  const filteredRooms = rooms.filter((r) => {
+  const chambresSource = searchedRooms !== null
+    ? searchedRooms
+    : rooms;
 
+  const filteredRooms = chambresSource.filter((room) => {
     if (selectedFilter === "all") return true;
 
     if (selectedFilter === "suite") {
-      return r.type === "suite" || r.type === "presidentielle";
+      return ["suite", "presidentielle"].includes(
+        String(room.type || "").toLowerCase()
+      );
     }
 
     if (selectedFilter === "double") {
-      return r.type === "double";
+      return String(room.type || "").toLowerCase() === "double";
     }
 
     if (selectedFilter === "simple") {
-      return r.type === "simple";
+      return String(room.type || "").toLowerCase() === "simple";
     }
 
     return true;
   });
+
+  // ==================================================
+  // RÉINITIALISER LA RECHERCHE
+  // ==================================================
+
+  const reinitialiserRecherche = () => {
+    setSearchedRooms(null);
+    setCriteresRecherche(null);
+    setSearchError("");
+    setSelectedFilter("all");
+    setDateDebut(getDateAujourdhui());
+    setDateFin(getDateDemain());
+    setAdultes(2);
+  };
 
   // ==================================================
   // AFFICHAGE
@@ -374,12 +557,9 @@ export default function HomePage() {
   return (
     <>
 
-      {/* ==================================================
-          HERO
-      ================================================== */}
+      {/* HERO */}
 
       <section className="hero">
-
         <div className="hero__bg" />
         <div className="hero__overlay" />
 
@@ -401,7 +581,6 @@ export default function HomePage() {
           </p>
 
           <div className="hero__cta">
-
             <a href="#chambres-signature" className="btn-outline">
               Découvrir nos chambres →
             </a>
@@ -411,61 +590,34 @@ export default function HomePage() {
                 Créer un compte
               </Link>
             )}
-
           </div>
+
         </div>
       </section>
 
-      {/* ==================================================
-          BARRE DE RECHERCHE
-      ================================================== */}
+      {/* BARRE DE RECHERCHE */}
 
       <div className="search-bar-wrapper">
-
         <div className="search-bar">
 
-          {/* DESTINATION */}
           <div className="search-bar__field">
-
-            <span className="search-bar__icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-            </span>
-
+            <span className="search-bar__icon">📍</span>
             <div className="search-bar__info">
               <span className="search-bar__label">
                 Destination ou Hôtel
               </span>
-
               <span className="search-bar__value">
                 Marrakech, Palmeraie
               </span>
             </div>
-
           </div>
 
-          {/* DATE ARRIVÉE */}
           <div className="search-bar__field">
-
-            <span className="search-bar__icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </span>
-
+            <span className="search-bar__icon">📅</span>
             <div className="search-bar__info">
-
               <label className="search-bar__label" htmlFor="date-arrivee">
                 Date d&apos;arrivée
               </label>
-
               <input
                 id="date-arrivee"
                 type="date"
@@ -474,29 +626,15 @@ export default function HomePage() {
                 value={dateDebut}
                 onChange={(e) => setDateDebut(e.target.value)}
               />
-
             </div>
           </div>
 
-          {/* DATE DÉPART */}
           <div className="search-bar__field">
-
-            <span className="search-bar__icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </span>
-
+            <span className="search-bar__icon">📅</span>
             <div className="search-bar__info">
-
               <label className="search-bar__label" htmlFor="date-depart">
                 Date de départ
               </label>
-
               <input
                 id="date-depart"
                 type="date"
@@ -505,81 +643,56 @@ export default function HomePage() {
                 value={dateFin}
                 onChange={(e) => setDateFin(e.target.value)}
               />
-
             </div>
           </div>
 
-          {/* VOYAGEURS */}
           <div className="search-bar__field">
-
-            <span className="search-bar__icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </span>
-
+            <span className="search-bar__icon">👥</span>
             <div className="search-bar__info">
-
               <label className="search-bar__label" htmlFor="nombre-voyageurs">
                 Voyageurs
               </label>
-
               <select
                 id="nombre-voyageurs"
                 className="search-bar__value"
                 value={adultes}
                 onChange={(e) => setAdultes(Number(e.target.value))}
               >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((nombre) => (
-                  <option key={nombre} value={nombre}>
-                    {nombre} {nombre > 1 ? "Adultes" : "Adulte"}
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <option key={n} value={n}>
+                    {n} {n > 1 ? "Adultes" : "Adulte"}
                   </option>
                 ))}
               </select>
-
             </div>
           </div>
 
-          {/* BOUTON RECHERCHER */}
           <button
             type="button"
             className="search-bar__btn"
             onClick={handleSearch}
+            disabled={searchLoading || loading}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-
-            Rechercher
+            {searchLoading
+              ? "Recherche en cours..."
+              : "🔍 Rechercher"}
           </button>
 
         </div>
 
-        {/* ERREUR DE RECHERCHE */}
         {searchError && (
-          <p
-            style={{
-              color: "#b91c1c",
-              textAlign: "center",
-              marginTop: "12px",
-              fontSize: "14px",
-            }}
-          >
+          <p style={{
+            color: "#b91c1c",
+            textAlign: "center",
+            marginTop: 12,
+            fontSize: 14
+          }}>
             {searchError}
           </p>
         )}
-
       </div>
 
-      {/* ==================================================
-          CHAMBRES
-      ================================================== */}
+      {/* CHAMBRES */}
 
       <section className="rooms-section" id="chambres-signature">
 
@@ -587,29 +700,52 @@ export default function HomePage() {
 
           <div className="rooms-section__header-left">
 
-            <span className="badge">
-              Sélection Exclusive
-            </span>
+            <span className="badge">Sélection Exclusive</span>
 
             <h2 className="section-title">
               Nos Chambres &amp; Suites Signature
             </h2>
 
             <p className="section-subtitle" style={{ marginTop: 10 }}>
-              Une architecture raffinée où chaque détail honore le calme, la sensualité
-              des matières nobles et le confort absolu.
+              Une architecture raffinée où chaque détail honore le calme,
+              les matières nobles et le confort absolu.
             </p>
+
+            {searchedRooms !== null && !searchLoading && (
+              <div style={{
+                marginTop: 15,
+                color: "#987344",
+                fontWeight: 600
+              }}>
+                {filteredRooms.length} chambre(s) trouvée(s)
+                {" "}pour {adultes} voyageur(s).
+                <button
+                  type="button"
+                  onClick={reinitialiserRecherche}
+                  style={{
+                    marginLeft: 12,
+                    border: "none",
+                    background: "transparent",
+                    color: "#987344",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontWeight: 600
+                  }}
+                >
+                  Réinitialiser la recherche
+                </button>
+              </div>
+            )}
 
           </div>
 
-          {/* FILTRES */}
           <div className="rooms-filter">
 
             <button
               className={`filter-btn ${selectedFilter === "all" ? "active" : ""}`}
               onClick={() => setSelectedFilter("all")}
             >
-              Toutes ({rooms.length})
+              Toutes ({chambresSource.length})
             </button>
 
             <button
@@ -636,168 +772,146 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* CHARGEMENT */}
+        {/* CHARGEMENT INITIAL */}
+
         {loading && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "80px 20px",
-              flexDirection: "column",
-              gap: "16px",
-            }}
-          >
-            <div
-              style={{
-                width: "44px",
-                height: "44px",
-                border: "3px solid #e5e7eb",
-                borderTop: "3px solid #c5a880",
-                borderRadius: "50%",
-                animation: "spin 0.8s linear infinite",
-              }}
-            />
+          <div style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "80px 20px",
+            flexDirection: "column",
+            gap: 16
+          }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              border: "3px solid #e5e7eb",
+              borderTop: "3px solid #c5a880",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite"
+            }} />
 
             <style>
               {`@keyframes spin { to { transform: rotate(360deg); } }`}
             </style>
 
-            <p style={{ color: "#6b7280", fontSize: "14px" }}>
-              Chargement des chambres d&apos;exception...
+            <p style={{ color: "#6b7280" }}>
+              Chargement des chambres...
             </p>
           </div>
         )}
 
-        {/* ERREUR API */}
-        {error && !loading && (
-          <div
-            style={{
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#991b1b",
-              padding: "20px",
-              borderRadius: "12px",
-              textAlign: "center",
-              margin: "20px 0",
-            }}
-          >
-            <p style={{ margin: "0 0 12px", fontWeight: "600" }}>
-              ⚠️ {error}
-            </p>
+        {/* ERREUR DE CHARGEMENT */}
 
-            <button
-              onClick={fetchRooms}
-              style={{
-                background: "#0f1d2d",
-                color: "#ffffff",
-                border: "none",
-                padding: "8px 18px",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "13px",
-              }}
-            >
+        {error && !loading && (
+          <div style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#991b1b",
+            padding: 20,
+            borderRadius: 12,
+            textAlign: "center",
+            margin: "20px 0"
+          }}>
+            <p>{error}</p>
+
+            <button onClick={fetchRooms}>
               Réessayer
             </button>
           </div>
         )}
 
+        {/* RECHERCHE EN COURS */}
+
+        {searchLoading && (
+          <div style={{
+            textAlign: "center",
+            padding: "60px 20px",
+            color: "#987344"
+          }}>
+            <p>Vérification des disponibilités...</p>
+            <p style={{ fontSize: 13, marginTop: 8 }}>
+              Nous recherchons les chambres adaptées à votre séjour.
+            </p>
+          </div>
+        )}
+
         {/* AUCUNE CHAMBRE */}
-        {!loading && !error && filteredRooms.length === 0 && (
-          <div
-            style={{
+
+        {!loading &&
+          !searchLoading &&
+          !error &&
+          filteredRooms.length === 0 && (
+            <div style={{
               textAlign: "center",
               padding: "60px 20px",
-              background: "#ffffff",
-              borderRadius: "12px",
-              border: "1px dashed #d1d5db",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "16px",
-                color: "#374151",
-                margin: "0 0 8px",
-                fontWeight: "600",
-              }}
-            >
-              Aucune chambre disponible dans cette sélection
-            </p>
+              background: "#fff",
+              borderRadius: 12
+            }}>
+              <h3>
+                Aucune chambre disponible
+              </h3>
 
-            <p style={{ fontSize: "13.5px", color: "#6b7280", margin: 0 }}>
-              Veuillez modifier votre filtre ou nous contacter pour une réservation sur-mesure.
-            </p>
-          </div>
-        )}
+              <p style={{ marginTop: 10 }}>
+                {searchError ||
+                  "Aucune chambre disponible dans cette sélection."}
+              </p>
+            </div>
+          )}
 
-        {/* GRILLE DES CHAMBRES */}
-        {!loading && !error && filteredRooms.length > 0 && (
-          <div className="rooms-grid">
+        {/* AFFICHAGE DES CHAMBRES */}
 
-            {filteredRooms.map((room, idx) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                index={idx}
-                criteresRecherche={criteresRecherche}
-              />
-            ))}
-
-          </div>
-        )}
+        {!loading &&
+          !searchLoading &&
+          !error &&
+          filteredRooms.length > 0 && (
+            <div className="rooms-grid">
+              {filteredRooms.map((room, idx) => (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  index={idx}
+                  criteresRecherche={criteresRecherche}
+                />
+              ))}
+            </div>
+          )}
 
       </section>
 
-      {/* ==================================================
-          FEATURES
-      ================================================== */}
+      {/* FEATURES */}
 
       <section className="features-section">
 
         <div className="features-section__header">
 
-          <span className="badge">
-            Excellence &amp; Sérénité
-          </span>
+          <span className="badge">Excellence &amp; Sérénité</span>
 
           <h2 className="section-title">
             Pourquoi choisir HotelHub
           </h2>
 
           <p className="section-subtitle">
-            Une exigence continue conçue pour transformer chaque instant de
-            réservation en une promesse de sérénité absolue.
+            Une expérience conçue pour transformer chaque réservation
+            en une promesse de sérénité.
           </p>
 
         </div>
 
         <div className="features-grid">
-
           {FEATURES.map((f) => (
             <div key={f.title} className="feature-card">
-
-              <div className="feature-card__icon">
-                {f.icon}
-              </div>
-
-              <h3 className="feature-card__title">
-                {f.title}
-              </h3>
-
-              <p className="feature-card__desc">
-                {f.desc}
-              </p>
-
+              <div className="feature-card__icon">{f.icon}</div>
+              <h3 className="feature-card__title">{f.title}</h3>
+              <p className="feature-card__desc">{f.desc}</p>
             </div>
           ))}
-
         </div>
+
       </section>
 
-      {/* ==================================================
-          CTA
-      ================================================== */}
+      {/* CTA */}
 
       <section className="cta-section">
 
@@ -814,8 +928,7 @@ export default function HomePage() {
           </h2>
 
           <p className="cta-section__subtitle">
-            Rejoignez le cercle privilégié HotelHub et bénéficiez de surclassements
-            prioritaires, de cocktails de bienvenue et d&apos;attentions exclusives.
+            Rejoignez HotelHub et découvrez nos chambres et suites.
           </p>
 
         </div>

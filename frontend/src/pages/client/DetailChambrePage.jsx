@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -10,9 +11,9 @@ const STORAGE_URL =
   import.meta.env.VITE_CHAMBRES_STORAGE_URL ||
   "http://localhost:8001/storage";
 
-// ==============================
+// ==================================================
 // EXTRACTION DES DONNÉES
-// ==============================
+// ==================================================
 
 const extraireListe = (response) => {
   if (Array.isArray(response)) return response;
@@ -23,6 +24,10 @@ const extraireListe = (response) => {
 
   return [];
 };
+
+// ==================================================
+// GESTION DES IMAGES
+// ==================================================
 
 const extraireCheminImage = (image) => {
   if (typeof image === "string") return image;
@@ -42,15 +47,14 @@ const extraireCheminImage = (image) => {
   return "";
 };
 
-// ==============================
-// GESTION DES IMAGES
-// ==============================
-
 const getRoomImage = (image) => {
   const chemin = extraireCheminImage(image).trim();
 
   if (!chemin) return "";
-  if (/^https?:\/\//i.test(chemin)) return chemin;
+
+  if (/^(https?:\/\/|data:|blob:)/i.test(chemin)) {
+    return chemin;
+  }
 
   const cheminNettoye = chemin
     .replace(/\\/g, "/")
@@ -74,14 +78,16 @@ const getRoomImages = (room) => {
     }
   }
 
-  if (!Array.isArray(images)) images = [images];
+  if (!Array.isArray(images)) {
+    images = [images];
+  }
 
   return images.map(getRoomImage).filter(Boolean);
 };
 
-// ==============================
-// FORMATTAGE ET CALCULS
-// ==============================
+// ==================================================
+// FORMATAGE ET CALCULS
+// ==================================================
 
 const formatPrix = (valeur) =>
   `${Number(valeur || 0).toLocaleString("fr-FR")} DH`;
@@ -98,6 +104,7 @@ const nombreNuits = (arrivee, depart) => {
 
 const getDateAujourdhui = () => {
   const date = new Date();
+
   const annee = date.getFullYear();
   const mois = String(date.getMonth() + 1).padStart(2, "0");
   const jour = String(date.getDate()).padStart(2, "0");
@@ -105,35 +112,25 @@ const getDateAujourdhui = () => {
   return `${annee}-${mois}-${jour}`;
 };
 
-// ==============================
+// ==================================================
 // NORMALISATION DES CRITÈRES
-// ==============================
+// ==================================================
 
 const normaliserCriteres = (criteres) => {
   if (!criteres) return null;
 
   return {
-    dateArrivee:
-      criteres.dateArrivee ||
-      criteres.arrivee ||
-      "",
-
-    dateDepart:
-      criteres.dateDepart ||
-      criteres.depart ||
-      "",
-
+    dateArrivee: criteres.dateArrivee || criteres.arrivee || "",
+    dateDepart: criteres.dateDepart || criteres.depart || "",
     nombrePersonnes: Number(
-      criteres.nombrePersonnes ??
-      criteres.voyageurs ??
-      1
+      criteres.nombrePersonnes ?? criteres.voyageurs ?? 1
     ),
   };
 };
 
-// ==============================
+// ==================================================
 // COMPOSANT IMAGE
-// ==============================
+// ==================================================
 
 function ImageChambre({ src, alt, className = "" }) {
   const [erreur, setErreur] = useState(false);
@@ -159,9 +156,9 @@ function ImageChambre({ src, alt, className = "" }) {
   );
 }
 
-// ==============================
+// ==================================================
 // PAGE DÉTAIL CHAMBRE
-// ==============================
+// ==================================================
 
 function DetailChambrePage() {
   const { id } = useParams();
@@ -170,26 +167,20 @@ function DetailChambrePage() {
 
   const { isAuthenticated } = useAuth();
 
-  // ==============================
-  // CRITÈRES REÇUS
-  // ==============================
-
-  const criteresRecherche = normaliserCriteres(
-    location.state?.criteresRecherche
+  const criteresRecherche = useMemo(
+    () => normaliserCriteres(location.state?.criteresRecherche),
+    [location.state]
   );
 
-  // ==============================
-  // ÉTATS DE LA CHAMBRE
-  // ==============================
+  // ==================================================
+  // ÉTATS
+  // ==================================================
 
   const [chambre, setChambre] = useState(null);
   const [autresChambres, setAutresChambres] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // ==============================
-  // CRITÈRES DU SÉJOUR
-  // ==============================
 
   const [arrivee, setArrivee] = useState(
     criteresRecherche?.dateArrivee || ""
@@ -203,16 +194,12 @@ function DetailChambrePage() {
     criteresRecherche?.nombrePersonnes || 1
   );
 
-  // ==============================
-  // ÉTATS GALERIE
-  // ==============================
-
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [indexActif, setIndexActif] = useState(0);
 
-  // ==============================
-  // CHARGEMENT DES CHAMBRES
-  // ==============================
+  // ==================================================
+  // CHARGEMENT CHAMBRE
+  // ==================================================
 
   useEffect(() => {
     let actif = true;
@@ -221,6 +208,7 @@ function DetailChambrePage() {
       try {
         setLoading(true);
         setError("");
+        setChambre(null);
 
         const response = await getChambres();
         const chambres = extraireListe(response);
@@ -231,18 +219,25 @@ function DetailChambrePage() {
 
         if (!actif) return;
 
-        setChambre(chambreTrouvee || null);
+        if (!chambreTrouvee) {
+          setError(`Chambre avec ID ${id} introuvable.`);
+          return;
+        }
+
+        setChambre(chambreTrouvee);
 
         setAutresChambres(
           chambres
             .filter((item) => String(item.id) !== String(id))
             .slice(0, 3)
         );
+
       } catch (err) {
         console.error("Erreur chargement chambre :", err);
 
         if (actif) {
           setError(
+            err.response?.data?.message ||
             "Impossible de charger les informations de la chambre."
           );
         }
@@ -258,18 +253,18 @@ function DetailChambrePage() {
     };
   }, [id]);
 
-  // ==============================
-  // IMAGES DE LA CHAMBRE
-  // ==============================
+  // ==================================================
+  // IMAGES
+  // ==================================================
 
   const images = useMemo(
     () => getRoomImages(chambre),
     [chambre]
   );
 
-  // ==============================
+  // ==================================================
   // SYNCHRONISATION DES CRITÈRES
-  // ==============================
+  // ==================================================
 
   useEffect(() => {
     setIndexActif(0);
@@ -280,41 +275,40 @@ function DetailChambrePage() {
     setVoyageurs(criteresRecherche?.nombrePersonnes || 1);
   }, [id, location.key]);
 
-  // ==============================
-  // SYNCHRONISATION DE LA CAPACITÉ
-  // ==============================
+  // ==================================================
+  // CAPACITÉ
+  // ==================================================
+
+  const capacite = useMemo(() => {
+    const valeur =
+      chambre?.capacite ??
+      chambre?.nombre_personnes ??
+      chambre?.nb_personnes ??
+      chambre?.capacity ??
+      1;
+
+    const nombre = Number(valeur);
+
+    return Number.isFinite(nombre) && nombre > 0
+      ? Math.floor(nombre)
+      : 1;
+  }, [chambre]);
 
   useEffect(() => {
     if (!chambre) return;
 
-    const capaciteBrute =
-      chambre.capacite ??
-      chambre.nombre_personnes ??
-      chambre.nb_personnes ??
-      chambre.capacity ??
-      1;
+    setVoyageurs((valeur) => {
+      const nombre = Number(valeur);
 
-    const capaciteNumerique = Number(capaciteBrute);
+      if (!Number.isFinite(nombre) || nombre < 1) return 1;
 
-    const capaciteMax =
-      Number.isFinite(capaciteNumerique) && capaciteNumerique > 0
-        ? Math.floor(capaciteNumerique)
-        : 1;
-
-    setVoyageurs((valeurActuelle) => {
-      const nombreActuel = Number(valeurActuelle);
-
-      if (!Number.isFinite(nombreActuel) || nombreActuel < 1) {
-        return 1;
-      }
-
-      return Math.min(Math.floor(nombreActuel), capaciteMax);
+      return Math.min(Math.floor(nombre), capacite);
     });
-  }, [chambre, id]);
+  }, [chambre, capacite]);
 
-  // ==============================
-  // NAVIGATION DANS LA GALERIE
-  // ==============================
+  // ==================================================
+  // NAVIGATION GALERIE
+  // ==================================================
 
   useEffect(() => {
     if (!lightboxOpen || images.length === 0) return;
@@ -322,9 +316,7 @@ function DetailChambrePage() {
     const total = images.length;
 
     const onKey = (e) => {
-      if (e.key === "Escape") {
-        setLightboxOpen(false);
-      }
+      if (e.key === "Escape") setLightboxOpen(false);
 
       if (e.key === "ArrowRight") {
         setIndexActif((i) => (i + 1) % total);
@@ -346,25 +338,30 @@ function DetailChambrePage() {
     };
   }, [lightboxOpen, images.length]);
 
-  // ==============================
-  // ÉTATS DE CHARGEMENT
-  // ==============================
+  // ==================================================
+  // CHARGEMENT
+  // ==================================================
 
   if (loading) {
-    return <p className="detail-loading">Chargement...</p>;
+    return <p className="detail-loading">Chargement de la chambre...</p>;
   }
 
   if (error) {
-    return <p className="detail-error">{error}</p>;
+    return (
+      <div className="detail-error">
+        <p>{error}</p>
+        <Link to="/">Retour à l'accueil</Link>
+      </div>
+    );
   }
 
   if (!chambre) {
     return <p className="detail-error">Chambre introuvable.</p>;
   }
 
-  // ==============================
+  // ==================================================
   // ÉQUIPEMENTS
-  // ==============================
+  // ==================================================
 
   let equipements = chambre.equipements || [];
 
@@ -376,37 +373,19 @@ function DetailChambrePage() {
     }
   }
 
-  if (!Array.isArray(equipements)) {
-    equipements = [];
-  }
+  if (!Array.isArray(equipements)) equipements = [];
 
-  // ==============================
+  // ==================================================
   // CALCUL DU SÉJOUR
-  // ==============================
+  // ==================================================
 
   const nuits = nombreNuits(arrivee, depart);
 
-  const sousTotal = nuits * Number(chambre.prix_nuit || 0);
+  const prixNuit = Number(chambre.prix_nuit || 0);
 
-  const capaciteBrute =
-    chambre.capacite ??
-    chambre.nombre_personnes ??
-    chambre.nb_personnes ??
-    chambre.capacity ??
-    1;
-
-  const capaciteNumerique = Number(capaciteBrute);
-
-  const capacite =
-    Number.isFinite(capaciteNumerique) && capaciteNumerique > 0
-      ? Math.floor(capaciteNumerique)
-      : 1;
+  const sousTotal = nuits * prixNuit;
 
   const nombreVoyageurs = Number(voyageurs);
-
-  // ==============================
-  // CARACTÉRISTIQUES
-  // ==============================
 
   const caracteristiques = [
     { icone: "▢", texte: `${chambre.superficie || 0} m²` },
@@ -416,105 +395,61 @@ function DetailChambrePage() {
     { icone: "▭", texte: chambre.type || "Type non précisé" },
   ];
 
-  // ==============================
+  // ==================================================
   // RÉSERVATION
-  // ==============================
+  // ==================================================
 
-  const handleReservation = () => {
-    // Vérifier la connexion avant toute réservation
-    if (!isAuthenticated) {
-      navigate("/login", {
-        state: {
-          from: location.pathname,
-          criteresRecherche: {
-            dateArrivee: arrivee,
-            dateDepart: depart,
-            nombrePersonnes: voyageurs,
-          },
+ const handleReservation = () => {
+  if (!isAuthenticated) {
+    navigate("/login", {
+      state: {
+        from: location.pathname,
+        criteresRecherche: {
+          dateArrivee: arrivee,
+          dateDepart: depart,
+          nombrePersonnes: nombreVoyageurs,
         },
-      });
-
-      return;
-    }
-
-    const nombreSelectionne = Number(voyageurs);
-    const capaciteChambre = Number(capacite);
-
-    if (!arrivee || !depart) {
-      alert("Veuillez sélectionner les dates d'arrivée et de départ.");
-      return;
-    }
-
-    if (nuits <= 0) {
-      alert("La date de départ doit être après la date d'arrivée.");
-      return;
-    }
-
-    if (arrivee < getDateAujourdhui()) {
-      alert("La date d'arrivée ne peut pas être dans le passé.");
-      return;
-    }
-
-    if (
-      !Number.isFinite(nombreSelectionne) ||
-      !Number.isFinite(capaciteChambre) ||
-      !Number.isInteger(nombreSelectionne) ||
-      nombreSelectionne < 1 ||
-      nombreSelectionne > capaciteChambre
-    ) {
-      alert(
-        `Cette chambre accepte au maximum ${capaciteChambre} voyageur(s).`
-      );
-
-      return;
-    }
-
-    if (
-      chambre.statut &&
-      !["disponible", "available"].includes(
-        String(chambre.statut).trim().toLowerCase()
-      )
-    ) {
-      alert("Cette chambre n'est pas disponible.");
-      return;
-    }
-
-    // Données transmises à la page de réservation
-    const reservationData = {
-      dateArrivee: arrivee,
-      dateDepart: depart,
-      nombrePersonnes: nombreSelectionne,
-      nombreNuits: nuits,
-      prixTotal: sousTotal,
-
-      chambre: {
-        id: chambre.id,
-        numero: chambre.numero,
-        type: chambre.type,
-        titre: chambre.titre,
-        prixNuit: Number(chambre.prix_nuit || 0),
-        capacite,
-        superficie: chambre.superficie,
-        etage: chambre.etage,
-        vue: chambre.vue,
-        images,
       },
-    };
-
-    navigate("/reservations/nouvelle", {
-      state: reservationData,
     });
-  };
+    return;
+  }
 
-  // ==============================
+  if (!arrivee || !depart) {
+    alert("Veuillez sélectionner les dates.");
+    return;
+  }
+
+  if (arrivee < getDateAujourdhui() || nuits <= 0) {
+    alert("Veuillez vérifier les dates de votre séjour.");
+    return;
+  }
+
+  if (nombreVoyageurs < 1 || nombreVoyageurs > capacite) {
+    alert(`Maximum ${capacite} voyageurs.`);
+    return;
+  }
+
+  navigate("/reservation", {
+    state: {
+      chambreId: chambre.id,
+      dateDebut: arrivee,
+      dateFin: depart,
+      nombrePersonnes: nombreVoyageurs,
+      chambre: chambre,
+    },
+  });
+};
+
+  // ==================================================
   // AFFICHAGE
-  // ==============================
+  // ==================================================
 
   return (
     <div className="detail-chambre-page">
       <div className="detail-container">
 
         {/* HEADER */}
+
         <header className="detail-header">
           <h1>
             {chambre.type}
@@ -522,12 +457,13 @@ function DetailChambrePage() {
           </h1>
 
           <p className="detail-header-prix">
-            {formatPrix(chambre.prix_nuit)}
+            {formatPrix(prixNuit)}
             <small> / nuit</small>
           </p>
         </header>
 
         {/* GALERIE */}
+
         <div className={`detail-gallery count-${Math.min(images.length, 3)}`}>
           {images.length > 0 ? (
             images.slice(0, 3).map((image, index) => (
@@ -570,6 +506,7 @@ function DetailChambrePage() {
         </div>
 
         {/* LIGHTBOX */}
+
         {lightboxOpen && images.length > 0 && (
           <div
             className="lightbox"
@@ -623,6 +560,7 @@ function DetailChambrePage() {
         )}
 
         {/* CARACTÉRISTIQUES */}
+
         <ul className="detail-features">
           {caracteristiques.map((c, index) => (
             <li key={index}>
@@ -634,8 +572,10 @@ function DetailChambrePage() {
           ))}
         </ul>
 
-        {/* DESCRIPTION ET RÉSERVATION */}
+        {/* DESCRIPTION */}
+
         <div className="detail-content">
+
           <div className="detail-main">
             <h2>{chambre.titre || chambre.type}</h2>
 
@@ -652,7 +592,9 @@ function DetailChambrePage() {
                     <span className="equipement-icon" aria-hidden="true">
                       ✓
                     </span>
-                    {equipement}
+                    {typeof equipement === "object"
+                      ? equipement.nom || equipement.name
+                      : equipement}
                   </li>
                 ))}
               </ul>
@@ -662,16 +604,18 @@ function DetailChambrePage() {
           </div>
 
           {/* RÉSERVATION */}
+
           <aside className="detail-reservation">
+
             <div className="reservation-top">
               <p className="reservation-prix">
-                {formatPrix(chambre.prix_nuit)}
+                {formatPrix(prixNuit)}
                 <small> / nuit</small>
               </p>
             </div>
 
-            {/* DATES */}
             <div className="reservation-dates">
+
               <label>
                 <span>Arrivée</span>
                 <input
@@ -699,9 +643,9 @@ function DetailChambrePage() {
                   onChange={(e) => setDepart(e.target.value)}
                 />
               </label>
+
             </div>
 
-            {/* VOYAGEURS */}
             <label className="reservation-voyageurs">
               <span>Voyageurs</span>
 
@@ -712,10 +656,7 @@ function DetailChambrePage() {
                 )}
                 onChange={(e) => setVoyageurs(Number(e.target.value))}
               >
-                {Array.from(
-                  { length: capacite },
-                  (_, i) => i + 1
-                ).map((n) => (
+                {Array.from({ length: capacite }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
                     {n} voyageur{n > 1 ? "s" : ""}
                   </option>
@@ -723,11 +664,12 @@ function DetailChambrePage() {
               </select>
             </label>
 
-            {/* CALCUL DU PRIX */}
+            {/* PRIX */}
+
             <div className="reservation-lignes">
               <div>
                 <span>
-                  {formatPrix(chambre.prix_nuit)} × {nuits} nuit
+                  {formatPrix(prixNuit)} × {nuits} nuit
                   {nuits > 1 ? "s" : ""}
                 </span>
 
@@ -740,88 +682,25 @@ function DetailChambrePage() {
               </div>
             </div>
 
-            {/* BOUTON RÉSERVER */}
             <button
               type="button"
               className="reservation-button"
               onClick={handleReservation}
-              disabled={
-                isAuthenticated &&
-                (!arrivee || !depart || depart <= arrivee)
-              }
             >
               {isAuthenticated
                 ? "RÉSERVER CE SÉJOUR"
                 : "SE CONNECTER POUR RÉSERVER"}
             </button>
 
-         
           </aside>
         </div>
 
         {/* AVIS CLIENTS */}
+
         <ClientAvisPage />
 
-        {/* AUTRES CHAMBRES */}
-        {autresChambres.length > 0 && (
-          <section className="detail-others">
-            <div className="detail-others-header">
-              <div>
-                <span className="detail-eyebrow">
-                  Notre sélection
-                </span>
 
-                <h2>Autres demeures d'exception</h2>
-              </div>
 
-              <Link to="/chambres" className="detail-others-link">
-                Toute la sélection →
-              </Link>
-            </div>
-
-            <div className="detail-others-grid">
-              {autresChambres.map((item) => {
-                const imagesAutre = getRoomImages(item);
-
-                return (
-                  <Link
-                    to={`/chambres/${item.id}`}
-                    state={{ criteresRecherche }}
-                    className="other-card"
-                    key={item.id}
-                  >
-                    <div className="other-card-img">
-                      {imagesAutre.length > 0 ? (
-                        <ImageChambre
-                          src={imagesAutre[0]}
-                          alt={`Chambre ${item.numero}`}
-                        />
-                      ) : (
-                        <div className="no-image">
-                          Aucune image
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="other-card-body">
-                      <h3>{item.type}</h3>
-
-                      <p>Chambre {item.numero}</p>
-
-                      <div className="other-card-foot">
-                        <span>
-                          {formatPrix(item.prix_nuit)} / nuit
-                        </span>
-
-                        <b>Découvrir</b>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );
