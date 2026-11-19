@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,19 +19,20 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt.admin' => \App\Http\Middleware\JwtAdminMiddleware::class,
         ]);
     })
-    
     ->withExceptions(function (Exceptions $exceptions) {
-        // Gestion globale des exceptions
+        // Toujours répondre en JSON sur /api/*
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());
-    $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
-        if ($request->is('api/*')) {
-            return response()->json(['error' => 'Ressource introuvable.', 'code' => 404], 404);
-        }
-    });
-    $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
-        if ($request->is('api/*')) {
-            return response()->json(['error' => 'Méthode non autorisée.', 'code' => 405], 405);
-        }
-    });
-    });
-    
+
+        $exceptions->render(function (NotFoundHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['error' => 'Ressource introuvable.', 'code' => 404], 404);
+            }
+        });
+
+        $exceptions->render(function (MethodNotAllowedHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['error' => 'Méthode non autorisée.', 'code' => 405], 405);
+            }
+        });
+    })
+    ->create();
