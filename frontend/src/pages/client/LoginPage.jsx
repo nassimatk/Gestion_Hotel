@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import "./Auth.css";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail]               = useState("");
+  const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe]     = useState(false);
+  const [error, setError]               = useState("");
+  const [loading, setLoading]           = useState(false);
 
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,9 +27,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      // Redirection vers l'accueil après connexion
-      navigate("/");
+      // login() retourne maintenant l'objet utilisateur (avec son rôle)
+      const loggedUser = await login(email, password);
+
+      // Si l'utilisateur venait d'une page admin bloquée, on l'y renvoie
+      const from = location.state?.from?.pathname;
+
+      if (loggedUser?.role === "admin" || loggedUser?.role?.name === "admin") {
+        // Admin → Dashboard (ou page d'origine si elle était admin)
+        navigate(from && from.startsWith("/admin") ? from : "/admin", { replace: true });
+      } else {
+        // Client → accueil (ou page d'origine non-admin)
+        navigate(from && !from.startsWith("/admin") ? from : "/", { replace: true });
+      }
     } catch (err) {
       if (err.response && err.response.data && err.response.data.error) {
         setError(err.response.data.error);
