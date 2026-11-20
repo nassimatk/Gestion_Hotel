@@ -5,13 +5,10 @@ import Footer from "./components/Footer";
 import RequireAdmin from "./components/RequireAdmin";
 
 import HomePage from "./pages/client/HomePage";
-<<<<<<< HEAD
 import TarifsPage from "./pages/client/TarifsPage";
-=======
 import ChambresPage from "./pages/client/ChambresPage";
 import ReservationPage from "./pages/client/ReservationPage";
 import MesReservationsPage from "./pages/client/MesReservationsPage";
->>>>>>> f9272f4d51913d8bbd2e758db85bdae39b583ded
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
@@ -75,15 +72,12 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
-<<<<<<< HEAD
           <Route path="/tarifs" element={<TarifsPage />} />
-          {/* pages/client/* à enrichir ici au fil du développement */}
-=======
           <Route path="/chambres" element={<ChambresPage />} />
           <Route path="/mes-reservations" element={<MesReservationsPage />} />
           <Route path="/reservation" element={<ReservationPage />} />
           <Route path="/reservation/:chambreId" element={<ReservationPage />} />
->>>>>>> f9272f4d51913d8bbd2e758db85bdae39b583ded
+          {/* pages/client/* à enrichir ici au fil du développement */}
         </Routes>
       </main>
       <Footer />
