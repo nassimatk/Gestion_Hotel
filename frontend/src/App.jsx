@@ -46,6 +46,7 @@ function AppContent() {
             <Route path="avis" element={<AdminAvisPage />} />
             <Route path="tarifs" element={<AdminTarifsPage />} />
             <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
+            <Route path="reservations" element={<AdminDisponibilitesPage />} />
           </Route>
         </Routes>
       </RequireAdmin>
