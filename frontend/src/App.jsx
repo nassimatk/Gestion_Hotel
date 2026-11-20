@@ -5,15 +5,15 @@ import Footer from "./components/Footer";
 import RequireAdmin from "./components/RequireAdmin";
 
 import HomePage from "./pages/client/HomePage";
-/* import ChambresPage from "./pages/client/ChambresPage";
- */import ReservationPage from "./pages/client/ReservationPage";
+import ChambresPage from "./pages/client/ChambresPage";
+import ReservationPage from "./pages/client/ReservationPage";
 import MesReservationsPage from "./pages/client/MesReservationsPage";
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/client/ResetPasswordPage";
 import DetailChambrePage from "./pages/client/DetailChambrePage";
-
+import ClientAvisPage from "./pages/client/ClientAvisPage";
 // Modules Administration
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -23,6 +23,7 @@ import AdminChamberPageEdit from "./pages/admin/chambres/AdminChamberPageEdit";
 import AdminAvisPage from "./pages/admin/avis/AdminAvisPage";
 import AdminTarifsPage from "./pages/admin/tarifs/AdminTarifsPage";
 import AdminDisponibilitesPage from "./pages/admin/disponibilites/AdminDisponibilitesPage";
+import AdminClientsPage from "./pages/admin/client/AdminClientsPage";
 
 function AppContent() {
   const { pathname } = useLocation();
@@ -47,6 +48,7 @@ function AppContent() {
             <Route path="avis" element={<AdminAvisPage />} />
             <Route path="tarifs" element={<AdminTarifsPage />} />
             <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
+            <Route path="clients" element={<AdminClientsPage />} />
           </Route>
         </Routes>
       </RequireAdmin>
@@ -72,25 +74,18 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
-
-{/*           <Route path="/chambres" element={<ChambresPage />} />
- */}
-          {/* Détails d'une chambre */}
+          <Route path="/chambres" element={<ChambresPage />} />
+          <Route path="/mes-reservations" element={<MesReservationsPage />} />
+          <Route path="/reservation" element={<ReservationPage />} />
+          <Route path="/reservation/:chambreId" element={<ReservationPage />} />
           <Route
             path="/chambres/:id"
             element={<DetailChambrePage />}
           />
 
           <Route
-            path="/mes-reservations"
-            element={<MesReservationsPage />}
-          />
-
-          <Route path="/reservation" element={<ReservationPage />} />
-
-          <Route
-            path="/reservation/:chambreId"
-            element={<ReservationPage />}
+            path="/chambres/:id/avis"
+            element={<ClientAvisPage />}
           />
         </Routes>
       </main>
