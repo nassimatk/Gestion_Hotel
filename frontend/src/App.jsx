@@ -1,3 +1,4 @@
+
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -14,7 +15,7 @@ import ReservationPage from "./pages/client/ReservationPage";
 import MesReservationsPage from "./pages/client/MesReservationsPage";
 import ClientAvisPage from "./pages/client/ClientAvisPage";
 
-// Authentification
+// Pages d'authentification
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
@@ -43,7 +44,7 @@ function AppContent() {
     "/reset-password",
   ].includes(pathname);
 
-  // Zone administration
+  // Administration
   if (isAdmin) {
     return (
       <RequireAdmin>
@@ -84,20 +85,14 @@ function AppContent() {
     );
   }
 
-  // Pages d'authentification
+  // Authentification
   if (isAuthPage) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route
-          path="/forgot-password"
-          element={<ForgotPasswordPage />}
-        />
-        <Route
-          path="/reset-password"
-          element={<ResetPasswordPage />}
-        />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Routes>
     );
   }
@@ -113,14 +108,8 @@ function AppContent() {
 
           {/* Chambres */}
           <Route path="/chambres" element={<ChambresPage />} />
-          <Route
-            path="/chambres/:id"
-            element={<DetailChambrePage />}
-          />
-          <Route
-            path="/chambres/:id/avis"
-            element={<ClientAvisPage />}
-          />
+          <Route path="/chambres/:id" element={<DetailChambrePage />} />
+          <Route path="/chambres/:id/avis" element={<ClientAvisPage />} />
 
           {/* Réservations */}
           <Route path="/reservation" element={<ReservationPage />} />
