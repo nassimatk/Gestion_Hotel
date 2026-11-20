@@ -1,0 +1,665 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+/* ============================================================
+   CLIENT AVIS PAGE - HOTELHUB
+   Design harmonisé avec HomePage
+============================================================ */
+
+.client-avis-page {
+  --color-dark: #1a2b3c;
+  --color-gold: #c9a84c;
+  --color-gold-light: #d8bb70;
+  --color-cream: #f5f1e8;
+  --color-bg: #faf9f6;
+  --color-white: #ffffff;
+  --color-border: #e8e2d7;
+  --color-text: #1a2b3c;
+  --color-text-muted: #858782;
+  --color-danger: #a65d52;
+
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'DM Sans', sans-serif;
+  padding: 45px 5%;
+}
+
+/* ============================================================
+   CONTAINER
+============================================================ */
+
+.avis-container {
+  max-width: 1120px;
+  margin: auto;
+}
+
+/* ============================================================
+   HEADER
+============================================================ */
+
+.avis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 25px;
+  margin-bottom: 28px;
+}
+
+.avis-header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 34px;
+  font-weight: 600;
+  margin: 5px 0;
+  color: var(--color-dark);
+}
+
+.avis-header p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+  line-height: 1.7;
+}
+
+/* ============================================================
+   FILTERS
+============================================================ */
+
+.avis-filtres {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.avis-filtre-btn {
+  border: 1px solid var(--color-border);
+  border-radius: 30px;
+  background: var(--color-white);
+  color: var(--color-dark);
+  padding: 8px 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avis-filtre-btn:hover,
+.avis-filtre-btn.active {
+  background: var(--color-dark);
+  border-color: var(--color-dark);
+  color: var(--color-white);
+}
+
+/* ============================================================
+   STATISTICS SUMMARY
+============================================================ */
+
+.avis-resume {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  align-items: center;
+  gap: 40px;
+  padding: 28px 32px;
+  margin-bottom: 30px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  box-shadow: 0 3px 15px rgba(26, 43, 60, 0.03);
+}
+
+.avis-score-global {
+  border-right: 1px solid var(--color-border);
+  padding-right: 30px;
+}
+
+.avis-score-valeur {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.avis-score-valeur h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 49px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--color-dark);
+}
+
+.avis-score-sur {
+  color: var(--color-text-muted);
+  font-size: 17px;
+}
+
+.avis-score-global .avis-etoiles {
+  margin: 5px 0 10px;
+  color: var(--color-gold);
+  font-size: 17px;
+}
+
+.avis-score-meta {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.avis-score-global p {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 9px;
+}
+
+/* ============================================================
+   DISTRIBUTION BARS
+============================================================ */
+
+.avis-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.avis-distribution-item {
+  display: grid;
+  grid-template-columns: 90px 1fr 25px;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.avis-distribution-item strong {
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-dark);
+}
+
+.avis-distribution-item .avis-barre-fond {
+  height: 5px;
+  background: var(--color-cream);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.avis-distribution-item .avis-barre-remplissage {
+  background: var(--color-gold);
+  height: 100%;
+  border-radius: 20px;
+  transition: width 0.4s ease;
+}
+
+/* ============================================================
+   REVIEW SECTION TITLE
+============================================================ */
+
+.avis-section-titre {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 35px 0 20px;
+}
+
+.avis-section-titre h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 25px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-dark);
+}
+
+.avis-section-titre span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   REVIEWS LIST
+============================================================ */
+
+.avis-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ============================================================
+   REVIEW CARD
+============================================================ */
+
+.avis-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(26, 43, 60, 0.02);
+}
+
+.avis-card:hover {
+  box-shadow: 0 7px 20px rgba(26, 43, 60, 0.07);
+  transform: translateY(-2px);
+}
+
+/* ============================================================
+   AUTHOR
+============================================================ */
+
+.avis-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 17px;
+}
+
+.avis-auteur-bloc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avis-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-cream);
+  color: var(--color-dark);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.avis-card-header h3 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-dark);
+}
+
+.avis-card-header p {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  margin: 3px 0 0;
+}
+
+.avis-note-badge .avis-etoiles {
+  color: var(--color-gold);
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   COMMENT
+============================================================ */
+
+.avis-commentaire-texte {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: #62676b;
+  line-height: 1.8;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   CARD FOOTER
+============================================================ */
+
+.avis-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.avis-proprietaire {
+  color: var(--color-gold);
+  font-weight: 700;
+}
+
+/* ============================================================
+   EDIT / DELETE ACTIONS
+============================================================ */
+
+.avis-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.avis-actions button {
+  border: 1px solid var(--color-border);
+  border-radius: 25px;
+  background: var(--color-white);
+  color: var(--color-dark);
+  padding: 7px 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avis-actions button:hover {
+  background: var(--color-cream);
+}
+
+.avis-actions .avis-delete {
+  color: var(--color-danger);
+  border-color: #eadbd7;
+}
+
+.avis-actions .avis-delete:hover {
+  color: var(--color-white);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* ============================================================
+   ADD REVIEW BUTTON
+============================================================ */
+
+.avis-ajouter-zone {
+  display: flex;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.avis-ajouter-btn {
+  padding: 12px 25px;
+  border: 1px solid var(--color-dark);
+  border-radius: 30px;
+  background: var(--color-dark);
+  color: var(--color-white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avis-ajouter-btn:hover {
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+  transform: translateY(-2px);
+}
+
+/* ============================================================
+   REVIEW FORM
+============================================================ */
+
+.avis-formulaire {
+  margin-top: 30px;
+  padding: 30px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  box-shadow: 0 3px 15px rgba(26, 43, 60, 0.03);
+}
+
+.avis-formulaire h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 29px;
+  font-weight: 600;
+  color: var(--color-dark);
+  margin: 8px 0;
+}
+
+.avis-formulaire > p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 25px;
+}
+
+.avis-formulaire label {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-dark);
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   STAR SELECTOR
+============================================================ */
+
+.avis-choix-notes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 23px;
+}
+
+.avis-choix-notes button {
+  border: none;
+  background: none;
+  color: #dcd6cb;
+  font-size: 29px;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.avis-choix-notes button:hover {
+  color: var(--color-gold-light);
+  transform: scale(1.1);
+}
+
+.avis-choix-notes button.selected {
+  color: var(--color-gold);
+}
+
+/* ============================================================
+   TEXTAREA
+============================================================ */
+
+.avis-formulaire textarea {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--color-dark);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.avis-formulaire textarea:focus {
+  border-color: var(--color-gold);
+}
+
+.avis-formulaire textarea::placeholder {
+  color: #a3a19b;
+}
+
+.avis-compteur {
+  display: block;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+/* ============================================================
+   FORM ACTIONS
+============================================================ */
+
+.avis-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.avis-form-actions button {
+  padding: 11px 20px;
+  border: 1px solid var(--color-dark);
+  border-radius: 25px;
+  background: var(--color-dark);
+  color: var(--color-white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avis-form-actions button:hover:not(:disabled) {
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+}
+
+.avis-form-actions .avis-cancel {
+  background: var(--color-white);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.avis-form-actions .avis-cancel:hover:not(:disabled) {
+  background: var(--color-cream);
+  color: var(--color-dark);
+  border-color: var(--color-border);
+}
+
+.avis-form-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   EMPTY STATE
+============================================================ */
+
+.avis-vide {
+  padding: 45px 20px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.avis-vide > span {
+  font-size: 35px;
+  color: var(--color-gold);
+}
+
+.avis-vide h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 23px;
+  font-weight: 600;
+  color: var(--color-dark);
+}
+
+.avis-vide p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   MESSAGES
+============================================================ */
+
+.avis-message {
+  background: var(--color-cream);
+  color: var(--color-dark);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+}
+
+.avis-erreur {
+  color: var(--color-danger);
+}
+
+/* ============================================================
+   RESPONSIVE - TABLET
+============================================================ */
+
+@media (max-width: 768px) {
+  .client-avis-page {
+    padding: 30px 5%;
+  }
+
+  .avis-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .avis-resume {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    padding: 23px;
+  }
+
+  .avis-score-global {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 0 20px;
+  }
+
+  .avis-card {
+    padding: 20px;
+  }
+
+  .avis-card-header {
+    align-items: flex-start;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE - MOBILE
+============================================================ */
+
+@media (max-width: 500px) {
+  .avis-filtres {
+    width: 100%;
+  }
+
+  .avis-filtre-btn {
+    padding: 7px 10px;
+  }
+
+  .avis-card-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .avis-section-titre {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .avis-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .avis-form-actions {
+    flex-direction: column;
+  }
+
+  .avis-form-actions button {
+    width: 100%;
+  }
+}

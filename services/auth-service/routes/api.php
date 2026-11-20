@@ -8,6 +8,7 @@ use App\Http\Middleware\JwtAuthenticate;
 /*
 |--------------------------------------------------------------------------
 | API Routes (auth-service)
+| API Routes (auth-service)
 |--------------------------------------------------------------------------
 | Conformes aux diagrammes UML et au contrat OpenAPI
 | Préfixe automatique : /api
