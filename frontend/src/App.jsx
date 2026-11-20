@@ -1,4 +1,3 @@
-
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -63,6 +62,7 @@ function AppContent() {
               path="disponibilites"
               element={<AdminDisponibilitesPage />}
             />
+            <Route path="reservations" element={<AdminDisponibilitesPage />} />
             <Route path="clients" element={<AdminClientsPage />} />
           </Route>
         </Routes>
