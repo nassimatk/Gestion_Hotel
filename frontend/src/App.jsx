@@ -1,9 +1,12 @@
+
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import RequireAdmin from "./components/RequireAdmin";
 
+// Pages client
 import HomePage from "./pages/client/HomePage";
 import ChambresPage from "./pages/client/ChambresPage";
 import ReservationPage from "./pages/client/ReservationPage";
@@ -14,7 +17,8 @@ import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/client/ResetPasswordPage";
 import DetailChambrePage from "./pages/client/DetailChambrePage";
 import ClientAvisPage from "./pages/client/ClientAvisPage";
-// Modules Administration
+
+// Pages administration
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminChambresPage from "./pages/admin/chambres/AdminChambresPage";
@@ -27,14 +31,17 @@ import AdminClientsPage from "./pages/admin/client/AdminClientsPage";
 
 function AppContent() {
   const { pathname } = useLocation();
-  const isAdmin = pathname.startsWith("/admin");
-  const isAuthPage =
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot-password" ||
-    pathname === "/reset-password";
 
-  // ─── Zone Administration ───────────────────────────────────────────────────
+  const isAdmin = pathname.startsWith("/admin");
+
+  const isAuthPage = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+  ].includes(pathname);
+
+  // Administration
   if (isAdmin) {
     return (
       <RequireAdmin>
@@ -42,12 +49,20 @@ function AppContent() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+
             <Route path="chambres" element={<AdminChambresPage />} />
             <Route path="chambres/ajouter" element={<AdminChamberPageAdd />} />
-            <Route path="chambres/modifier/:id" element={<AdminChamberPageEdit />} />
+            <Route
+              path="chambres/modifier/:id"
+              element={<AdminChamberPageEdit />}
+            />
+
             <Route path="avis" element={<AdminAvisPage />} />
             <Route path="tarifs" element={<AdminTarifsPage />} />
-            <Route path="disponibilites" element={<AdminDisponibilitesPage />} />
+            <Route
+              path="disponibilites"
+              element={<AdminDisponibilitesPage />}
+            />
             <Route path="clients" element={<AdminClientsPage />} />
           </Route>
         </Routes>
@@ -55,7 +70,7 @@ function AppContent() {
     );
   }
 
-  // ─── Pages d'authentification ──────────────────────────────────────────────
+  // Authentification
   if (isAuthPage) {
     return (
       <Routes>
@@ -67,28 +82,25 @@ function AppContent() {
     );
   }
 
-  // ─── Site client public ────────────────────────────────────────────────────
+  // Site client
   return (
     <>
       <Navbar />
+
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/chambres" element={<ChambresPage />} />
-          <Route path="/mes-reservations" element={<MesReservationsPage />} />
+          <Route path="/chambres/:id" element={<DetailChambrePage />} />
+          <Route path="/chambres/:id/avis" element={<ClientAvisPage />} />
+
           <Route path="/reservation" element={<ReservationPage />} />
           <Route path="/reservation/:chambreId" element={<ReservationPage />} />
-          <Route
-            path="/chambres/:id"
-            element={<DetailChambrePage />}
-          />
 
-          <Route
-            path="/chambres/:id/avis"
-            element={<ClientAvisPage />}
-          />
+          <Route path="/mes-reservations" element={<MesReservationsPage />} />
         </Routes>
       </main>
+
       <Footer />
     </>
   );
