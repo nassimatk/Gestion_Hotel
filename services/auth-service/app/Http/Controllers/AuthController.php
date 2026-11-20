@@ -31,7 +31,6 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        // 1. Validation selon diagramme (cas d'erreur)
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'email' => 'required|email|max:255',
@@ -46,7 +45,6 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Vérification email déjà existant
         if (User::where('email', $request->email)->exists()) {
             return response()->json([
                 'error' => 'Email déjà utilisé',
@@ -54,10 +52,8 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // 2. Rôle 'client' par défaut
         $clientRole = Role::firstOrCreate(['name' => 'client']);
 
-        // 3. Création utilisateur
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -78,7 +74,6 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        // 1. Validation des champs
         $validator = Validator::make($request->all(), [
             'email' => 'required|string',
             'password' => 'required|string',
@@ -91,10 +86,10 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // 2. Recherche utilisateur avec son rôle
-        $user = User::with('role')->where('email', $request->email)->first();
+        $user = User::with('role')
+            ->where('email', $request->email)
+            ->first();
 
-        // Sécurité : même message d'erreur si email inexistant ou mot de passe faux
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'error' => 'Identifiants invalides',
@@ -102,7 +97,6 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // 3. Génération du JWT (HS256)
         $jwtData = $this->jwtService->generateToken($user);
 
         return response()->json($jwtData, 200);
@@ -124,9 +118,34 @@ class AuthController extends Controller
     }
 
     /**
+     * GET /api/users
+     * Récupérer tous les utilisateurs
+     */
+    public function getAllUsers()
+    {
+        $users = User::with('role')
+            ->select('id', 'name', 'email', 'role_id', 'created_at')
+            ->get();
+
+        return response()->json([
+            'total' => $users->count(),
+            'data' => $users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role
+                        ? $user->role->name
+                        : 'client',
+                    'created_at' => $user->created_at,
+                ];
+            }),
+        ], 200);
+    }
+
+    /**
      * GET /api/users/{id}
-     * Permet aux autres microservices (ex. avis-service) de récupérer
-     * les informations d'un utilisateur à partir de son identifiant.
+     * Récupérer un utilisateur par ID
      */
     public function getUserById($id)
     {

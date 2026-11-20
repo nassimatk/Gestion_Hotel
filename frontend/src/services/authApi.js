@@ -14,3 +14,11 @@ export const forgotPassword = (email) => http.post("/forgot-password", { email }
 export const resetPassword = (data) => http.post("/reset-password", data);
 export const validateResetToken = (token) => http.get(`/reset-password/validate/${token}`);
 export const changePasswordDirect = (data) => http.post("/change-password-direct", data);
+
+export const getUserById = (id) =>
+  http.get(`/users/${id}`);
+
+
+// Récupérer tous les utilisateurs
+export const getAllUsers = () =>
+  http.get("/users");
