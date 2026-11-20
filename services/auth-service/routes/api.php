@@ -8,6 +8,7 @@ use App\Http\Middleware\JwtAuthenticate;
 /*
 |--------------------------------------------------------------------------
 | API Routes (auth-service)
+| API Routes (auth-service)
 |--------------------------------------------------------------------------
 | Conformes aux diagrammes UML et au contrat OpenAPI
 | Préfixe automatique : /api
@@ -19,7 +20,6 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Endpoint inter-services : consultation publique/interne d'un utilisateur par ID
 Route::get('/users/{id}', [AuthController::class, 'getUserById']);
-Route::get('/users', [AuthController::class, 'getAllUsers']);
 
 // Mot de passe oublié (publics, sans JWT)
 Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword']);
