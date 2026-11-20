@@ -350,8 +350,10 @@ export default function ReservationPage() {
         if (!actif) return;
 
         const total =
-          res.data?.total ??
-          res.data?.prix_total;
+          res?.total ??
+          res?.prix_total ??
+          res?.data?.total ??
+          res?.data?.prix_total;
 
         setPrixTotalTarifs(
           total !== undefined && total !== null
