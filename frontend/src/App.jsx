@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
+// Composants communs
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import RequireAdmin from "./components/RequireAdmin";
@@ -8,14 +9,16 @@ import RequireAdmin from "./components/RequireAdmin";
 // Pages client
 import HomePage from "./pages/client/HomePage";
 import ChambresPage from "./pages/client/ChambresPage";
+import DetailChambrePage from "./pages/client/DetailChambrePage";
 import ReservationPage from "./pages/client/ReservationPage";
 import MesReservationsPage from "./pages/client/MesReservationsPage";
+import ClientAvisPage from "./pages/client/ClientAvisPage";
+
+// Authentification
 import LoginPage from "./pages/client/LoginPage";
 import RegisterPage from "./pages/client/RegisterPage";
 import ForgotPasswordPage from "./pages/client/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/client/ResetPasswordPage";
-import DetailChambrePage from "./pages/client/DetailChambrePage";
-import ClientAvisPage from "./pages/client/ClientAvisPage";
 
 // Pages administration
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -40,7 +43,7 @@ function AppContent() {
     "/reset-password",
   ].includes(pathname);
 
-  // Administration
+  // Zone administration
   if (isAdmin) {
     return (
       <RequireAdmin>
@@ -49,6 +52,7 @@ function AppContent() {
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />
 
+            {/* Gestion des chambres */}
             <Route path="chambres" element={<AdminChambresPage />} />
             <Route path="chambres/ajouter" element={<AdminChamberPageAdd />} />
             <Route
@@ -56,13 +60,23 @@ function AppContent() {
               element={<AdminChamberPageEdit />}
             />
 
+            {/* Gestion des avis */}
             <Route path="avis" element={<AdminAvisPage />} />
+
+            {/* Gestion des tarifs */}
             <Route path="tarifs" element={<AdminTarifsPage />} />
+
+            {/* Disponibilités et réservations */}
             <Route
               path="disponibilites"
               element={<AdminDisponibilitesPage />}
             />
-            <Route path="reservations" element={<AdminDisponibilitesPage />} />
+            <Route
+              path="reservations"
+              element={<AdminDisponibilitesPage />}
+            />
+
+            {/* Gestion des clients */}
             <Route path="clients" element={<AdminClientsPage />} />
           </Route>
         </Routes>
@@ -70,14 +84,20 @@ function AppContent() {
     );
   }
 
-  // Authentification
+  // Pages d'authentification
   if (isAuthPage) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route
+          path="/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordPage />}
+        />
       </Routes>
     );
   }
@@ -90,14 +110,28 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+
+          {/* Chambres */}
           <Route path="/chambres" element={<ChambresPage />} />
-          <Route path="/chambres/:id" element={<DetailChambrePage />} />
-          <Route path="/chambres/:id/avis" element={<ClientAvisPage />} />
+          <Route
+            path="/chambres/:id"
+            element={<DetailChambrePage />}
+          />
+          <Route
+            path="/chambres/:id/avis"
+            element={<ClientAvisPage />}
+          />
 
+          {/* Réservations */}
           <Route path="/reservation" element={<ReservationPage />} />
-          <Route path="/reservation/:chambreId" element={<ReservationPage />} />
-
-          <Route path="/mes-reservations" element={<MesReservationsPage />} />
+          <Route
+            path="/reservation/:chambreId"
+            element={<ReservationPage />}
+          />
+          <Route
+            path="/mes-reservations"
+            element={<MesReservationsPage />}
+          />
         </Routes>
       </main>
 

@@ -176,7 +176,15 @@ function DetailChambrePage() {
   // ÉTATS
   // ==================================================
 
-  const [chambre, setChambre] = useState(null);
+  const [chambre, setChambre] = useState(() => {
+    const chambreTransmise = location.state?.chambre;
+
+    return chambreTransmise &&
+      String(chambreTransmise.id) === String(id)
+      ? chambreTransmise
+      : null;
+  });
+
   const [autresChambres, setAutresChambres] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -206,8 +214,25 @@ function DetailChambrePage() {
 
     const chargerChambre = async () => {
       try {
-        setLoading(true);
         setError("");
+
+        // Si la chambre a été transmise depuis HomePage,
+        // on l'utilise directement.
+        const chambreTransmise = location.state?.chambre;
+
+        if (
+          chambreTransmise &&
+          String(chambreTransmise.id) === String(id)
+        ) {
+          if (actif) {
+            setChambre(chambreTransmise);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Sinon, récupération depuis le microservice Chambres.
+        setLoading(true);
         setChambre(null);
 
         const response = await getChambres();
@@ -251,7 +276,7 @@ function DetailChambrePage() {
     return () => {
       actif = false;
     };
-  }, [id]);
+  }, [id, location.state]);
 
   // ==================================================
   // IMAGES
@@ -399,46 +424,46 @@ function DetailChambrePage() {
   // RÉSERVATION
   // ==================================================
 
- const handleReservation = () => {
-  if (!isAuthenticated) {
-    navigate("/login", {
-      state: {
-        from: location.pathname,
-        criteresRecherche: {
-          dateArrivee: arrivee,
-          dateDepart: depart,
-          nombrePersonnes: nombreVoyageurs,
+  const handleReservation = () => {
+    if (!isAuthenticated) {
+      navigate("/login", {
+        state: {
+          from: location.pathname,
+          criteresRecherche: {
+            dateArrivee: arrivee,
+            dateDepart: depart,
+            nombrePersonnes: nombreVoyageurs,
+          },
         },
+      });
+      return;
+    }
+
+    if (!arrivee || !depart) {
+      alert("Veuillez sélectionner les dates.");
+      return;
+    }
+
+    if (arrivee < getDateAujourdhui() || nuits <= 0) {
+      alert("Veuillez vérifier les dates de votre séjour.");
+      return;
+    }
+
+    if (nombreVoyageurs < 1 || nombreVoyageurs > capacite) {
+      alert(`Maximum ${capacite} voyageurs.`);
+      return;
+    }
+
+    navigate("/reservation", {
+      state: {
+        chambreId: chambre.id,
+        dateDebut: arrivee,
+        dateFin: depart,
+        nombrePersonnes: nombreVoyageurs,
+        chambre: chambre,
       },
     });
-    return;
-  }
-
-  if (!arrivee || !depart) {
-    alert("Veuillez sélectionner les dates.");
-    return;
-  }
-
-  if (arrivee < getDateAujourdhui() || nuits <= 0) {
-    alert("Veuillez vérifier les dates de votre séjour.");
-    return;
-  }
-
-  if (nombreVoyageurs < 1 || nombreVoyageurs > capacite) {
-    alert(`Maximum ${capacite} voyageurs.`);
-    return;
-  }
-
-  navigate("/reservation", {
-    state: {
-      chambreId: chambre.id,
-      dateDebut: arrivee,
-      dateFin: depart,
-      nombrePersonnes: nombreVoyageurs,
-      chambre: chambre,
-    },
-  });
-};
+  };
 
   // ==================================================
   // AFFICHAGE
@@ -698,8 +723,6 @@ function DetailChambrePage() {
         {/* AVIS CLIENTS */}
 
         <ClientAvisPage />
-
-
 
       </div>
     </div>

@@ -264,7 +264,6 @@ function RoomCard({ room, index, criteresRecherche }) {
         />
 
         <span className="room-card__tag">{displayTag}</span>
-
         <span className="room-card__size">{displaySize} m²</span>
       </div>
 
@@ -293,9 +292,14 @@ function RoomCard({ room, index, criteresRecherche }) {
             <span className="room-card__price-unit">/ nuit</span>
           </div>
 
+          {/* CORRECTION : NAVIGATION VERS LE DÉTAIL DE LA CHAMBRE */}
+
           <Link
             to={`/chambres/${room.id}`}
-            state={{ criteresRecherche }}
+            state={{
+              criteresRecherche,
+              chambre: room,
+            }}
             className="room-card__btn"
           >
             Voir les détails
@@ -327,7 +331,6 @@ export default function HomePage() {
   const [criteresRecherche, setCriteresRecherche] = useState(null);
   const [searchError, setSearchError] = useState("");
 
-  // Nouveaux états pour la recherche
   const [searchedRooms, setSearchedRooms] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -410,14 +413,12 @@ export default function HomePage() {
     setSearchLoading(true);
     setSearchedRooms(null);
 
-    // Afficher les chambres
     document.getElementById("chambres-signature")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
 
     try {
-      // 1. Filtrer selon la capacité
       const chambresCompatibles = rooms.filter((room) => {
         return getCapaciteChambre(room) >= Number(adultes);
       });
@@ -432,7 +433,6 @@ export default function HomePage() {
 
       console.log("Chambres compatibles :", chambresCompatibles);
 
-      // 2. Vérifier les disponibilités avec le microservice
       const verifications = await Promise.all(
         chambresCompatibles.map(async (room) => {
           try {
@@ -467,7 +467,6 @@ export default function HomePage() {
         })
       );
 
-      // 3. Vérifier les réponses du microservice
       const controlesReussis = verifications.filter(
         (resultat) => !resultat.erreur
       );
@@ -478,7 +477,6 @@ export default function HomePage() {
         );
       }
 
-      // 4. Garder uniquement les chambres disponibles
       const chambresDisponibles = verifications
         .filter((resultat) => resultat.disponible)
         .map((resultat) => resultat.room);
@@ -849,9 +847,7 @@ export default function HomePage() {
               background: "#fff",
               borderRadius: 12
             }}>
-              <h3>
-                Aucune chambre disponible
-              </h3>
+              <h3>Aucune chambre disponible</h3>
 
               <p style={{ marginTop: 10 }}>
                 {searchError ||
