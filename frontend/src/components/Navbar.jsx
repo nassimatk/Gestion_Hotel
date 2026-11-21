@@ -8,11 +8,12 @@ export default function Navbar() {
 
   const isAdmin = user?.role === "admin" || user?.role?.name === "admin";
 
-  const links = [
+const links = [
     { to: "/", label: "Accueil" },
     { to: "/chambres", label: "Chambres" },
     { to: "/apropos", label: "À propos" },
     { to: "/contact", label: "Contact" },
+    ...(isAuthenticated ? [{ to: "/mes-reservations", label: "Mes réservations" }] : []),
     ...(isAdmin ? [{ to: "/admin", label: "Dashboard" }] : []),
   ];
 
