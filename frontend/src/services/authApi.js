@@ -22,3 +22,4 @@ export const getUserById = (id) =>
 // Récupérer tous les utilisateurs
 export const getAllUsers = () =>
   http.get("/users");
+//

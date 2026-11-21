@@ -354,6 +354,7 @@ export default function ReservationPage() {
           res?.prix_total ??
           res?.data?.total ??
           res?.data?.prix_total;
+    
 
         setPrixTotalTarifs(
           total !== undefined && total !== null
