@@ -15,9 +15,22 @@ import java.util.Optional;
 @Component
 public class ChambreClient {
 
-    private record ChambreResponse(ChambreInfo data, Long id, Integer capacite) {}
+    private record ChambreResponse(
+            ChambreInfo data,
+            Long id,
+            String nom,
+            String numero,
+            String type,
+            Integer capacite
+    ) {}
 
-    private record ChambreInfo(Long id, Integer capacite) {}
+    public record ChambreInfo(
+            Long id,
+            String nom,
+            String numero,
+            String type,
+            Integer capacite
+    ) {}
 
     private final RestClient restClient;
     private final boolean mock;
@@ -32,13 +45,21 @@ public class ChambreClient {
     }
 
     public boolean existe(Long chambreId) {
-        return getCapacite(chambreId).isPresent();
+        return getChambre(chambreId).isPresent();
     }
 
     public Optional<Integer> getCapacite(Long chambreId) {
+        return getChambre(chambreId)
+                .map(info -> info.capacite() != null ? info.capacite() : Integer.MAX_VALUE);
+    }
+
+    public Optional<ChambreInfo> getChambre(Long chambreId) {
+        if (chambreId == null) {
+            return Optional.empty();
+        }
         if (mock) {
             return (chambreId >= 1 && chambreId <= 10)
-                    ? Optional.of(4)
+                    ? Optional.of(new ChambreInfo(chambreId, "Chambre " + chambreId, String.valueOf(100 + chambreId), "simple", 4))
                     : Optional.empty();
         }
         try {
@@ -52,12 +73,9 @@ public class ChambreClient {
             ChambreInfo info = response.data() != null
                     ? response.data()
                     : (response.id() != null || response.capacite() != null
-                        ? new ChambreInfo(response.id(), response.capacite())
-                        : null);
-            if (info == null) {
-                return Optional.empty();
-            }
-            return Optional.of(info.capacite() != null ? info.capacite() : Integer.MAX_VALUE);
+                    ? new ChambreInfo(response.id(), response.nom(), response.numero(), response.type(), response.capacite())
+                    : null);
+            return Optional.ofNullable(info);
         } catch (HttpClientErrorException.NotFound e) {
             return Optional.empty();
         } catch (RestClientException e) {

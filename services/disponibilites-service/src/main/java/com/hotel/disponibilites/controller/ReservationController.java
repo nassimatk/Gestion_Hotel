@@ -32,19 +32,20 @@ public class ReservationController {
     @ResponseStatus(HttpStatus.CREATED)
     public ReservationResponse creer(@RequestBody ReservationRequest request,
                                      @AuthenticationPrincipal Jwt jwt) {
-        return ReservationResponse.from(disponibiliteService.creer(request, idUtilisateur(jwt)));
+        return disponibiliteService.enrichir(
+                disponibiliteService.creer(request, idUtilisateur(jwt)));
     }
 
     @GetMapping("/mes")
     public List<ReservationResponse> mesReservations(@AuthenticationPrincipal Jwt jwt) {
-        return disponibiliteService.listerMesReservations(idUtilisateur(jwt))
-                .stream().map(ReservationResponse::from).toList();
+        return disponibiliteService.enrichirListe(
+                disponibiliteService.listerMesReservations(idUtilisateur(jwt)));
     }
 
     @GetMapping
     public List<ReservationResponse> toutes() {
-        return disponibiliteService.listerToutes()
-                .stream().map(ReservationResponse::from).toList();
+        return disponibiliteService.enrichirListe(
+                disponibiliteService.listerToutes());
     }
 
     @DeleteMapping("/{id}")
