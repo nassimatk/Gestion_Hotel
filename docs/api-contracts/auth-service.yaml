@@ -82,6 +82,28 @@ paths:
                   role: { type: string, enum: [client, admin] }
         "401":
           description: Token absent ou invalide
+  /users:
+    get:
+      summary: Liste de tous les utilisateurs (usage admin & inter-services)
+      responses:
+        "200":
+          description: Liste des utilisateurs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        email: { type: string }
+                        role: { type: string, enum: [client, admin] }
+                        created_at: { type: string, format: date-time }
   /users/{id}:
     get:
       summary: Recuperer un utilisateur par son ID (usage inter-services / REST)

@@ -1,7 +1,6 @@
-
 FROM php:8.4-cli
 
-# Dépendances système et PostgreSQL
+# Dependances systeme et PostgreSQL
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git \
@@ -28,7 +27,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Dépendances PHP
+# Dependances PHP
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -42,15 +41,20 @@ RUN composer install \
 # Code Laravel
 COPY . .
 
-# Préparer les dossiers nécessaires
+# Copier le script de demarrage
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Preparer les dossiers Laravel et le script
 RUN mkdir -p \
         storage/framework/cache/data \
         storage/framework/sessions \
         storage/framework/views \
         storage/logs \
         bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
+    && chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
