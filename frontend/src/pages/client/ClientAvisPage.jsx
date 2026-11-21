@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -117,7 +116,6 @@ function ClientAvisPage() {
       setErreur("");
 
       const response = await getAvisChambre(id);
-
       const liste = extraireListe(response);
 
       console.log("GET AVIS - Réponse complète :", response);
@@ -127,10 +125,7 @@ function ClientAvisPage() {
 
     } catch (error) {
       console.error("Erreur chargement avis :", error);
-
-      setErreur(
-        "Impossible de charger les avis."
-      );
+      setErreur("Impossible de charger les avis.");
     } finally {
       setLoading(false);
     }
@@ -206,6 +201,24 @@ function ClientAvisPage() {
     setMessage("");
   };
 
+  // Ouvrir le formulaire et descendre automatiquement
+  const ouvrirFormulaire = () => {
+    setAvisEdition(null);
+    setNote(5);
+    setCommentaire("");
+    setMessage("");
+    setFormVisible(true);
+
+    setTimeout(() => {
+      document
+        .getElementById("formulaire-avis")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 150);
+  };
+
   // Ajouter ou modifier un avis
   const soumettreAvis = async (e) => {
     e.preventDefault();
@@ -247,14 +260,10 @@ function ClientAvisPage() {
       }
 
       await chargerAvis();
-
       reinitialiserFormulaire();
 
     } catch (error) {
-      console.error(
-        "Erreur enregistrement avis :",
-        error
-      );
+      console.error("Erreur enregistrement avis :", error);
 
       setMessage(
         error.message || "Une erreur est survenue."
@@ -279,7 +288,7 @@ function ClientAvisPage() {
           behavior: "smooth",
           block: "center",
         });
-    }, 100);
+    }, 150);
   };
 
   // Supprimer un avis
@@ -304,10 +313,7 @@ function ClientAvisPage() {
       await chargerAvis();
 
     } catch (error) {
-      console.error(
-        "Erreur suppression avis :",
-        error
-      );
+      console.error("Erreur suppression avis :", error);
 
       setMessage(
         error.message ||
@@ -420,13 +426,7 @@ function ClientAvisPage() {
             <button
               type="button"
               className="avis-ajouter-btn"
-              onClick={() => {
-                setAvisEdition(null);
-                setNote(5);
-                setCommentaire("");
-                setMessage("");
-                setFormVisible(true);
-              }}
+              onClick={ouvrirFormulaire}
             >
               + Partager votre expérience
             </button>
@@ -434,7 +434,7 @@ function ClientAvisPage() {
         )}
 
         {/* MESSAGE */}
-        {message && (
+        {message && !formVisible && (
           <p className="avis-message" role="status">
             {message}
           </p>
@@ -639,7 +639,7 @@ function ClientAvisPage() {
               </span>
 
               {message && (
-                <p className="avis-message">
+                <p className="avis-message" role="status">
                   {message}
                 </p>
               )}

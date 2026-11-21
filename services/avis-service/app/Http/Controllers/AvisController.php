@@ -60,16 +60,22 @@ class AvisController extends Controller
 
     /**
      * Normaliser les informations utilisateur.
-     * Prend en charge les réponses directes et enveloppées.
      */
     private function extraireUtilisateur(array $userData): array
     {
-        if (isset($userData['data']) && is_array($userData['data'])) {
-            $userData = $userData['data'];
-        }
+        while (true) {
 
-        if (isset($userData['user']) && is_array($userData['user'])) {
-            $userData = $userData['user'];
+            if (isset($userData['data']) && is_array($userData['data'])) {
+                $userData = $userData['data'];
+                continue;
+            }
+
+            if (isset($userData['user']) && is_array($userData['user'])) {
+                $userData = $userData['user'];
+                continue;
+            }
+
+            break;
         }
 
         return [
@@ -101,26 +107,88 @@ class AvisController extends Controller
     }
 
     /**
-     * Extraire les informations de la chambre.
+     * Extraire et normaliser toutes les informations de la chambre.
      */
     private function extraireChambre(array $chambreData): array
     {
-        if (isset($chambreData['data']) && is_array($chambreData['data'])) {
-            $chambreData = $chambreData['data'];
+        // Prendre en charge les réponses JSON imbriquées.
+        while (true) {
+
+            if (isset($chambreData['data']) && is_array($chambreData['data'])) {
+                $chambreData = $chambreData['data'];
+                continue;
+            }
+
+            if (isset($chambreData['chambre']) && is_array($chambreData['chambre'])) {
+                $chambreData = $chambreData['chambre'];
+                continue;
+            }
+
+            break;
         }
 
-        if (isset($chambreData['chambre']) && is_array($chambreData['chambre'])) {
-            $chambreData = $chambreData['chambre'];
-        }
+        // Conserver les informations originales et normaliser les champs.
+        return array_merge($chambreData, [
 
-        return [
             'id' => $chambreData['id'] ?? null,
-            'numero' => $chambreData['numero']
+
+            'numero' =>
+                $chambreData['numero']
                 ?? $chambreData['numero_chambre']
                 ?? $chambreData['num_chambre']
                 ?? null,
-            'type' => $chambreData['type'] ?? null,
-        ];
+
+            'nom' =>
+                $chambreData['nom']
+                ?? $chambreData['nom_chambre']
+                ?? null,
+
+            'description' =>
+                $chambreData['description']
+                ?? null,
+
+            'type' =>
+                $chambreData['type']
+                ?? $chambreData['type_chambre']
+                ?? $chambreData['categorie']
+                ?? null,
+
+            'etage' =>
+                $chambreData['etage']
+                ?? $chambreData['numero_etage']
+                ?? null,
+
+            'capacite' =>
+                $chambreData['capacite']
+                ?? $chambreData['capacite_max']
+                ?? null,
+
+            'nombre_lits' =>
+                $chambreData['nombre_lits']
+                ?? null,
+
+            'type_lits' =>
+                $chambreData['type_lits']
+                ?? null,
+
+            'surface' =>
+                $chambreData['surface']
+                ?? $chambreData['superficie']
+                ?? null,
+
+            'prix' =>
+                $chambreData['prix']
+                ?? $chambreData['prix_nuit']
+                ?? null,
+
+            'devise' =>
+                $chambreData['devise']
+                ?? 'MAD',
+
+            'statut' =>
+                $chambreData['statut']
+                ?? null,
+        ]);
     }
 
     /**
@@ -167,33 +235,45 @@ class AvisController extends Controller
     */
 
     /**
-     * Ajouter les informations du client et de la chambre.
+     * Ajouter les informations du client et de la chambre à un avis.
      */
     private function formatAvis(Avis $avi): array
     {
         $data = $avi->toArray();
 
-        // Récupération du client depuis Auth Service.
-        $userResponse = $this->fetchUser((int) $avi->user_id);
+        /*
+         * INFORMATIONS DU CLIENT
+         */
+
+        $userResponse = $this->fetchUser(
+            (int) $avi->user_id
+        );
 
         $user = null;
 
         if ($userResponse !== null && $userResponse->successful()) {
+
             $user = $this->extraireUtilisateur(
                 $userResponse->json() ?? []
             );
 
-            if (empty($user['id']) || empty($user['name'])) {
+            if (empty($user['id'])) {
                 $user = null;
             }
         }
 
-        // Récupération de la chambre depuis Chambres Service.
-        $chambreResponse = $this->fetchChambre((int) $avi->chambre_id);
+        /*
+         * INFORMATIONS COMPLETES DE LA CHAMBRE
+         */
+
+        $chambreResponse = $this->fetchChambre(
+            (int) $avi->chambre_id
+        );
 
         $chambre = null;
 
         if ($chambreResponse !== null && $chambreResponse->successful()) {
+
             $chambre = $this->extraireChambre(
                 $chambreResponse->json() ?? []
             );
@@ -227,6 +307,7 @@ class AvisController extends Controller
         ]);
 
         if ($request->filled('chambre_id')) {
+
             $error = $this->verifierChambre(
                 (int) $request->chambre_id
             );
@@ -281,11 +362,13 @@ class AvisController extends Controller
                 'integer',
                 'min:1'
             ],
+
             'note' => [
                 'required',
                 'integer',
                 'between:1,5'
             ],
+
             'commentaire' => [
                 'required',
                 'string',
@@ -296,12 +379,14 @@ class AvisController extends Controller
 
         $userId = (int) $authenticatedUser['id'];
 
+        // Vérifier l'utilisateur dans Auth Service.
         $error = $this->verifierUtilisateur($userId);
 
         if ($error !== null) {
             return $error;
         }
 
+        // Vérifier la chambre dans Chambres Service.
         $error = $this->verifierChambre(
             (int) $validated['chambre_id']
         );
@@ -362,6 +447,7 @@ class AvisController extends Controller
             ], 401);
         }
 
+        // Vérifier que l'avis appartient à l'utilisateur connecté.
         if (
             (int) $avi->user_id !==
             (int) $authenticatedUser['id']
@@ -378,12 +464,14 @@ class AvisController extends Controller
                 'integer',
                 'min:1'
             ],
+
             'note' => [
                 'sometimes',
                 'required',
                 'integer',
                 'between:1,5'
             ],
+
             'commentaire' => [
                 'sometimes',
                 'required',
@@ -393,7 +481,9 @@ class AvisController extends Controller
             ],
         ]);
 
+        // Vérifier la nouvelle chambre si elle est modifiée.
         if (isset($validated['chambre_id'])) {
+
             $error = $this->verifierChambre(
                 (int) $validated['chambre_id']
             );
@@ -433,10 +523,13 @@ class AvisController extends Controller
         }
 
         $userId = (int) $authenticatedUser['id'];
+
         $role = $authenticatedUser['role'] ?? null;
 
         $isAdmin = $role === 'admin';
 
+        // Un administrateur peut supprimer tous les avis.
+        // Un client peut supprimer uniquement ses propres avis.
         if (
             !$isAdmin &&
             (int) $avi->user_id !== $userId

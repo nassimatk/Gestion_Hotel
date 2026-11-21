@@ -16,6 +16,11 @@ import {
     RefreshCw,
     User,
     Mail,
+    BedDouble,
+    Users,
+    Maximize,
+    Wallet,
+    Building2,
 } from "lucide-react";
 
 import { getAllAvis, deleteAvis } from "../../../services/avisApi";
@@ -23,7 +28,7 @@ import { getAllAvis, deleteAvis } from "../../../services/avisApi";
 import "./AdminAvisPage.css";
 
 /* =========================================================
-   UTILITAIRES
+   1. UTILITAIRES
 ========================================================= */
 
 const obtenirAvatar = (nom = "") =>
@@ -50,8 +55,13 @@ const obtenirDate = (date) => {
     });
 };
 
+/**
+ * Extraire les avis depuis les différentes structures JSON.
+ */
 const extraireListe = (resultat) => {
-    if (Array.isArray(resultat)) return resultat;
+    if (Array.isArray(resultat)) {
+        return resultat;
+    }
 
     if (Array.isArray(resultat?.data)) {
         return resultat.data;
@@ -69,14 +79,38 @@ const extraireListe = (resultat) => {
 };
 
 /* =========================================================
-   NORMALISATION DES CHAMBRES
-   Informations provenant directement de avisApi
+   2. NORMALISATION DES CHAMBRES
 ========================================================= */
 
 const normaliserChambre = (chambre = {}, chambreId = null) => {
+
+    // Compatibilité avec les réponses imbriquées.
+    while (true) {
+
+        if (
+            chambre.data &&
+            typeof chambre.data === "object" &&
+            !Array.isArray(chambre.data)
+        ) {
+            chambre = chambre.data;
+            continue;
+        }
+
+        if (
+            chambre.chambre &&
+            typeof chambre.chambre === "object" &&
+            !Array.isArray(chambre.chambre)
+        ) {
+            chambre = chambre.chambre;
+            continue;
+        }
+
+        break;
+    }
+
     const numero =
-        chambre.numero_chambre ??
         chambre.numero ??
+        chambre.numero_chambre ??
         chambre.num_chambre ??
         chambre.code;
 
@@ -88,67 +122,69 @@ const normaliserChambre = (chambre = {}, chambreId = null) => {
             numero !== null &&
             numero !== ""
                 ? String(numero)
-                : `Chambre #${chambre.id || chambreId || "?"}`,
+                : `Chambre #${chambre.id ?? chambreId ?? "?"}`,
 
         nom:
-            chambre.nom ||
-            chambre.nom_chambre ||
+            chambre.nom ??
+            chambre.nom_chambre ??
             "Nom non disponible",
 
         description:
-            chambre.description ||
+            chambre.description ??
             "Aucune description disponible.",
 
         etage:
-            chambre.numero_etage ??
             chambre.etage ??
+            chambre.numero_etage ??
             null,
 
         capacite:
-            chambre.capacite_max ??
             chambre.capacite ??
+            chambre.capacite_max ??
             null,
 
         nombreLits:
             chambre.nombre_lits ??
+            chambre.nombreLits ??
             null,
 
         typeLits:
-            chambre.type_lits ||
+            chambre.type_lits ??
+            chambre.typeLits ??
             "Non renseigné",
 
         surface:
-            chambre.superficie ??
             chambre.surface ??
+            chambre.superficie ??
             null,
 
         prix:
-            chambre.prix_nuit ??
             chambre.prix ??
+            chambre.prix_nuit ??
             null,
 
         devise:
-            chambre.devise ||
+            chambre.devise ??
             "MAD",
 
         statut:
-            chambre.statut ||
+            chambre.statut ??
             "Non renseigné",
 
         type:
-            chambre.type_chambre ||
-            chambre.type ||
-            chambre.categorie ||
+            chambre.type ??
+            chambre.type_chambre ??
+            chambre.categorie ??
             null,
     };
 };
 
 /* =========================================================
-   NORMALISATION DES AVIS
-   Aucune autre API n'est utilisée
+   3. NORMALISATION DES AVIS
 ========================================================= */
 
 const normaliserAvis = (item = {}) => {
+
     const utilisateur =
         item.user && typeof item.user === "object"
             ? item.user
@@ -199,7 +235,10 @@ const normaliserAvis = (item = {}) => {
     return {
         id: item.id,
 
-        userId: item.user_id ?? utilisateur.id ?? null,
+        userId:
+            item.user_id ??
+            utilisateur.id ??
+            null,
 
         client: String(nom),
 
@@ -231,10 +270,11 @@ const normaliserAvis = (item = {}) => {
 };
 
 /* =========================================================
-   COMPOSANT PRINCIPAL
+   4. COMPOSANT PRINCIPAL
 ========================================================= */
 
 export default function AdminAvisPage() {
+
     const [avis, setAvis] = useState([]);
 
     const [avisSelectionne, setAvisSelectionne] = useState(null);
@@ -258,15 +298,16 @@ export default function AdminAvisPage() {
     const [notification, setNotification] = useState("");
 
     /* =====================================================
-       CHARGEMENT DES AVIS
-       Source unique : avisApi
+       5. CHARGEMENT DES AVIS
     ===================================================== */
 
     const chargerAvis = useCallback(async () => {
+
         setChargement(true);
         setErreur("");
 
         try {
+
             const resultat = await getAllAvis();
 
             const listeAvis = extraireListe(resultat);
@@ -278,6 +319,7 @@ export default function AdminAvisPage() {
             setAvis(avisNormalises);
 
         } catch (error) {
+
             console.error(
                 "Erreur chargement des avis :",
                 error
@@ -290,8 +332,11 @@ export default function AdminAvisPage() {
             );
 
         } finally {
+
             setChargement(false);
+
         }
+
     }, []);
 
     useEffect(() => {
@@ -299,10 +344,11 @@ export default function AdminAvisPage() {
     }, [chargerAvis]);
 
     /* =====================================================
-       NOTIFICATIONS
+       6. NOTIFICATIONS
     ===================================================== */
 
     useEffect(() => {
+
         if (!notification) return undefined;
 
         const timer = window.setTimeout(() => {
@@ -310,13 +356,15 @@ export default function AdminAvisPage() {
         }, 4000);
 
         return () => window.clearTimeout(timer);
+
     }, [notification]);
 
     /* =====================================================
-       SYNCHRONISATION DE L'AVIS SELECTIONNE
+       7. SYNCHRONISATION DE L'AVIS SELECTIONNE
     ===================================================== */
 
     useEffect(() => {
+
         if (!avisSelectionne) return;
 
         const avisActualise = avis.find(
@@ -325,14 +373,19 @@ export default function AdminAvisPage() {
         );
 
         if (avisActualise) {
+
             setAvisSelectionne(avisActualise);
+
         } else {
+
             setAvisSelectionne(null);
+
         }
+
     }, [avis, avisSelectionne]);
 
     /* =====================================================
-       STATISTIQUES
+       8. STATISTIQUES
     ===================================================== */
 
     const totalAvis = avis.length;
@@ -351,13 +404,15 @@ export default function AdminAvisPage() {
         : "0.0";
 
     /* =====================================================
-       RECHERCHE ET FILTRE
+       9. RECHERCHE ET FILTRE
     ===================================================== */
 
     const avisFiltres = useMemo(() => {
+
         const terme = recherche.trim().toLowerCase();
 
         return avis.filter((item) => {
+
             const numero = String(
                 item.numeroChambre || ""
             ).toLowerCase();
@@ -366,18 +421,22 @@ export default function AdminAvisPage() {
                 !terme ||
                 numero.includes(terme) ||
                 item.client.toLowerCase().includes(terme) ||
-                item.email.toLowerCase().includes(terme);
+                item.email.toLowerCase().includes(terme) ||
+                item.chambre.nom.toLowerCase().includes(terme) ||
+                (item.chambre.type || "").toLowerCase().includes(terme);
 
             const noteValide =
                 filtreNote === "Toutes les notes" ||
                 Math.floor(item.note) === Number(filtreNote);
 
             return rechercheValide && noteValide;
+
         });
+
     }, [avis, recherche, filtreNote]);
 
     /* =====================================================
-       PAGINATION
+       10. PAGINATION FRONTEND
     ===================================================== */
 
     const totalPages = Math.max(
@@ -386,9 +445,11 @@ export default function AdminAvisPage() {
     );
 
     useEffect(() => {
+
         setPage((anciennePage) =>
             Math.min(anciennePage, totalPages)
         );
+
     }, [totalPages]);
 
     const avisAffiches = avisFiltres.slice(
@@ -397,7 +458,7 @@ export default function AdminAvisPage() {
     );
 
     /* =====================================================
-       SELECTION D'UN AVIS
+       11. SELECTION D'UN AVIS
     ===================================================== */
 
     const selectionnerAvis = (item) => {
@@ -405,10 +466,11 @@ export default function AdminAvisPage() {
     };
 
     /* =====================================================
-       SUPPRESSION D'UN AVIS
+       12. SUPPRESSION D'UN AVIS
     ===================================================== */
 
     const supprimerAvis = async (item) => {
+
         if (!item || suppression) return;
 
         const confirmation = window.confirm(
@@ -421,6 +483,7 @@ export default function AdminAvisPage() {
         setErreur("");
 
         try {
+
             await deleteAvis(item.id);
 
             setAvis((ancienneListe) =>
@@ -442,6 +505,7 @@ export default function AdminAvisPage() {
             );
 
         } catch (error) {
+
             console.error(
                 "Erreur suppression avis :",
                 error
@@ -454,61 +518,78 @@ export default function AdminAvisPage() {
             );
 
         } finally {
+
             setSuppression(false);
+
         }
     };
 
     /* =====================================================
-       REINITIALISATION DES FILTRES
+       13. REINITIALISATION DES FILTRES
     ===================================================== */
 
     const reinitialiserFiltres = () => {
+
         setRecherche("");
         setFiltreNote("Toutes les notes");
         setPage(1);
+
     };
 
     /* =====================================================
-       EXPORT CSV
+       14. EXPORT CSV
     ===================================================== */
 
     const exporterAvis = () => {
+
         const lignes = [
+
             [
                 "ID",
                 "Client",
                 "Email",
                 "Numero chambre",
                 "Nom chambre",
+                "Description chambre",
                 "Type chambre",
                 "Etage",
                 "Capacite",
                 "Nombre de lits",
+                "Type de lits",
                 "Surface",
                 "Prix par nuit",
+                "Devise",
+                "Statut chambre",
                 "Note",
                 "Commentaire",
                 "Date",
-                "Statut",
+                "Statut avis",
             ],
 
             ...avisFiltres.map((item) => [
+
                 item.id,
                 item.client,
                 item.email,
                 item.numeroChambre,
                 item.chambre.nom,
+                item.chambre.description,
                 item.chambre.type || "",
                 item.chambre.etage ?? "",
                 item.chambre.capacite ?? "",
                 item.chambre.nombreLits ?? "",
+                item.chambre.typeLits,
                 item.chambre.surface ?? "",
                 item.chambre.prix ?? "",
+                item.chambre.devise,
+                item.chambre.statut,
                 item.note,
                 item.commentaire,
                 item.date,
                 item.statut,
+
             ]),
+
         ];
 
         const csv = lignes
@@ -544,13 +625,15 @@ export default function AdminAvisPage() {
         lien.remove();
 
         URL.revokeObjectURL(url);
+
     };
 
     /* =====================================================
-       AFFICHAGE
+       15. AFFICHAGE
     ===================================================== */
 
     return (
+
         <div className="admin-avis-page">
 
             <main className="admin-avis-content">
@@ -558,19 +641,23 @@ export default function AdminAvisPage() {
                 {/* EN-TETE */}
 
                 <header className="admin-avis-header">
+
                     <div>
+
                         <h1>
                             <Star
                                 size={21}
                                 fill="#D5A451"
                                 color="#D5A451"
                             />
+
                             Gestion des avis
                         </h1>
 
                         <p>
                             Consultez et gérez les avis de vos clients.
                         </p>
+
                     </div>
 
                     <button
@@ -582,15 +669,18 @@ export default function AdminAvisPage() {
                         <Download size={16} />
                         Exporter CSV
                     </button>
+
                 </header>
 
                 {/* NOTIFICATION */}
 
                 {notification && (
+
                     <div
                         className="admin-notification-message"
                         role="status"
                     >
+
                         <Check size={17} />
 
                         <span>{notification}</span>
@@ -602,16 +692,20 @@ export default function AdminAvisPage() {
                         >
                             <X size={16} />
                         </button>
+
                     </div>
+
                 )}
 
                 {/* ERREUR */}
 
                 {erreur && (
+
                     <div
                         className="admin-error-message"
                         role="alert"
                     >
+
                         <X size={17} />
 
                         <span>{erreur}</span>
@@ -624,7 +718,9 @@ export default function AdminAvisPage() {
                             <RefreshCw size={15} />
                             Réessayer
                         </button>
+
                     </div>
+
                 )}
 
                 {/* STATISTIQUES */}
@@ -632,22 +728,27 @@ export default function AdminAvisPage() {
                 <section className="admin-stats-grid">
 
                     <article className="admin-stat-card">
+
                         <div className="admin-stat-icon gold">
                             <MessageSquare size={20} />
                         </div>
 
                         <div className="admin-stat-info">
+
                             <span>TOTAL DES AVIS</span>
 
                             <div className="admin-stat-value">
                                 {totalAvis}
                             </div>
 
-                            <small>Nombre total des avis</small>
+                            <small>Nombre total des avis chargés</small>
+
                         </div>
+
                     </article>
 
                     <article className="admin-stat-card">
+
                         <div className="admin-stat-icon gold">
                             <Star
                                 size={20}
@@ -656,6 +757,7 @@ export default function AdminAvisPage() {
                         </div>
 
                         <div className="admin-stat-info">
+
                             <span>NOTE MOYENNE</span>
 
                             <div className="admin-stat-value">
@@ -663,16 +765,20 @@ export default function AdminAvisPage() {
                                 <small>/5</small>
                             </div>
 
-                            <small>Sur l'ensemble des avis</small>
+                            <small>Sur les avis chargés</small>
+
                         </div>
+
                     </article>
 
                     <article className="admin-stat-card">
+
                         <div className="admin-stat-icon green">
                             <Check size={20} />
                         </div>
 
                         <div className="admin-stat-info">
+
                             <span>AVIS PUBLIÉS</span>
 
                             <div className="admin-stat-value">
@@ -685,9 +791,11 @@ export default function AdminAvisPage() {
                                         (avisPublies / totalAvis) * 100
                                     )
                                     : 0}
-                                % du total
+                                % du total chargé
                             </small>
+
                         </div>
+
                     </article>
 
                 </section>
@@ -707,6 +815,7 @@ export default function AdminAvisPage() {
                         <div className="admin-filters">
 
                             <div className="admin-table-search">
+
                                 <Search size={15} />
 
                                 <input
@@ -718,6 +827,7 @@ export default function AdminAvisPage() {
                                         setPage(1);
                                     }}
                                 />
+
                             </div>
 
                             <select
@@ -728,6 +838,7 @@ export default function AdminAvisPage() {
                                 }}
                                 aria-label="Filtrer par note"
                             >
+
                                 <option value="Toutes les notes">
                                     Toutes les notes
                                 </option>
@@ -737,16 +848,9 @@ export default function AdminAvisPage() {
                                 <option value="3">3 étoiles</option>
                                 <option value="2">2 étoiles</option>
                                 <option value="1">1 étoile</option>
+
                             </select>
 
-                            <button
-                                type="button"
-                                className="admin-reset-btn"
-                                onClick={reinitialiserFiltres}
-                            >
-                                <RefreshCw size={14} />
-                                Réinitialiser
-                            </button>
 
                             <button
                                 type="button"
@@ -772,6 +876,7 @@ export default function AdminAvisPage() {
                             <table className="admin-avis-table">
 
                                 <thead>
+
                                     <tr>
                                         <th>CLIENT</th>
                                         <th>N° CHAMBRE</th>
@@ -781,23 +886,31 @@ export default function AdminAvisPage() {
                                         <th>STATUT</th>
                                         <th>ACTIONS</th>
                                     </tr>
+
                                 </thead>
 
                                 <tbody>
 
                                     {chargement ? (
+
                                         <tr>
                                             <td colSpan="7" className="admin-empty">
+
                                                 <RefreshCw
                                                     size={18}
                                                     className="admin-spin"
                                                 />
+
                                                 Chargement des avis...
+
                                             </td>
                                         </tr>
+
                                     ) : avisAffiches.length === 0 ? (
+
                                         <tr>
                                             <td colSpan="7" className="admin-empty">
+
                                                 <MessageSquare size={23} />
 
                                                 <strong>
@@ -808,10 +921,14 @@ export default function AdminAvisPage() {
                                                     Vérifiez votre recherche
                                                     ou réinitialisez les filtres.
                                                 </span>
+
                                             </td>
                                         </tr>
+
                                     ) : (
+
                                         avisAffiches.map((item) => (
+
                                             <tr
                                                 key={item.id}
                                                 className={
@@ -826,6 +943,7 @@ export default function AdminAvisPage() {
                                             >
 
                                                 <td>
+
                                                     <div className="admin-client-cell">
 
                                                         <div
@@ -835,6 +953,7 @@ export default function AdminAvisPage() {
                                                         </div>
 
                                                         <div className="admin-client-identity">
+
                                                             <strong>
                                                                 {item.client}
                                                             </strong>
@@ -842,21 +961,29 @@ export default function AdminAvisPage() {
                                                             <small>
                                                                 {item.email}
                                                             </small>
+
                                                         </div>
 
                                                     </div>
+
                                                 </td>
 
                                                 <td>
+
                                                     <div className="admin-room-number">
+
                                                         <strong>
                                                             {item.numeroChambre}
                                                         </strong>
+
                                                     </div>
+
                                                 </td>
 
                                                 <td>
+
                                                     <div className="admin-note-cell">
+
                                                         <span>
                                                             {"★".repeat(
                                                                 Math.round(item.note)
@@ -866,10 +993,13 @@ export default function AdminAvisPage() {
                                                         <strong>
                                                             {item.note.toFixed(1)}
                                                         </strong>
+
                                                     </div>
+
                                                 </td>
 
                                                 <td>
+
                                                     <div
                                                         className="admin-comment-preview"
                                                         title={item.commentaire}
@@ -877,17 +1007,23 @@ export default function AdminAvisPage() {
                                                         {item.commentaire ||
                                                             "Aucun commentaire"}
                                                     </div>
+
                                                 </td>
 
-                                                <td>{item.date}</td>
+                                                <td>
+                                                    {item.date}
+                                                </td>
 
                                                 <td>
+
                                                     <span className="admin-status published">
                                                         {item.statut}
                                                     </span>
+
                                                 </td>
 
                                                 <td>
+
                                                     <div className="admin-row-actions">
 
                                                         <button
@@ -916,10 +1052,13 @@ export default function AdminAvisPage() {
                                                         </button>
 
                                                     </div>
+
                                                 </td>
 
                                             </tr>
+
                                         ))
+
                                     )}
 
                                 </tbody>
@@ -933,6 +1072,7 @@ export default function AdminAvisPage() {
                         <div className="admin-pagination">
 
                             <span>
+
                                 Affichage{" "}
 
                                 {avisFiltres.length
@@ -949,6 +1089,7 @@ export default function AdminAvisPage() {
                                 {" sur "}
 
                                 {avisFiltres.length}
+
                             </span>
 
                             <div className="admin-pagination-controls">
@@ -975,10 +1116,12 @@ export default function AdminAvisPage() {
                                             Math.abs(numero - page) <= 1
                                     )
                                     .map((numero, index, liste) => (
+
                                         <span
                                             className="admin-page-item"
                                             key={numero}
                                         >
+
                                             {index > 0 &&
                                                 liste[index - 1] !== numero - 1 && (
                                                     <span className="admin-page-dots">
@@ -997,7 +1140,9 @@ export default function AdminAvisPage() {
                                             >
                                                 {numero}
                                             </button>
+
                                         </span>
+
                                     ))}
 
                                 <button
@@ -1032,10 +1177,15 @@ export default function AdminAvisPage() {
 
                     </div>
 
-                    {/* PANNEAU DES DETAILS */}
+                    {/* =================================================
+                       PANNEAU DES DETAILS
+                    ================================================= */}
 
                     {avisSelectionne && (
+
                         <aside className="admin-avis-details">
+
+                            {/* EN-TETE */}
 
                             <div className="admin-details-header">
 
@@ -1075,6 +1225,7 @@ export default function AdminAvisPage() {
                                     </span>
 
                                     <div className="admin-details-stars">
+
                                         {"★".repeat(
                                             Math.round(avisSelectionne.note)
                                         )}
@@ -1086,6 +1237,7 @@ export default function AdminAvisPage() {
                                         <b>
                                             {avisSelectionne.note.toFixed(1)}/5
                                         </b>
+
                                     </div>
 
                                 </div>
@@ -1096,7 +1248,7 @@ export default function AdminAvisPage() {
 
                             </div>
 
-                            {/* CLIENT */}
+                            {/* INFORMATIONS CLIENT */}
 
                             <div className="admin-details-section">
 
@@ -1131,100 +1283,68 @@ export default function AdminAvisPage() {
 
                             </div>
 
-                            {/* CHAMBRE */}
+                            {/* =================================================
+                               INFORMATIONS COMPLETES DE LA CHAMBRE
+                            ================================================= */}
 
-                            <div className="admin-details-section">
+{/* INFORMATIONS DE LA CHAMBRE */}
+{/* INFORMATIONS DE LA CHAMBRE */}
 
-                                <h4>
-                                    Informations de la chambre
-                                </h4>
+<div className="admin-details-section">
 
-                                <div className="admin-room-highlight">
-                                    <strong>
-                                        {avisSelectionne.numeroChambre}
-                                    </strong>
-                                </div>
+    <h4>
+        <Building2 size={15} />
+        Informations de la chambre
+    </h4>
 
-                                <div className="admin-details-info admin-room-details-info">
+    <div className="admin-details-info admin-room-details-info">
 
-                                    <div>
-                                        <span>Nom de la chambre</span>
+        <div>
+            <span>Numéro de chambre</span>
+            <strong>
+                {avisSelectionne.numeroChambre}
+            </strong>
+        </div>
 
-                                        <strong>
-                                            {avisSelectionne.chambre.nom}
-                                        </strong>
-                                    </div>
+        <div>
+            <span>Type de chambre</span>
+            <strong>
+                {avisSelectionne.chambre.type || "Non renseigné"}
+            </strong>
+        </div>
 
-                                    <div>
-                                        <span>Étage</span>
+        <div>
+            <span>Capacité</span>
+            <strong>
+                {avisSelectionne.chambre.capacite != null
+                    ? `${avisSelectionne.chambre.capacite} voyageurs`
+                    : "Non renseignée"}
+            </strong>
+        </div>
 
-                                        <strong>
-                                            {avisSelectionne.chambre.etage ??
-                                                "Non renseigné"}
-                                        </strong>
-                                    </div>
+        <div>
+            <span>Prix par nuit</span>
+            <strong>
+                {avisSelectionne.chambre.prix != null
+                    ? `${avisSelectionne.chambre.prix} ${avisSelectionne.chambre.devise}`
+                    : "Non renseigné"}
+            </strong>
+        </div>
 
-                                    <div>
-                                        <span>Type de chambre</span>
+        <div>
+            <span>Statut</span>
+            <strong>
+                {avisSelectionne.chambre.statut}
+            </strong>
+        </div>
 
-                                        <strong>
-                                            {avisSelectionne.chambre.type ||
-                                                "Non renseigné"}
-                                        </strong>
-                                    </div>
+    </div>
 
-                                    <div>
-                                        <span>Capacité maximale</span>
+</div>
 
-                                        <strong>
-                                            {avisSelectionne.chambre.capacite !== null
-                                                ? `${avisSelectionne.chambre.capacite} voyageurs`
-                                                : "Non renseignée"}
-                                        </strong>
-                                    </div>
 
-                                    <div>
-                                        <span>Nombre de lits</span>
 
-                                        <strong>
-                                            {avisSelectionne.chambre.nombreLits ??
-                                                "Non renseigné"}
-                                        </strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Type de lits</span>
-
-                                        <strong>
-                                            {avisSelectionne.chambre.typeLits}
-                                        </strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Surface</span>
-
-                                        <strong>
-                                            {avisSelectionne.chambre.surface !== null
-                                                ? `${avisSelectionne.chambre.surface} m²`
-                                                : "Non renseignée"}
-                                        </strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Prix par nuit</span>
-
-                                        <strong>
-                                            {avisSelectionne.chambre.prix !== null
-                                                ? `${avisSelectionne.chambre.prix} ${avisSelectionne.chambre.devise}`
-                                                : "Non renseigné"}
-                                        </strong>
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                            {/* AVIS */}
+                            {/* INFORMATIONS AVIS */}
 
                             <div className="admin-details-section">
 
@@ -1259,7 +1379,9 @@ export default function AdminAvisPage() {
 
                                 <div className="admin-details-subsection">
 
-                                    <h4>Commentaire du client</h4>
+                                    <h4>
+                                        Commentaire du client
+                                    </h4>
 
                                     <div className="admin-details-comment">
                                         {avisSelectionne.commentaire ||
@@ -1292,6 +1414,7 @@ export default function AdminAvisPage() {
                             </div>
 
                         </aside>
+
                     )}
 
                 </section>
@@ -1299,5 +1422,7 @@ export default function AdminAvisPage() {
             </main>
 
         </div>
+
     );
+
 }

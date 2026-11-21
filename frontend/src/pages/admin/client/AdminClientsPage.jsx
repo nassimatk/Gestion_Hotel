@@ -8,15 +8,9 @@ import {
   UserPlus,
   Search,
   RefreshCw,
-  Eye,
-  X,
   Mail,
-  Phone,
-  CalendarDays,
-  MapPin,
   ChevronLeft,
   ChevronRight,
-  UserRound,
   AlertCircle,
   Ban,
 } from "lucide-react";
@@ -123,7 +117,6 @@ const normaliserClient = (user, reservations = []) => {
     user?.createdAt ??
     null;
 
-  // Récupérer les réservations appartenant à ce client
   const reservationsClient = reservations.filter((reservation) => {
     const clientId =
       reservation?.client_id ??
@@ -137,12 +130,10 @@ const normaliserClient = (user, reservations = []) => {
     );
   });
 
-  // Règle VIP : minimum 3 réservations
   const vip =
     role !== "admin" &&
     reservationsClient.length >= SEUIL_VIP;
 
-  // Récupérer la réservation la plus récente
   const derniereReservation = [...reservationsClient].sort(
     (a, b) =>
       new Date(b.created_at || 0).getTime() -
@@ -196,8 +187,6 @@ export default function AdminClientsPage() {
   const [filtreRole, setFiltreRole] = useState("tous");
   const [page, setPage] = useState(1);
 
-  const [selection, setSelection] = useState(null);
-
   /* ============================================================
      CHARGEMENT CLIENTS ET RÉSERVATIONS
   ============================================================ */
@@ -217,9 +206,7 @@ export default function AdminClientsPage() {
         throw usersResult.reason;
       }
 
-      const utilisateurs = extraireListe(
-        usersResult.value
-      );
+      const utilisateurs = extraireListe(usersResult.value);
 
       let reservations = [];
 
@@ -255,6 +242,7 @@ export default function AdminClientsPage() {
         err?.response?.data?.error ||
         "Impossible de charger les utilisateurs."
       );
+
     } finally {
       setLoading(false);
     }
@@ -399,60 +387,6 @@ export default function AdminClientsPage() {
       setPage(totalPages);
     }
   }, [page, totalPages]);
-
-  /* ============================================================
-     EXPORT CSV
-  ============================================================ */
-
-  const exporterCSV = () => {
-    if (!utilisateursFiltres.length) return;
-
-    const entetes = [
-      "ID",
-      "Nom",
-      "Email",
-      "Téléphone",
-      "Ville",
-      "Rôle",
-      "Statut",
-      "Date inscription",
-    ];
-
-    const lignes = utilisateursFiltres.map((c) => [
-      c.id,
-      c.nom,
-      c.email,
-      c.telephone,
-      c.ville,
-      c.role,
-      c.statut,
-      c.dateInscription ?? "",
-    ]);
-
-    const contenu = [entetes, ...lignes]
-      .map((ligne) =>
-        ligne
-          .map((v) =>
-            `"${String(v ?? "").replace(/"/g, '""')}"`
-          )
-          .join(";")
-      )
-      .join("\n");
-
-    const blob = new Blob(
-      ["\uFEFF" + contenu],
-      { type: "text/csv;charset=utf-8;" }
-    );
-
-    const url = URL.createObjectURL(blob);
-    const lien = document.createElement("a");
-
-    lien.href = url;
-    lien.download = "hotelhub-clients.csv";
-    lien.click();
-
-    URL.revokeObjectURL(url);
-  };
 
   /* ============================================================
      RENDU
@@ -635,7 +569,7 @@ export default function AdminClientsPage() {
           </select>
         </div>
 
-        {/* TABLEAU INITIAL CONSERVÉ */}
+        {/* TABLEAU */}
 
         <div className="clients-table-wrapper">
           <table className="clients-table">
@@ -644,7 +578,6 @@ export default function AdminClientsPage() {
               <tr>
                 <th>CLIENT</th>
                 <th>COORDONNÉES</th>
-                <th>VILLE</th>
                 <th>RÔLE</th>
                 <th>STATUT</th>
                 <th>INSCRIPTION</th>
@@ -656,13 +589,13 @@ export default function AdminClientsPage() {
 
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="clients-empty">
+                  <td colSpan={6} className="clients-empty">
                     Chargement des utilisateurs...
                   </td>
                 </tr>
               ) : utilisateursAffiches.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="clients-empty">
+                  <td colSpan={6} className="clients-empty">
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
@@ -689,8 +622,6 @@ export default function AdminClientsPage() {
                       </div>
                     </td>
 
-                    <td>{client.ville}</td>
-
                     <td>
                       <span
                         className={`clients-badge ${
@@ -704,8 +635,6 @@ export default function AdminClientsPage() {
                           : client.role}
                       </span>
                     </td>
-
-                    {/* STATUT VIP AUTOMATIQUE */}
 
                     <td>
                       <span
@@ -723,21 +652,12 @@ export default function AdminClientsPage() {
                       {formaterDate(client.dateInscription)}
                     </td>
 
-                    {/* ACTIONS */}
+                    {/* ACTIONS SANS ICÔNE ŒIL */}
 
                     <td>
                       <div className="clients-actions-group">
 
-                        <button
-                          className="clients-action-btn"
-                          title="Voir les détails"
-                          type="button"
-                          onClick={() => setSelection(client)}
-                        >
-                          <Eye size={17} />
-                        </button>
-
-                        {client.role !== "admin" && (
+                        {client.role !== "admin" ? (
                           <button
                             className="clients-disable-btn"
                             title="Désactiver le compte"
@@ -749,9 +669,13 @@ export default function AdminClientsPage() {
                               )
                             }
                           >
-                            <Ban size={16} />
+                            <Ban size={15} />
                             Désactiver
                           </button>
+                        ) : (
+                          <span className="clients-no-action">
+                            —
+                          </span>
                         )}
 
                       </div>
@@ -807,108 +731,6 @@ export default function AdminClientsPage() {
         )}
 
       </section>
-
-      {/* MODALE PROFIL INITIALE CONSERVÉE */}
-
-      {selection && (
-        <div
-          className="clients-modal-overlay"
-          onClick={() => setSelection(null)}
-        >
-          <div
-            className="clients-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-
-            <div className="clients-modal-header">
-              <div>
-                <span>DOSSIER CLIENT</span>
-                <h2>Profil utilisateur</h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelection(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="clients-modal-profile">
-
-              <div className="clients-modal-avatar">
-                {selection.nom.charAt(0).toUpperCase()}
-              </div>
-
-              <h3>{selection.nom}</h3>
-
-              <span
-                className={`clients-badge ${
-                  selection.role === "admin"
-                    ? "admin"
-                    : "regular"
-                }`}
-              >
-                {selection.role === "admin"
-                  ? "Administrateur"
-                  : selection.role}
-              </span>
-
-            </div>
-
-            <div className="clients-details-list">
-
-              <div>
-                <UserRound size={18} />
-                <span>Nom complet</span>
-                <strong>{selection.nom}</strong>
-              </div>
-
-              <div>
-                <Mail size={18} />
-                <span>Adresse email</span>
-                <strong>{selection.email}</strong>
-              </div>
-
-              <div>
-                <Phone size={18} />
-                <span>Téléphone</span>
-                <strong>{selection.telephone}</strong>
-              </div>
-
-              <div>
-                <MapPin size={18} />
-                <span>Ville</span>
-                <strong>{selection.ville}</strong>
-              </div>
-
-              <div>
-                <ShieldCheck size={18} />
-                <span>Statut</span>
-                <strong>{selection.statut}</strong>
-              </div>
-
-              <div>
-                <CalendarDays size={18} />
-                <span>Date d'inscription</span>
-                <strong>
-                  {formaterDate(selection.dateInscription)}
-                </strong>
-              </div>
-
-            </div>
-
-            <button
-              className="clients-btn clients-btn-primary clients-modal-close"
-              type="button"
-              onClick={() => setSelection(null)}
-            >
-              Fermer
-            </button>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );
