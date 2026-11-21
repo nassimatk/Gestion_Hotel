@@ -24,6 +24,9 @@ export const tarifsApi = {
   getAllPromotions: () => http.get("/promotions").then(unwrap),
 };
 
+// Alias nommé pour la compatibilité avec ReservationPage (import { getTarifs })
+export const getTarifs = (params) => tarifsApi.calculer(params);
+
 // Message d'erreur lisible, au format de l'API { error, code }
 export function messageErreur(err) {
   return (
