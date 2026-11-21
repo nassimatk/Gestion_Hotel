@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -12,15 +11,27 @@ const STORAGE_URL =
   "http://localhost:8001/storage";
 
 // ==================================================
-// EXTRACTION DES DONNÉES
+// EXTRACTION DES DONNÉES API
 // ==================================================
 
 const extraireListe = (response) => {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.data)) return response.data;
-  if (Array.isArray(response?.data?.data)) return response.data.data;
-  if (Array.isArray(response?.data?.chambres)) return response.data.chambres;
-  if (Array.isArray(response?.chambres)) return response.chambres;
+  let data = response;
+
+  for (let i = 0; i < 3; i++) {
+    if (
+      data &&
+      !Array.isArray(data) &&
+      typeof data === "object" &&
+      Object.prototype.hasOwnProperty.call(data, "data")
+    ) {
+      data = data.data;
+    } else {
+      break;
+    }
+  }
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.chambres)) return data.chambres;
 
   return [];
 };
@@ -86,21 +97,20 @@ const getRoomImages = (room) => {
 };
 
 // ==================================================
-// FORMATAGE ET CALCULS
+// FORMATAGE DES PRIX
 // ==================================================
 
-const formatPrix = (valeur) =>
-  `${Number(valeur || 0).toLocaleString("fr-FR")} DH`;
+const formatPrix = (valeur) => {
+  const prix = Number(valeur || 0);
 
-const nombreNuits = (arrivee, depart) => {
-  if (!arrivee || !depart) return 0;
-
-  const diff =
-    new Date(`${depart}T00:00:00`) -
-    new Date(`${arrivee}T00:00:00`);
-
-  return diff > 0 ? Math.round(diff / 86400000) : 0;
+  return `${new Intl.NumberFormat("fr-FR").format(
+    Number.isFinite(prix) ? prix : 0
+  )} DH`;
 };
+
+// ==================================================
+// DATES
+// ==================================================
 
 const getDateAujourdhui = () => {
   const date = new Date();
@@ -112,20 +122,87 @@ const getDateAujourdhui = () => {
   return `${annee}-${mois}-${jour}`;
 };
 
+const lendemain = (dateStr) => {
+  if (!dateStr) return "";
+
+  const [annee, mois, jour] = dateStr.split("-").map(Number);
+
+  const date = new Date(annee, mois - 1, jour);
+  date.setDate(date.getDate() + 1);
+
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+};
+
+const nombreNuits = (arrivee, depart) => {
+  if (!arrivee || !depart) return 0;
+
+  const [a1, m1, j1] = arrivee.split("-").map(Number);
+  const [a2, m2, j2] = depart.split("-").map(Number);
+
+  const debut = Date.UTC(a1, m1 - 1, j1);
+  const fin = Date.UTC(a2, m2 - 1, j2);
+
+  const diff = fin - debut;
+
+  return diff > 0 ? Math.round(diff / 86400000) : 0;
+};
+
 // ==================================================
-// NORMALISATION DES CRITÈRES
+// NORMALISATION DES CRITÈRES DE RECHERCHE
 // ==================================================
 
 const normaliserCriteres = (criteres) => {
   if (!criteres) return null;
 
+  const dateArrivee =
+    criteres.date_debut ||
+    criteres.dateArrivee ||
+    criteres.arrivee ||
+    "";
+
+  const dateDepart =
+    criteres.date_fin ||
+    criteres.dateDepart ||
+    criteres.depart ||
+    "";
+
+  const nombrePersonnes = Number(
+    criteres.adultes ??
+    criteres.nombrePersonnes ??
+    criteres.voyageurs ??
+    1
+  );
+
   return {
-    dateArrivee: criteres.dateArrivee || criteres.arrivee || "",
-    dateDepart: criteres.dateDepart || criteres.depart || "",
-    nombrePersonnes: Number(
-      criteres.nombrePersonnes ?? criteres.voyageurs ?? 1
-    ),
+    dateArrivee,
+    dateDepart,
+    nombrePersonnes:
+      Number.isFinite(nombrePersonnes) && nombrePersonnes > 0
+        ? Math.floor(nombrePersonnes)
+        : 1,
   };
+};
+
+// ==================================================
+// EXTRACTION DES ÉQUIPEMENTS
+// ==================================================
+
+const extraireEquipements = (equipements) => {
+  if (!equipements) return [];
+
+  if (typeof equipements === "string") {
+    try {
+      equipements = JSON.parse(equipements);
+    } catch {
+      equipements = equipements.split(",").map((e) => e.trim());
+    }
+  }
+
+  return Array.isArray(equipements) ? equipements : [];
 };
 
 // ==================================================
@@ -148,6 +225,7 @@ function ImageChambre({ src, alt, className = "" }) {
       src={src}
       alt={alt}
       className={className}
+      loading="lazy"
       onError={() => {
         console.error("Erreur chargement image :", src);
         setErreur(true);
@@ -167,25 +245,35 @@ function DetailChambrePage() {
 
   const { isAuthenticated } = useAuth();
 
+  // ==================================================
+  // RÉCUPÉRATION DES DONNÉES TRANSMISES
+  // ==================================================
+
   const criteresRecherche = useMemo(
     () => normaliserCriteres(location.state?.criteresRecherche),
     [location.state]
   );
+
+  const chambreTransmise = location.state?.chambre;
+
+  // Résultat déjà obtenu auprès du microservice Disponibilités
+  const disponibiliteRecherche =
+    chambreTransmise?.disponibilite || null;
 
   // ==================================================
   // ÉTATS
   // ==================================================
 
   const [chambre, setChambre] = useState(() => {
-    const chambreTransmise = location.state?.chambre;
-
-    return chambreTransmise &&
+    if (
+      chambreTransmise &&
       String(chambreTransmise.id) === String(id)
-      ? chambreTransmise
-      : null;
-  });
+    ) {
+      return chambreTransmise;
+    }
 
-  const [autresChambres, setAutresChambres] = useState([]);
+    return null;
+  });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -205,8 +293,10 @@ function DetailChambrePage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [indexActif, setIndexActif] = useState(0);
 
+  const [erreurReservation, setErreurReservation] = useState("");
+
   // ==================================================
-  // CHARGEMENT CHAMBRE
+  // CHARGEMENT DE LA CHAMBRE
   // ==================================================
 
   useEffect(() => {
@@ -215,24 +305,21 @@ function DetailChambrePage() {
     const chargerChambre = async () => {
       try {
         setError("");
+        setLoading(true);
 
-        // Si la chambre a été transmise depuis HomePage,
-        // on l'utilise directement.
-        const chambreTransmise = location.state?.chambre;
-
+        // 1. Utiliser directement la chambre transmise
         if (
           chambreTransmise &&
           String(chambreTransmise.id) === String(id)
         ) {
           if (actif) {
             setChambre(chambreTransmise);
-            setLoading(false);
           }
+
           return;
         }
 
-        // Sinon, récupération depuis le microservice Chambres.
-        setLoading(true);
+        // 2. Sinon récupérer les chambres depuis le microservice Chambres
         setChambre(null);
 
         const response = await getChambres();
@@ -251,23 +338,20 @@ function DetailChambrePage() {
 
         setChambre(chambreTrouvee);
 
-        setAutresChambres(
-          chambres
-            .filter((item) => String(item.id) !== String(id))
-            .slice(0, 3)
-        );
-
       } catch (err) {
         console.error("Erreur chargement chambre :", err);
 
         if (actif) {
           setError(
             err.response?.data?.message ||
+            err.message ||
             "Impossible de charger les informations de la chambre."
           );
         }
       } finally {
-        if (actif) setLoading(false);
+        if (actif) {
+          setLoading(false);
+        }
       }
     };
 
@@ -276,7 +360,31 @@ function DetailChambrePage() {
     return () => {
       actif = false;
     };
-  }, [id, location.state]);
+  }, [id, location.key, chambreTransmise]);
+
+  // ==================================================
+  // SYNCHRONISATION DES CRITÈRES DE RECHERCHE
+  // ==================================================
+
+  useEffect(() => {
+    setArrivee(criteresRecherche?.dateArrivee || "");
+    setDepart(criteresRecherche?.dateDepart || "");
+
+    setVoyageurs(
+      criteresRecherche?.nombrePersonnes || 1
+    );
+
+    setIndexActif(0);
+    setLightboxOpen(false);
+    setErreurReservation("");
+
+  }, [
+    id,
+    location.key,
+    criteresRecherche?.dateArrivee,
+    criteresRecherche?.dateDepart,
+    criteresRecherche?.nombrePersonnes,
+  ]);
 
   // ==================================================
   // IMAGES
@@ -288,20 +396,16 @@ function DetailChambrePage() {
   );
 
   // ==================================================
-  // SYNCHRONISATION DES CRITÈRES
+  // ÉQUIPEMENTS
   // ==================================================
 
-  useEffect(() => {
-    setIndexActif(0);
-    setLightboxOpen(false);
-
-    setArrivee(criteresRecherche?.dateArrivee || "");
-    setDepart(criteresRecherche?.dateDepart || "");
-    setVoyageurs(criteresRecherche?.nombrePersonnes || 1);
-  }, [id, location.key]);
+  const equipements = useMemo(
+    () => extraireEquipements(chambre?.equipements),
+    [chambre]
+  );
 
   // ==================================================
-  // CAPACITÉ
+  // CAPACITÉ DE LA CHAMBRE
   // ==================================================
 
   const capacite = useMemo(() => {
@@ -317,22 +421,27 @@ function DetailChambrePage() {
     return Number.isFinite(nombre) && nombre > 0
       ? Math.floor(nombre)
       : 1;
+
   }, [chambre]);
 
+  // Limiter le nombre de voyageurs à la capacité
   useEffect(() => {
     if (!chambre) return;
 
     setVoyageurs((valeur) => {
       const nombre = Number(valeur);
 
-      if (!Number.isFinite(nombre) || nombre < 1) return 1;
+      if (!Number.isFinite(nombre) || nombre < 1) {
+        return 1;
+      }
 
       return Math.min(Math.floor(nombre), capacite);
     });
+
   }, [chambre, capacite]);
 
   // ==================================================
-  // NAVIGATION GALERIE
+  // GALERIE : NAVIGATION CLAVIER
   // ==================================================
 
   useEffect(() => {
@@ -341,7 +450,9 @@ function DetailChambrePage() {
     const total = images.length;
 
     const onKey = (e) => {
-      if (e.key === "Escape") setLightboxOpen(false);
+      if (e.key === "Escape") {
+        setLightboxOpen(false);
+      }
 
       if (e.key === "ArrowRight") {
         setIndexActif((i) => (i + 1) % total);
@@ -355,20 +466,156 @@ function DetailChambrePage() {
     const ancienOverflow = document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
+
     window.addEventListener("keydown", onKey);
 
     return () => {
       document.body.style.overflow = ancienOverflow;
       window.removeEventListener("keydown", onKey);
     };
+
   }, [lightboxOpen, images.length]);
 
   // ==================================================
-  // CHARGEMENT
+  // CALCUL DU SÉJOUR
+  // ==================================================
+
+  const nuits = nombreNuits(arrivee, depart);
+
+  const prixNuit = Number(chambre?.prix_nuit || 0);
+
+  const sousTotal = nuits * prixNuit;
+
+  const nombreVoyageurs = Number(voyageurs);
+
+  // ==================================================
+  // CARACTÉRISTIQUES
+  // ==================================================
+
+  const caracteristiques = chambre
+    ? [
+        { icone: "▢", texte: `${chambre.superficie || 0} m²` },
+        { icone: "☺", texte: `${capacite} voyageur(s)` },
+        {
+          icone: "↕",
+          texte: `Étage ${chambre.etage ?? "Non précisé"}`,
+        },
+        {
+          icone: "◐",
+          texte: chambre.vue || "Vue non précisée",
+        },
+        {
+          icone: "▭",
+          texte: chambre.type || "Type non précisé",
+        },
+      ]
+    : [];
+
+  // ==================================================
+  // MODIFICATION DES DATES
+  // ==================================================
+
+  const changerArrivee = (nouvelleDate) => {
+    setArrivee(nouvelleDate);
+    setErreurReservation("");
+
+    if (depart && depart <= nouvelleDate) {
+      setDepart(lendemain(nouvelleDate));
+    }
+  };
+
+  const changerDepart = (nouvelleDate) => {
+    setDepart(nouvelleDate);
+    setErreurReservation("");
+  };
+
+  // ==================================================
+  // RÉSERVATION
+  // ==================================================
+
+  const handleReservation = () => {
+    setErreurReservation("");
+
+    if (!isAuthenticated) {
+      navigate("/login", {
+        state: {
+          from: location.pathname,
+
+          chambreId: chambre.id,
+
+          criteresRecherche: {
+            dateArrivee: arrivee,
+            dateDepart: depart,
+            nombrePersonnes: nombreVoyageurs,
+          },
+        },
+      });
+
+      return;
+    }
+
+    if (!arrivee || !depart) {
+      setErreurReservation(
+        "Veuillez sélectionner les dates de votre séjour."
+      );
+      return;
+    }
+
+    if (arrivee < getDateAujourdhui()) {
+      setErreurReservation(
+        "La date d'arrivée ne peut pas être dans le passé."
+      );
+      return;
+    }
+
+    if (nuits <= 0) {
+      setErreurReservation(
+        "La date de départ doit être après la date d'arrivée."
+      );
+      return;
+    }
+
+    if (
+      nombreVoyageurs < 1 ||
+      nombreVoyageurs > capacite
+    ) {
+      setErreurReservation(
+        `Cette chambre accepte maximum ${capacite} voyageurs.`
+      );
+      return;
+    }
+
+    // Transmettre les informations à la page Réservation
+    navigate("/reservation", {
+      state: {
+        chambreId: chambre.id,
+
+        dateDebut: arrivee,
+        dateFin: depart,
+
+        nombrePersonnes: nombreVoyageurs,
+
+        chambre: chambre,
+
+        criteresRecherche: {
+          dateArrivee: arrivee,
+          dateDepart: depart,
+          nombrePersonnes: nombreVoyageurs,
+        },
+      },
+    });
+  };
+
+  // ==================================================
+  // ÉTATS DE CHARGEMENT ET ERREURS
   // ==================================================
 
   if (loading) {
-    return <p className="detail-loading">Chargement de la chambre...</p>;
+    return (
+      <p className="detail-loading">
+        Chargement de la chambre...
+      </p>
+    );
   }
 
   if (error) {
@@ -381,89 +628,13 @@ function DetailChambrePage() {
   }
 
   if (!chambre) {
-    return <p className="detail-error">Chambre introuvable.</p>;
+    return (
+      <div className="detail-error">
+        <p>Chambre introuvable.</p>
+        <Link to="/">Retour à l'accueil</Link>
+      </div>
+    );
   }
-
-  // ==================================================
-  // ÉQUIPEMENTS
-  // ==================================================
-
-  let equipements = chambre.equipements || [];
-
-  if (typeof equipements === "string") {
-    try {
-      equipements = JSON.parse(equipements);
-    } catch {
-      equipements = equipements.split(",").map((e) => e.trim());
-    }
-  }
-
-  if (!Array.isArray(equipements)) equipements = [];
-
-  // ==================================================
-  // CALCUL DU SÉJOUR
-  // ==================================================
-
-  const nuits = nombreNuits(arrivee, depart);
-
-  const prixNuit = Number(chambre.prix_nuit || 0);
-
-  const sousTotal = nuits * prixNuit;
-
-  const nombreVoyageurs = Number(voyageurs);
-
-  const caracteristiques = [
-    { icone: "▢", texte: `${chambre.superficie || 0} m²` },
-    { icone: "☺", texte: `${capacite} voyageur(s)` },
-    { icone: "↕", texte: `Étage ${chambre.etage ?? "Non précisé"}` },
-    { icone: "◐", texte: chambre.vue || "Vue non précisée" },
-    { icone: "▭", texte: chambre.type || "Type non précisé" },
-  ];
-
-  // ==================================================
-  // RÉSERVATION
-  // ==================================================
-
-  const handleReservation = () => {
-    if (!isAuthenticated) {
-      navigate("/login", {
-        state: {
-          from: location.pathname,
-          criteresRecherche: {
-            dateArrivee: arrivee,
-            dateDepart: depart,
-            nombrePersonnes: nombreVoyageurs,
-          },
-        },
-      });
-      return;
-    }
-
-    if (!arrivee || !depart) {
-      alert("Veuillez sélectionner les dates.");
-      return;
-    }
-
-    if (arrivee < getDateAujourdhui() || nuits <= 0) {
-      alert("Veuillez vérifier les dates de votre séjour.");
-      return;
-    }
-
-    if (nombreVoyageurs < 1 || nombreVoyageurs > capacite) {
-      alert(`Maximum ${capacite} voyageurs.`);
-      return;
-    }
-
-    navigate("/reservation", {
-      state: {
-        chambreId: chambre.id,
-        dateDebut: arrivee,
-        dateFin: depart,
-        nombrePersonnes: nombreVoyageurs,
-        chambre: chambre,
-      },
-    });
-  };
 
   // ==================================================
   // AFFICHAGE
@@ -473,35 +644,32 @@ function DetailChambrePage() {
     <div className="detail-chambre-page">
       <div className="detail-container">
 
-        {/* HEADER */}
 
-        <header className="detail-header">
-          <h1>
-            {chambre.type}
-            <span> · Chambre {chambre.numero}</span>
-          </h1>
+ 
 
-          <p className="detail-header-prix">
-            {formatPrix(prixNuit)}
-            <small> / nuit</small>
-          </p>
-        </header>
-
-        {/* GALERIE */}
-
-        <div className={`detail-gallery count-${Math.min(images.length, 3)}`}>
+        <div
+          className={`detail-gallery count-${Math.min(
+            images.length,
+            3
+          )}`}
+        >
           {images.length > 0 ? (
+
             images.slice(0, 3).map((image, index) => (
+
               <div
                 key={`${image}-${index}`}
                 className={`gallery-item ${
-                  index === 0 ? "gallery-main" : "gallery-side"
+                  index === 0
+                    ? "gallery-main"
+                    : "gallery-side"
                 }`}
                 onClick={() => {
                   setIndexActif(index);
                   setLightboxOpen(true);
                 }}
               >
+
                 <ImageChambre
                   src={image}
                   alt={`Chambre ${chambre.numero} – vue ${index + 1}`}
@@ -513,6 +681,7 @@ function DetailChambrePage() {
                     className="gallery-fullscreen"
                     onClick={(e) => {
                       e.stopPropagation();
+
                       setIndexActif(0);
                       setLightboxOpen(true);
                     }}
@@ -521,22 +690,28 @@ function DetailChambrePage() {
                     Plein écran (1/{images.length})
                   </button>
                 )}
+
               </div>
             ))
+
           ) : (
+
             <div className="no-image">
               Aucune image disponible pour cette chambre
             </div>
+
           )}
         </div>
 
         {/* LIGHTBOX */}
 
         {lightboxOpen && images.length > 0 && (
+
           <div
             className="lightbox"
             onClick={() => setLightboxOpen(false)}
           >
+
             <button
               type="button"
               className="lightbox-close"
@@ -552,6 +727,7 @@ function DetailChambrePage() {
               aria-label="Image précédente"
               onClick={(e) => {
                 e.stopPropagation();
+
                 setIndexActif(
                   (i) => (i - 1 + images.length) % images.length
                 );
@@ -572,7 +748,10 @@ function DetailChambrePage() {
               aria-label="Image suivante"
               onClick={(e) => {
                 e.stopPropagation();
-                setIndexActif((i) => (i + 1) % images.length);
+
+                setIndexActif(
+                  (i) => (i + 1) % images.length
+                );
               }}
             >
               ›
@@ -581,20 +760,31 @@ function DetailChambrePage() {
             <span className="lightbox-count">
               {indexActif + 1} / {images.length}
             </span>
+
           </div>
         )}
 
         {/* CARACTÉRISTIQUES */}
 
         <ul className="detail-features">
+
           {caracteristiques.map((c, index) => (
+
             <li key={index}>
-              <span className="feature-icon" aria-hidden="true">
+
+              <span
+                className="feature-icon"
+                aria-hidden="true"
+              >
                 {c.icone}
               </span>
+
               {c.texte}
+
             </li>
+
           ))}
+
         </ul>
 
         {/* DESCRIPTION */}
@@ -602,30 +792,47 @@ function DetailChambrePage() {
         <div className="detail-content">
 
           <div className="detail-main">
+
             <h2>{chambre.titre || chambre.type}</h2>
 
             <p className="detail-description">
-              {chambre.description || "Aucune description disponible."}
+              {chambre.description ||
+                "Aucune description disponible."}
             </p>
 
             <h3>Équipements &amp; prestations</h3>
 
             {equipements.length > 0 ? (
+
               <ul className="equipements-list">
+
                 {equipements.map((equipement, index) => (
+
                   <li key={index}>
-                    <span className="equipement-icon" aria-hidden="true">
+
+                    <span
+                      className="equipement-icon"
+                      aria-hidden="true"
+                    >
                       ✓
                     </span>
+
                     {typeof equipement === "object"
                       ? equipement.nom || equipement.name
                       : equipement}
+
                   </li>
+
                 ))}
+
               </ul>
+
             ) : (
+
               <p>Aucun équipement renseigné.</p>
+
             )}
+
           </div>
 
           {/* RÉSERVATION */}
@@ -633,45 +840,60 @@ function DetailChambrePage() {
           <aside className="detail-reservation">
 
             <div className="reservation-top">
+
               <p className="reservation-prix">
                 {formatPrix(prixNuit)}
                 <small> / nuit</small>
               </p>
+
             </div>
+
+            {/* DATES */}
 
             <div className="reservation-dates">
 
               <label>
+
                 <span>Arrivée</span>
+
                 <input
                   type="date"
                   value={arrivee}
                   min={getDateAujourdhui()}
-                  onChange={(e) => {
-                    const nouvelleDate = e.target.value;
-
-                    setArrivee(nouvelleDate);
-
-                    if (depart && nouvelleDate >= depart) {
-                      setDepart("");
-                    }
-                  }}
+                  required
+                  onChange={(e) =>
+                    changerArrivee(e.target.value)
+                  }
                 />
+
               </label>
 
               <label>
+
                 <span>Départ</span>
+
                 <input
                   type="date"
                   value={depart}
-                  min={arrivee || getDateAujourdhui()}
-                  onChange={(e) => setDepart(e.target.value)}
+                  min={
+                    arrivee
+                      ? lendemain(arrivee)
+                      : lendemain(getDateAujourdhui())
+                  }
+                  required
+                  onChange={(e) =>
+                    changerDepart(e.target.value)
+                  }
                 />
+
               </label>
 
             </div>
 
+            {/* VOYAGEURS */}
+
             <label className="reservation-voyageurs">
+
               <span>Voyageurs</span>
 
               <select
@@ -679,45 +901,83 @@ function DetailChambrePage() {
                   Math.max(1, Number(voyageurs) || 1),
                   capacite
                 )}
-                onChange={(e) => setVoyageurs(Number(e.target.value))}
+                onChange={(e) => {
+                  setVoyageurs(Number(e.target.value));
+                  setErreurReservation("");
+                }}
               >
-                {Array.from({ length: capacite }, (_, i) => i + 1).map((n) => (
+
+                {Array.from(
+                  { length: capacite },
+                  (_, i) => i + 1
+                ).map((n) => (
+
                   <option key={n} value={n}>
                     {n} voyageur{n > 1 ? "s" : ""}
                   </option>
+
                 ))}
+
               </select>
+
             </label>
 
-            {/* PRIX */}
+            {/* CALCUL DU PRIX */}
 
             <div className="reservation-lignes">
+
               <div>
+
                 <span>
                   {formatPrix(prixNuit)} × {nuits} nuit
                   {nuits > 1 ? "s" : ""}
                 </span>
 
                 <span>{formatPrix(sousTotal)}</span>
+
               </div>
 
               <div className="reservation-total">
+
                 <span>Total</span>
-                <strong>{formatPrix(sousTotal)}</strong>
+
+                <strong>
+                  {formatPrix(sousTotal)}
+                </strong>
+
               </div>
+
             </div>
+
+            {/* ERREUR RÉSERVATION */}
+
+            {erreurReservation && (
+
+              <p
+                className="reservation-error"
+                role="alert"
+              >
+                {erreurReservation}
+              </p>
+
+            )}
+
+            {/* BOUTON RÉSERVER */}
 
             <button
               type="button"
               className="reservation-button"
               onClick={handleReservation}
             >
+
               {isAuthenticated
                 ? "RÉSERVER CE SÉJOUR"
                 : "SE CONNECTER POUR RÉSERVER"}
+
             </button>
 
           </aside>
+
         </div>
 
         {/* AVIS CLIENTS */}

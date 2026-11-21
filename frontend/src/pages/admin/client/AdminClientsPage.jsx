@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+
 import {
   Users,
   UserCheck,
@@ -21,7 +22,16 @@ import {
 } from "lucide-react";
 
 import { getAllUsers } from "../../../services/authApi";
+import { toutesReservations } from "../../../services/disponibilitesApi";
+
 import "./AdminClientsPage.css";
+
+/* ============================================================
+   CONFIGURATION
+============================================================ */
+
+const SEUIL_VIP = 3;
+const ELEMENTS_PAR_PAGE = 8;
 
 /* ============================================================
    UTILITAIRES
@@ -35,6 +45,19 @@ const extraireListe = (response) => {
   if (Array.isArray(body?.data?.data)) return body.data.data;
   if (Array.isArray(body?.users)) return body.users;
   if (Array.isArray(body?.clients)) return body.clients;
+
+  return [];
+};
+
+const extraireReservations = (response) => {
+  const body = response?.data ?? response;
+
+  if (Array.isArray(body)) return body;
+  if (Array.isArray(body?.value)) return body.value;
+  if (Array.isArray(body?.data)) return body.data;
+  if (Array.isArray(body?.data?.value)) return body.data.value;
+  if (Array.isArray(body?.data?.data)) return body.data.data;
+  if (Array.isArray(body?.reservations)) return body.reservations;
 
   return [];
 };
@@ -72,35 +95,6 @@ const obtenirRole = (user) => {
   ).toLowerCase().trim();
 };
 
-const normaliserClient = (user) => {
-  const role = obtenirRole(user);
-
-  const dateInscription =
-    user?.created_at ??
-    user?.date_inscription ??
-    user?.createdAt ??
-    null;
-
-  const vip =
-    user?.is_vip === true ||
-    user?.vip === true ||
-    user?.client_vip === true ||
-    normaliserTexte(user?.statut) === "vip" ||
-    normaliserTexte(user?.status) === "vip" ||
-    normaliserTexte(user?.status) === "premium";
-
-  return {
-    id: user.id,
-    nom: user.name ?? user.nom ?? user.username ?? "Sans nom",
-    email: user.email ?? "Non renseigné",
-    ville: user.ville ?? user.city ?? "Non renseignée",
-    role,
-    dateInscription,
-    statut: vip ? "VIP" : "Régulier",
-    raw: user,
-  };
-};
-
 const estAujourdHui = (date) => {
   if (!date) return false;
 
@@ -116,11 +110,85 @@ const estAujourdHui = (date) => {
 };
 
 /* ============================================================
+   NORMALISATION DES CLIENTS
+   VIP À PARTIR DE 3 RÉSERVATIONS
+============================================================ */
+
+const normaliserClient = (user, reservations = []) => {
+  const role = obtenirRole(user);
+
+  const dateInscription =
+    user?.created_at ??
+    user?.date_inscription ??
+    user?.createdAt ??
+    null;
+
+  // Récupérer les réservations appartenant à ce client
+  const reservationsClient = reservations.filter((reservation) => {
+    const clientId =
+      reservation?.client_id ??
+      reservation?.user_id ??
+      reservation?.client?.id ??
+      reservation?.user?.id;
+
+    return (
+      clientId != null &&
+      String(clientId) === String(user.id)
+    );
+  });
+
+  // Règle VIP : minimum 3 réservations
+  const vip =
+    role !== "admin" &&
+    reservationsClient.length >= SEUIL_VIP;
+
+  // Récupérer la réservation la plus récente
+  const derniereReservation = [...reservationsClient].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0];
+
+  return {
+    id: user.id,
+
+    nom:
+      user?.name ??
+      user?.nom ??
+      user?.username ??
+      "Sans nom",
+
+    email: user?.email ?? "Non renseigné",
+
+    telephone:
+      user?.telephone ??
+      user?.phone ??
+      user?.numero_telephone ??
+      derniereReservation?.telephone ??
+      "Non renseigné",
+
+    ville:
+      user?.ville ??
+      user?.city ??
+      "Non renseignée",
+
+    role,
+
+    dateInscription,
+
+    statut: vip ? "VIP" : "Régulier",
+
+    raw: user,
+  };
+};
+
+/* ============================================================
    COMPOSANT PRINCIPAL
 ============================================================ */
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -130,10 +198,8 @@ export default function AdminClientsPage() {
 
   const [selection, setSelection] = useState(null);
 
-  const elementsParPage = 8;
-
   /* ============================================================
-     CHARGEMENT
+     CHARGEMENT CLIENTS ET RÉSERVATIONS
   ============================================================ */
 
   const chargerClients = useCallback(async () => {
@@ -141,14 +207,46 @@ export default function AdminClientsPage() {
     setError("");
 
     try {
-      const response = await getAllUsers();
+      const [usersResult, reservationsResult] =
+        await Promise.allSettled([
+          getAllUsers(),
+          toutesReservations(),
+        ]);
 
-      const liste = extraireListe(response)
+      if (usersResult.status === "rejected") {
+        throw usersResult.reason;
+      }
+
+      const utilisateurs = extraireListe(
+        usersResult.value
+      );
+
+      let reservations = [];
+
+      if (reservationsResult.status === "fulfilled") {
+        reservations = extraireReservations(
+          reservationsResult.value
+        );
+      } else {
+        console.error(
+          "Erreur chargement réservations :",
+          reservationsResult.reason
+        );
+
+        setError(
+          "Les utilisateurs sont chargés, mais impossible de récupérer les réservations. Les statuts VIP ne peuvent pas être actualisés."
+        );
+      }
+
+      const liste = utilisateurs
         .filter((user) => user && user.id != null)
-        .map(normaliserClient);
+        .map((user) =>
+          normaliserClient(user, reservations)
+        );
 
       setClients(liste);
       setPage(1);
+
     } catch (err) {
       console.error("Erreur chargement clients :", err);
 
@@ -287,13 +385,13 @@ export default function AdminClientsPage() {
   const totalPages = Math.max(
     1,
     Math.ceil(
-      utilisateursFiltres.length / elementsParPage
+      utilisateursFiltres.length / ELEMENTS_PAR_PAGE
     )
   );
 
   const utilisateursAffiches = utilisateursFiltres.slice(
-    (page - 1) * elementsParPage,
-    page * elementsParPage
+    (page - 1) * ELEMENTS_PAR_PAGE,
+    page * ELEMENTS_PAR_PAGE
   );
 
   useEffect(() => {
@@ -324,6 +422,7 @@ export default function AdminClientsPage() {
       c.id,
       c.nom,
       c.email,
+      c.telephone,
       c.ville,
       c.role,
       c.statut,
@@ -383,6 +482,7 @@ export default function AdminClientsPage() {
             className="clients-btn clients-btn-secondary"
             onClick={chargerClients}
             disabled={loading}
+            type="button"
           >
             <RefreshCw size={16} />
             Actualiser
@@ -398,7 +498,7 @@ export default function AdminClientsPage() {
 
           <span>{error}</span>
 
-          <button onClick={chargerClients}>
+          <button onClick={chargerClients} type="button">
             Réessayer
           </button>
         </div>
@@ -477,7 +577,7 @@ export default function AdminClientsPage() {
             {loading ? "—" : statistiques.vip}
           </strong>
 
-          <small>Selon le statut enregistré</small>
+          <small>Selon les réservations</small>
         </div>
 
       </section>
@@ -535,7 +635,7 @@ export default function AdminClientsPage() {
           </select>
         </div>
 
-        {/* TABLE */}
+        {/* TABLEAU INITIAL CONSERVÉ */}
 
         <div className="clients-table-wrapper">
           <table className="clients-table">
@@ -556,20 +656,19 @@ export default function AdminClientsPage() {
 
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="clients-empty">
+                  <td colSpan={7} className="clients-empty">
                     Chargement des utilisateurs...
                   </td>
                 </tr>
               ) : utilisateursAffiches.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="clients-empty">
+                  <td colSpan={7} className="clients-empty">
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
               ) : (
                 utilisateursAffiches.map((client) => (
                   <tr key={client.id}>
-
 
                     <td>
                       <div className="clients-user-cell">
@@ -587,8 +686,6 @@ export default function AdminClientsPage() {
                           <Mail size={13} />
                           {client.email}
                         </span>
-
-                     
                       </div>
                     </td>
 
@@ -607,6 +704,8 @@ export default function AdminClientsPage() {
                           : client.role}
                       </span>
                     </td>
+
+                    {/* STATUT VIP AUTOMATIQUE */}
 
                     <td>
                       <span
@@ -673,10 +772,10 @@ export default function AdminClientsPage() {
 
             <span>
               Affichage de{" "}
-              {(page - 1) * elementsParPage + 1}
+              {(page - 1) * ELEMENTS_PAR_PAGE + 1}
               {" à "}
               {Math.min(
-                page * elementsParPage,
+                page * ELEMENTS_PAR_PAGE,
                 utilisateursFiltres.length
               )}
               {" sur "}
@@ -687,6 +786,7 @@ export default function AdminClientsPage() {
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
+                type="button"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -698,6 +798,7 @@ export default function AdminClientsPage() {
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => p + 1)}
+                type="button"
               >
                 <ChevronRight size={18} />
               </button>
@@ -707,7 +808,7 @@ export default function AdminClientsPage() {
 
       </section>
 
-      {/* MODALE PROFIL */}
+      {/* MODALE PROFIL INITIALE CONSERVÉE */}
 
       {selection && (
         <div
@@ -741,7 +842,6 @@ export default function AdminClientsPage() {
 
               <h3>{selection.nom}</h3>
 
-
               <span
                 className={`clients-badge ${
                   selection.role === "admin"
@@ -753,6 +853,7 @@ export default function AdminClientsPage() {
                   ? "Administrateur"
                   : selection.role}
               </span>
+
             </div>
 
             <div className="clients-details-list">
@@ -769,7 +870,11 @@ export default function AdminClientsPage() {
                 <strong>{selection.email}</strong>
               </div>
 
-             
+              <div>
+                <Phone size={18} />
+                <span>Téléphone</span>
+                <strong>{selection.telephone}</strong>
+              </div>
 
               <div>
                 <MapPin size={18} />
