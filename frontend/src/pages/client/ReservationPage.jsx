@@ -54,19 +54,36 @@ function imageSecours(id) {
 }
 
 function resoudreImageChambre(chambre) {
-  const brut =
+  let images = chambre?.images;
+  if (typeof images === "string") {
+    try {
+      images = JSON.parse(images);
+    } catch {
+      images = [images];
+    }
+  }
+
+  const premiereImage = Array.isArray(images) ? images[0] : null;
+  const brutObj =
     chambre?.image_url ||
     chambre?.image ||
     chambre?.photo ||
-    (Array.isArray(chambre?.images) ? chambre.images[0] : null);
+    premiereImage;
 
-  if (!brut) return imageSecours(chambre?.id);
+  const brut =
+    typeof brutObj === "string"
+      ? brutObj
+      : brutObj && typeof brutObj === "object"
+        ? brutObj.url || brutObj.path || brutObj.chemin || brutObj.image || brutObj.src || ""
+        : "";
 
-  if (brut.startsWith("http://") || brut.startsWith("https://")) {
+  if (!brut || typeof brut !== "string") return imageSecours(chambre?.id);
+
+  if (brut.startsWith("http://") || brut.startsWith("https://") || brut.startsWith("data:")) {
     return brut;
   }
 
-  return `${CHAMBRES_HOST}${brut.startsWith("/") ? "" : "/"}${brut}`;
+  return `${CHAMBRES_HOST}${brut.startsWith("/") ? "" : "/"}${brut.replace(/^\/+/, "")}`;
 }
 
 function nomChambre(chambre) {
