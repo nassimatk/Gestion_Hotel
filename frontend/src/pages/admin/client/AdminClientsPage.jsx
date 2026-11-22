@@ -15,7 +15,7 @@ import {
   Ban,
 } from "lucide-react";
 
-import { getAllUsers } from "../../../services/authApi";
+import { getAllUsers, deleteUser } from "../../../services/authApi";
 import { toutesReservations } from "../../../services/disponibilitesApi";
 
 import "./AdminClientsPage.css";
@@ -186,6 +186,7 @@ export default function AdminClientsPage() {
   const [recherche, setRecherche] = useState("");
   const [filtreRole, setFiltreRole] = useState("tous");
   const [page, setPage] = useState(1);
+  const [desactivantId, setDesactivantId] = useState(null);
 
   /* ============================================================
      CHARGEMENT CLIENTS ET RÉSERVATIONS
@@ -251,6 +252,29 @@ export default function AdminClientsPage() {
   useEffect(() => {
     chargerClients();
   }, [chargerClients]);
+
+  const handleDesactiver = async (client) => {
+    const nomAffiche = client.nom || client.name || client.email;
+    const confirmation = window.confirm(
+      `Êtes-vous sûr de vouloir désactiver le compte de ${nomAffiche} (${client.email}) ?`
+    );
+    if (!confirmation) return;
+
+    setDesactivantId(client.id);
+    try {
+      await deleteUser(client.id);
+      await chargerClients();
+    } catch (err) {
+      console.error("Erreur désactivation utilisateur :", err);
+      alert(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Impossible de désactiver cet utilisateur."
+      );
+    } finally {
+      setDesactivantId(null);
+    }
+  };
 
   /* ============================================================
      STATISTIQUES
@@ -662,15 +686,11 @@ export default function AdminClientsPage() {
                             className="clients-disable-btn"
                             title="Désactiver le compte"
                             type="button"
-                            onClick={() =>
-                              console.log(
-                                "Désactivation à implémenter :",
-                                client.id
-                              )
-                            }
+                            disabled={desactivantId === client.id}
+                            onClick={() => handleDesactiver(client)}
                           >
                             <Ban size={15} />
-                            Désactiver
+                            {desactivantId === client.id ? "Désactivation..." : "Désactiver"}
                           </button>
                         ) : (
                           <span className="clients-no-action">

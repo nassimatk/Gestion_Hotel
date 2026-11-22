@@ -31,4 +31,5 @@ Route::post('/change-password-direct', [PasswordResetController::class, 'changeP
 // Routes protégées par JWT
 Route::middleware([JwtAuthenticate::class])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::delete('/users/{id}', [AuthController::class, 'destroy'])->where('id', '[0-9]+');
 });
