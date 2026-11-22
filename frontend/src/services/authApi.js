@@ -22,3 +22,8 @@ export const getUserById = (id) =>
 // Récupérer tous les utilisateurs
 export const getAllUsers = () =>
   http.get("/users");
+
+// Supprimer / désactiver un compte utilisateur (Admin uniquement)
+export const deleteUser = (id, force = false) =>
+  http.delete(`/users/${id}${force ? "?force=true" : ""}`);
+

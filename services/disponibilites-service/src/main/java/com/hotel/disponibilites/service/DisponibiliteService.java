@@ -1,7 +1,11 @@
 package com.hotel.disponibilites.service;
 
+import com.hotel.disponibilites.client.AuthClient;
+import com.hotel.disponibilites.client.AuthClient.UserInfo;
 import com.hotel.disponibilites.client.ChambreClient;
+import com.hotel.disponibilites.client.ChambreClient.ChambreInfo;
 import com.hotel.disponibilites.dto.ReservationRequest;
+import com.hotel.disponibilites.dto.ReservationResponse;
 import com.hotel.disponibilites.model.Reservation;
 import com.hotel.disponibilites.model.StatutReservation;
 import com.hotel.disponibilites.repository.ReservationRepository;
@@ -11,17 +15,23 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 @Service
 public class DisponibiliteService {
 
     private final ReservationRepository reservationRepository;
     private final ChambreClient chambreClient;
+    private final AuthClient authClient;
 
     public DisponibiliteService(ReservationRepository reservationRepository,
-                                ChambreClient chambreClient) {
+                                ChambreClient chambreClient,
+                                AuthClient authClient) {
         this.reservationRepository = reservationRepository;
         this.chambreClient = chambreClient;
+        this.authClient = authClient;
     }
 
     public boolean estLibre(Long chambreId, LocalDate dateDebut, LocalDate dateFin) {
@@ -71,13 +81,39 @@ public class DisponibiliteService {
         return reservationRepository.save(reservation);
     }
 
-
     public List<Reservation> listerMesReservations(Long clientId) {
         return reservationRepository.findByClientIdOrderByDateDebutDesc(clientId);
     }
 
     public List<Reservation> listerToutes() {
         return reservationRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public ReservationResponse enrichir(Reservation r) {
+        ChambreInfo chambre = securiserGetChambre(r.getChambreId());
+        UserInfo user = authClient.getUser(r.getClientId()).orElse(null);
+        return ReservationResponse.from(r, chambre, user);
+    }
+
+    public List<ReservationResponse> enrichirListe(List<Reservation> reservations) {
+        Map<Long, ChambreInfo> chambresCache = new HashMap<>();
+        Map<Long, UserInfo> usersCache = new HashMap<>();
+
+        return reservations.stream().map(r -> {
+            ChambreInfo chambre = chambresCache.computeIfAbsent(
+                    r.getChambreId(), this::securiserGetChambre);
+            UserInfo user = usersCache.computeIfAbsent(
+                    r.getClientId(), id -> authClient.getUser(id).orElse(null));
+            return ReservationResponse.from(r, chambre, user);
+        }).toList();
+    }
+
+    private ChambreInfo securiserGetChambre(Long chambreId) {
+        try {
+            return chambreClient.getChambre(chambreId).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Transactional
@@ -107,6 +143,7 @@ public class DisponibiliteService {
         return reservationRepository.compterChevauchements(
                 chambreId, StatutReservation.CONFIRMEE, dateDebut, dateFin);
     }
+
     public List<Long> chambresOccupees(LocalDate dateDebut, LocalDate dateFin) {
         if (!dateFin.isAfter(dateDebut)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

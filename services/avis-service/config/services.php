@@ -37,6 +37,24 @@ return [
 
     'auth' => [
         'jwt_secret' => env('JWT_SECRET'),
+
+        'base_url' => env(
+            'AUTH_SERVICE_URL',
+            'http://auth-service:8000/api'
+        ),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chambres Service
+    |--------------------------------------------------------------------------
+    */
+
+    'chambres' => [
+        'base_url' => env(
+            'CHAMBRES_SERVICE_URL',
+            'http://chambres-service:8000/api'
+        ),
     ],
 
 ];

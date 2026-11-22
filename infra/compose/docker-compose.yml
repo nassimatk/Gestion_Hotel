@@ -87,6 +87,7 @@ services:
     networks: [hotelhub]
 
   # ===== disponibilites-service =====
+  # ===== disponibilites-service =====
   disponibilites-service:
     build: ../../services/disponibilites-service
     ports: ["8003:8000"]
@@ -100,13 +101,14 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       CHAMBRES_SERVICE_URL: http://chambres-service:8000/api
       TARIFS_SERVICE_URL: http://tarifs-service:8000/api
+      AUTH_SERVICE_URL: http://auth-service:8000/api
       CHAMBRES_MOCK: ${CHAMBRES_MOCK:-false}
       TARIFS_MOCK: ${TARIFS_MOCK:-false}
+      AUTH_MOCK: ${AUTH_MOCK:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     depends_on:
       postgres: { condition: service_healthy }
     networks: [hotelhub]
-
   # ===== tarifs-service =====
   tarifs-service:
     build: ../../services/tarifs-service

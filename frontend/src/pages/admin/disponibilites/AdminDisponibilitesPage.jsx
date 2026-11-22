@@ -6,6 +6,20 @@ import {
 } from "../../../services/disponibilitesApi";
 import "./AdminDisponibilitesPage.css";
 
+const AUTH_API_URL =
+  import.meta.env.VITE_AUTH_API_URL || "http://localhost:8005/api";
+const CHAMBRES_API_URL =
+  import.meta.env.VITE_CHAMBRES_API_URL || "http://localhost:8001/api";
+
+function getAuthHeaders() {
+  const token =
+    localStorage.getItem("token") || localStorage.getItem("access_token");
+  return {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 function formaterDate(dateStr) {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("fr-FR", {
@@ -54,6 +68,8 @@ function messageErreur(err) {
 
 export default function AdminDisponibilitesPage() {
   const [reservations, setReservations] = useState([]);
+  const [clientsMap, setClientsMap] = useState({});
+  const [chambresMap, setChambresMap] = useState({});
   const [chargement, setChargement] = useState(true);
   const [alerte, setAlerte] = useState(null);
   const [annulationId, setAnnulationId] = useState(null);
@@ -74,6 +90,50 @@ export default function AdminDisponibilitesPage() {
       const res = await toutesReservations();
       const liste = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
       setReservations(liste);
+
+      // 1. Récupérer les infos des chambres (chambres-service)
+      try {
+        const chRes = await fetch(`${CHAMBRES_API_URL}/chambres`, {
+          headers: getAuthHeaders(),
+        });
+        if (chRes.ok) {
+          const chData = await chRes.json();
+          const chListe = Array.isArray(chData) ? chData : chData?.data ?? [];
+          const mapCh = {};
+          chListe.forEach((c) => {
+            mapCh[c.id] = c;
+          });
+          setChambresMap(mapCh);
+        }
+      } catch {
+        // Fallback silencieux sur Chambre #ID
+      }
+
+      // 2. Récupérer les noms des clients via GET /api/users/{id} (auth-service)
+      const uniqueClientIds = [
+        ...new Set(
+          liste.map((r) => r.client_id ?? r.clientId).filter(Boolean)
+        ),
+      ];
+
+      if (uniqueClientIds.length > 0) {
+        const mapCl = {};
+        await Promise.all(
+          uniqueClientIds.map(async (id) => {
+            try {
+              const uRes = await fetch(`${AUTH_API_URL}/users/${id}`, {
+                headers: getAuthHeaders(),
+              });
+              if (uRes.ok) {
+                mapCl[id] = await uRes.json();
+              }
+            } catch {
+              // Fallback silencieux sur Client #ID
+            }
+          })
+        );
+        setClientsMap(mapCl);
+      }
     } catch (err) {
       setAlerte({ type: "error", text: messageErreur(err) });
     } finally {
@@ -86,7 +146,8 @@ export default function AdminDisponibilitesPage() {
   }, []);
 
   async function handleAnnuler(id) {
-    if (!window.confirm(`Confirmer l'annulation de la réservation #${id} ?`)) return;
+    if (!window.confirm(`Confirmer l'annulation de la réservation #${id} ?`))
+      return;
     setAlerte(null);
     setAnnulationId(id);
     try {
@@ -127,7 +188,8 @@ export default function AdminDisponibilitesPage() {
     const confirmees = reservations.filter((r) => r.statut === "CONFIRMEE");
     const annulees = reservations.filter((r) => r.statut === "ANNULEE");
     const nuiteesActives = confirmees.reduce(
-      (acc, r) => acc + calculerNuits(r.date_debut ?? r.dateDebut, r.date_fin ?? r.dateFin),
+      (acc, r) =>
+        acc + calculerNuits(r.date_debut ?? r.dateDebut, r.date_fin ?? r.dateFin),
       0
     );
     return {
@@ -138,16 +200,25 @@ export default function AdminDisponibilitesPage() {
     };
   }, [reservations]);
 
-  // Filtrage + recherche
+  // Filtrage + recherche (par ID, nom client, email, numéro chambre, téléphone)
   const reservationsFiltrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     return reservations.filter((r) => {
       if (filtreStatut !== "TOUTES" && r.statut !== filtreStatut) return false;
       if (!q) return true;
+
       const idStr = String(r.id ?? "");
-      const chambreStr = String(r.chambre_id ?? r.chambreId ?? "");
-      const clientStr = String(r.client_id ?? r.clientId ?? "");
+      const chambreId = r.chambre_id ?? r.chambreId;
+      const clientId = r.client_id ?? r.clientId;
+      const chambreObj = chambresMap[chambreId];
+      const clientObj = clientsMap[clientId];
+
+      const chambreStr =
+        `${chambreId ?? ""} ${chambreObj?.numero ?? ""} ${chambreObj?.type ?? ""}`.toLowerCase();
+      const clientStr =
+        `${clientId ?? ""} ${clientObj?.name ?? ""} ${clientObj?.email ?? ""}`.toLowerCase();
       const telStr = String(r.telephone ?? "").toLowerCase();
+
       return (
         idStr.includes(q) ||
         chambreStr.includes(q) ||
@@ -155,17 +226,20 @@ export default function AdminDisponibilitesPage() {
         telStr.includes(q)
       );
     });
-  }, [reservations, filtreStatut, recherche]);
+  }, [reservations, filtreStatut, recherche, clientsMap, chambresMap]);
 
   return (
     <div className="adm-res">
       {/* En-tête */}
       <div className="adm-res__header">
         <div>
-          <span className="adm-res__eyebrow">Administration • Module Disponibilités</span>
+          <span className="adm-res__eyebrow">
+            Administration • Module Disponibilités
+          </span>
           <h1 className="adm-res__title">Gestion des Réservations</h1>
           <p className="adm-res__subtitle">
-            Supervisez l&apos;ensemble des réservations clients, vérifiez l&apos;occupation des chambres et gérez les annulations.
+            Supervisez l&apos;ensemble des réservations clients, vérifiez
+            l&apos;occupation des chambres et gérez les annulations.
           </p>
         </div>
 
@@ -233,7 +307,11 @@ export default function AdminDisponibilitesPage() {
               required
             />
           </div>
-          <button type="submit" className="adm-res__check-btn" disabled={checkLoading}>
+          <button
+            type="submit"
+            className="adm-res__check-btn"
+            disabled={checkLoading}
+          >
             {checkLoading ? "Vérification..." : "Vérifier l'occupation"}
           </button>
         </form>
@@ -241,14 +319,22 @@ export default function AdminDisponibilitesPage() {
         {dispoResultat && (
           <div
             className={`adm-res__check-res ${
-              dispoResultat.ok ? "adm-res__check-res--ok" : "adm-res__check-res--err"
+              dispoResultat.ok
+                ? "adm-res__check-res--ok"
+                : "adm-res__check-res--err"
             }`}
           >
             {dispoResultat.ok ? (
               <>
                 <strong>Chambres occupées sur cette période : </strong>
                 {dispoResultat.data?.chambres_occupees?.length > 0
-                  ? dispoResultat.data.chambres_occupees.map((id) => `Chambre #${id}`).join(", ")
+                  ? dispoResultat.data.chambres_occupees
+                      .map((id) =>
+                        chambresMap[id]
+                          ? `Chambre N° ${chambresMap[id].numero}`
+                          : `Chambre #${id}`
+                      )
+                      .join(", ")
                   : "Aucune chambre occupée (toutes disponibles)."}
               </>
             ) : (
@@ -263,21 +349,27 @@ export default function AdminDisponibilitesPage() {
         <div className="adm-res__tabs">
           <button
             type="button"
-            className={`adm-res__tab ${filtreStatut === "TOUTES" ? "is-active" : ""}`}
+            className={`adm-res__tab ${
+              filtreStatut === "TOUTES" ? "is-active" : ""
+            }`}
             onClick={() => setFiltreStatut("TOUTES")}
           >
             Toutes ({stats.total})
           </button>
           <button
             type="button"
-            className={`adm-res__tab ${filtreStatut === "CONFIRMEE" ? "is-active" : ""}`}
+            className={`adm-res__tab ${
+              filtreStatut === "CONFIRMEE" ? "is-active" : ""
+            }`}
             onClick={() => setFiltreStatut("CONFIRMEE")}
           >
             Confirmées ({stats.confirmees})
           </button>
           <button
             type="button"
-            className={`adm-res__tab ${filtreStatut === "ANNULEE" ? "is-active" : ""}`}
+            className={`adm-res__tab ${
+              filtreStatut === "ANNULEE" ? "is-active" : ""
+            }`}
             onClick={() => setFiltreStatut("ANNULEE")}
           >
             Annulées ({stats.annulees})
@@ -287,7 +379,7 @@ export default function AdminDisponibilitesPage() {
         <input
           type="text"
           className="adm-res__search"
-          placeholder="Rechercher (Réf, Chambre #, Client #, Tél)..."
+          placeholder="Rechercher (Réf, Chambre, Client, Tél)..."
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
         />
@@ -320,21 +412,38 @@ export default function AdminDisponibilitesPage() {
                 const debut = r.date_debut ?? r.dateDebut;
                 const fin = r.date_fin ?? r.dateFin;
                 const creeLe =
-                  r.created_at ?? r.createdAt ?? r.date_creation ?? r.dateCreation;
+                  r.created_at ??
+                  r.createdAt ??
+                  r.date_creation ??
+                  r.dateCreation;
                 const nuits = calculerNuits(debut, fin);
                 const chambreId = r.chambre_id ?? r.chambreId;
                 const clientId = r.client_id ?? r.clientId;
                 const personnes = r.nombre_personnes ?? r.nombrePersonnes;
                 const estAnnulee = r.statut === "ANNULEE";
 
+                const chambreInfo = chambresMap[chambreId];
+                const clientInfo = clientsMap[clientId];
+
                 return (
                   <tr key={r.id} className={estAnnulee ? "is-cancelled" : ""}>
                     <td className="adm-res__id">#{r.id}</td>
                     <td>
-                      <span className="adm-res__room-badge">Chambre #{chambreId}</span>
+                      <span className="adm-res__room-badge">
+                        {chambreInfo
+                          ? `Chambre N° ${chambreInfo.numero}${
+                              chambreInfo.type ? ` (${chambreInfo.type})` : ""
+                            }`
+                          : `Chambre #${chambreId}`}
+                      </span>
                     </td>
                     <td>
-                      <div className="adm-res__client">Client #{clientId}</div>
+                      <div className="adm-res__client">
+                        {clientInfo ? clientInfo.name : `Client #${clientId}`}
+                      </div>
+                      {clientInfo?.email && (
+                        <div className="adm-res__phone">{clientInfo.email}</div>
+                      )}
                       {r.telephone && (
                         <div className="adm-res__phone">📞 {r.telephone}</div>
                       )}
@@ -350,9 +459,7 @@ export default function AdminDisponibilitesPage() {
                     <td className="adm-res__created">
                       {formaterDateHeure(creeLe)}
                     </td>
-                    <td>
-                      {personnes != null ? `${personnes} pers.` : "—"}
-                    </td>
+                    <td>{personnes != null ? `${personnes} pers.` : "—"}</td>
                     <td>
                       <span
                         className={`adm-res__status ${

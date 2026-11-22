@@ -1,7 +1,7 @@
 FROM php:8.2-cli-alpine
 
 # Installer les dependances systeme et extensions PostgreSQL
-RUN apk add --no-cache postgresql-dev bash curl \
+RUN apk add --no-cache libpq-dev bash curl \
     && docker-php-ext-install pdo pdo_pgsql bcmath
 
 WORKDIR /app

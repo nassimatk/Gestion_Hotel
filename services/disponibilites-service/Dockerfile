@@ -3,7 +3,7 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 mvn -B -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -Dmaven.test.skip=true package
 
 # Etape 2 : image finale legere avec Java seulement
 FROM eclipse-temurin:17-jre

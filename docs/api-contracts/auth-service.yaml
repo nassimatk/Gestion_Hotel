@@ -82,6 +82,28 @@ paths:
                   role: { type: string, enum: [client, admin] }
         "401":
           description: Token absent ou invalide
+  /users:
+    get:
+      summary: Liste de tous les utilisateurs (usage admin & inter-services)
+      responses:
+        "200":
+          description: Liste des utilisateurs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        email: { type: string }
+                        role: { type: string, enum: [client, admin] }
+                        created_at: { type: string, format: date-time }
   /users/{id}:
     get:
       summary: Recuperer un utilisateur par son ID (usage inter-services / REST)
@@ -103,6 +125,46 @@ paths:
                   name: { type: string }
                   email: { type: string }
                   role: { type: string, enum: [client, admin] }
+        "404":
+          description: Utilisateur introuvable
+    delete:
+      summary: Supprimer un compte utilisateur (Administrateur uniquement)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: force
+          in: query
+          required: false
+          description: Si true, suppression définitive (Hard Delete). Par défaut, Soft Delete.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Compte utilisateur supprimé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      name: { type: string }
+                      email: { type: string }
+                      mode: { type: string, enum: [soft, definitive] }
+        "400":
+          description: Action impossible (ex: auto-suppression d'administrateur)
+        "401":
+          description: Non authentifié ou token expiré
+        "403":
+          description: Accès refusé (non-administrateur ou cible administrateur)
         "404":
           description: Utilisateur introuvable
 components:

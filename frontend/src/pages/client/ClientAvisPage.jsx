@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -11,18 +10,22 @@ import {
 
 import "./ClientAvisPage.css";
 
+// Extraire les avis depuis les différentes structures API
 const extraireListe = (response) => {
   if (Array.isArray(response)) return response;
   if (Array.isArray(response?.data)) return response.data;
   if (Array.isArray(response?.data?.data)) return response.data.data;
   if (Array.isArray(response?.avis)) return response.avis;
   if (Array.isArray(response?.reviews)) return response.reviews;
+
   return [];
 };
 
+// Récupérer l'identifiant du client connecté depuis JWT
 const getUserId = () => {
   try {
     const token = localStorage.getItem("token");
+
     if (!token) return null;
 
     const payload = JSON.parse(
@@ -34,22 +37,53 @@ const getUserId = () => {
     );
 
     return String(
-      payload.sub ?? payload.user_id ?? payload.id ?? ""
+      payload.sub ??
+      payload.user_id ??
+      payload.id ??
+      ""
     );
   } catch {
     return null;
   }
 };
 
-const getNomClient = (item) =>
-  item.user?.name ||
-  item.utilisateur?.name ||
-  item.client?.name ||
-  `Client ${item.user_id ?? ""}`;
+// Récupérer le vrai nom du client depuis GET AVIS
+const getNomClient = (item) => {
+  const nom =
+    item.user?.name ||
+    item.user?.nom ||
+    item.client_name ||
+    item.nom_client ||
+    item.client?.name ||
+    item.client?.nom ||
+    item.utilisateur?.name ||
+    item.utilisateur?.nom ||
+    item.user_name ||
+    item.name;
 
+  return nom?.trim() || "Client";
+};
+
+// Récupérer l'email du client depuis GET AVIS
+const getEmailClient = (item) => {
+  return (
+    item.user?.email ||
+    item.client_email ||
+    item.email_client ||
+    item.client?.email ||
+    item.utilisateur?.email ||
+    item.email ||
+    ""
+  );
+};
+
+// Générer les initiales
 const getInitiales = (nom) => {
+  if (!nom || typeof nom !== "string") return "CL";
+
   return nom
-    .split(" ")
+    .trim()
+    .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((mot) => mot[0].toUpperCase())
@@ -75,14 +109,20 @@ function ClientAvisPage() {
 
   const utilisateurId = getUserId();
 
-  // Chargement des avis
+  // Charger les avis depuis le backend
   const chargerAvis = async () => {
     try {
       setLoading(true);
       setErreur("");
 
       const response = await getAvisChambre(id);
-      setAvis(extraireListe(response));
+      const liste = extraireListe(response);
+
+      console.log("GET AVIS - Réponse complète :", response);
+      console.log("GET AVIS - Liste :", liste);
+
+      setAvis(liste);
+
     } catch (error) {
       console.error("Erreur chargement avis :", error);
       setErreur("Impossible de charger les avis.");
@@ -141,7 +181,7 @@ function ClientAvisPage() {
     );
   };
 
-  // Filtrage des avis
+  // Filtrer les avis par note
   const avisFiltres = useMemo(() => {
     if (filtre === "tous") return avis;
 
@@ -161,12 +201,32 @@ function ClientAvisPage() {
     setMessage("");
   };
 
+  // Ouvrir le formulaire et descendre automatiquement
+  const ouvrirFormulaire = () => {
+    setAvisEdition(null);
+    setNote(5);
+    setCommentaire("");
+    setMessage("");
+    setFormVisible(true);
+
+    setTimeout(() => {
+      document
+        .getElementById("formulaire-avis")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 150);
+  };
+
   // Ajouter ou modifier un avis
   const soumettreAvis = async (e) => {
     e.preventDefault();
 
     if (!localStorage.getItem("token")) {
-      setMessage("Veuillez vous connecter pour publier un avis.");
+      setMessage(
+        "Veuillez vous connecter pour publier un avis."
+      );
       return;
     }
 
@@ -187,17 +247,27 @@ function ClientAvisPage() {
 
       if (avisEdition) {
         await updateAvis(avisEdition.id, payload);
-        setMessage("Votre avis a été modifié avec succès.");
+
+        setMessage(
+          "Votre avis a été modifié avec succès."
+        );
       } else {
         await createAvis(payload);
-        setMessage("Votre avis a été publié avec succès.");
+
+        setMessage(
+          "Votre avis a été publié avec succès."
+        );
       }
 
       await chargerAvis();
       reinitialiserFormulaire();
+
     } catch (error) {
       console.error("Erreur enregistrement avis :", error);
-      setMessage(error.message || "Une erreur est survenue.");
+
+      setMessage(
+        error.message || "Une erreur est survenue."
+      );
     } finally {
       setEnvoi(false);
     }
@@ -214,8 +284,11 @@ function ClientAvisPage() {
     setTimeout(() => {
       document
         .getElementById("formulaire-avis")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 100);
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 150);
   };
 
   // Supprimer un avis
@@ -229,16 +302,23 @@ function ClientAvisPage() {
     try {
       await deleteAvis(item.id);
 
-      setMessage("Votre avis a été supprimé avec succès.");
+      setMessage(
+        "Votre avis a été supprimé avec succès."
+      );
 
       if (avisEdition?.id === item.id) {
         reinitialiserFormulaire();
       }
 
       await chargerAvis();
+
     } catch (error) {
       console.error("Erreur suppression avis :", error);
-      setMessage(error.message || "Impossible de supprimer cet avis.");
+
+      setMessage(
+        error.message ||
+        "Impossible de supprimer cet avis."
+      );
     }
   };
 
@@ -263,7 +343,10 @@ function ClientAvisPage() {
 
           <div className="avis-filtres">
             {[
-              { value: "tous", label: `Tous les avis (${avis.length})` },
+              {
+                value: "tous",
+                label: `Tous les avis (${avis.length})`,
+              },
               { value: "5", label: "5 ★" },
               { value: "4", label: "4 ★" },
               { value: "3", label: "3 ★" },
@@ -290,12 +373,17 @@ function ClientAvisPage() {
           <div className="avis-score-global">
             <div className="avis-score-valeur">
               <h2>{moyenne}</h2>
-              <span className="avis-score-sur">/ 5</span>
+
+              <span className="avis-score-sur">
+                / 5
+              </span>
             </div>
 
             <div className="avis-etoiles">
               {"★".repeat(Math.round(Number(moyenne)))}
-              {"☆".repeat(5 - Math.round(Number(moyenne)))}
+              {"☆".repeat(
+                5 - Math.round(Number(moyenne))
+              )}
             </div>
 
             <span className="avis-score-meta">
@@ -310,7 +398,10 @@ function ClientAvisPage() {
 
           <div className="avis-distribution">
             {distribution.map((item) => (
-              <div className="avis-distribution-item" key={item.note}>
+              <div
+                className="avis-distribution-item"
+                key={item.note}
+              >
                 <span>{item.note} étoiles</span>
 
                 <div className="avis-barre-fond">
@@ -328,45 +419,51 @@ function ClientAvisPage() {
           </div>
 
         </div>
-  {/* BOUTON AJOUTER */}
+
+        {/* BOUTON AJOUTER */}
         {!formVisible && (
           <div className="avis-ajouter-zone">
             <button
               type="button"
               className="avis-ajouter-btn"
-              onClick={() => {
-                setAvisEdition(null);
-                setNote(5);
-                setCommentaire("");
-                setMessage("");
-                setFormVisible(true);
-              }}
+              onClick={ouvrirFormulaire}
             >
               + Partager votre expérience
             </button>
           </div>
         )}
+
         {/* MESSAGE */}
-        {message && (
+        {message && !formVisible && (
           <p className="avis-message" role="status">
             {message}
           </p>
         )}
 
-        {/* LISTE DES AVIS */}
+        {/* TITRE DE LA LISTE */}
         <div className="avis-section-titre">
           <h2>Les expériences de nos voyageurs</h2>
-          <span>{avisFiltres.length} avis affichés</span>
+
+          <span>
+            {avisFiltres.length} avis affichés
+          </span>
         </div>
 
+        {/* LISTE DES AVIS */}
         {loading ? (
-          <p className="avis-info">Chargement des avis...</p>
+          <p className="avis-info">
+            Chargement des avis...
+          </p>
         ) : erreur ? (
-          <p className="avis-erreur">{erreur}</p>
+          <p className="avis-erreur">
+            {erreur}
+          </p>
         ) : avisFiltres.length === 0 ? (
           <div className="avis-vide">
             <span>☆</span>
+
             <h3>Aucun avis disponible</h3>
+
             <p>
               {avis.length === 0
                 ? "Soyez le premier à partager votre expérience !"
@@ -375,8 +472,10 @@ function ClientAvisPage() {
           </div>
         ) : (
           <div className="avis-liste">
+
             {avisFiltres.map((item) => {
               const nom = getNomClient(item);
+              const email = getEmailClient(item);
 
               const noteItem = Math.min(
                 5,
@@ -384,7 +483,9 @@ function ClientAvisPage() {
               );
 
               const date = item.created_at
-                ? new Date(item.created_at).toLocaleDateString("fr-FR", {
+                ? new Date(
+                    item.created_at
+                  ).toLocaleDateString("fr-FR", {
                     day: "2-digit",
                     month: "long",
                     year: "numeric",
@@ -392,20 +493,28 @@ function ClientAvisPage() {
                 : "";
 
               return (
-                <article className="avis-card" key={item.id}>
+                <article
+                  className="avis-card"
+                  key={item.id}
+                >
 
                   {/* INFORMATIONS CLIENT */}
                   <div className="avis-card-header">
 
                     <div className="avis-auteur-bloc">
+
                       <div className="avis-avatar">
                         {getInitiales(nom)}
                       </div>
 
                       <div>
                         <h3>{nom}</h3>
-                        <p>Voyageur</p>
+
+                        <p>
+                          {email || "Voyageur"}
+                        </p>
                       </div>
+
                     </div>
 
                     <div className="avis-note-badge">
@@ -419,18 +528,23 @@ function ClientAvisPage() {
 
                   {/* COMMENTAIRE */}
                   <p className="avis-commentaire-texte">
-                    {item.commentaire || "Aucun commentaire."}
+                    {item.commentaire ||
+                      "Aucun commentaire."}
                   </p>
 
                   {/* PIED DE CARTE */}
                   <div className="avis-card-footer">
-                    <span>Publié le : {date}</span>
+
+                    <span>
+                      Publié le : {date}
+                    </span>
 
                     {estProprietaire(item) && (
                       <span className="avis-proprietaire">
                         Mon avis
                       </span>
                     )}
+
                   </div>
 
                   {/* ACTIONS */}
@@ -458,14 +572,16 @@ function ClientAvisPage() {
                 </article>
               );
             })}
+
           </div>
         )}
 
-      
-
         {/* FORMULAIRE AJOUT / MODIFICATION */}
         {formVisible && (
-          <div className="avis-formulaire" id="formulaire-avis">
+          <div
+            className="avis-formulaire"
+            id="formulaire-avis"
+          >
 
             <span className="avis-eyebrow">
               VOTRE EXPÉRIENCE
@@ -491,7 +607,9 @@ function ClientAvisPage() {
                   <button
                     key={n}
                     type="button"
-                    className={n <= note ? "selected" : ""}
+                    className={
+                      n <= note ? "selected" : ""
+                    }
                     onClick={() => setNote(n)}
                     aria-label={`${n} étoiles`}
                   >
@@ -507,7 +625,9 @@ function ClientAvisPage() {
               <textarea
                 id="commentaire-avis"
                 value={commentaire}
-                onChange={(e) => setCommentaire(e.target.value)}
+                onChange={(e) =>
+                  setCommentaire(e.target.value)
+                }
                 placeholder="Partagez votre expérience..."
                 rows={5}
                 maxLength={1000}
@@ -519,12 +639,17 @@ function ClientAvisPage() {
               </span>
 
               {message && (
-                <p className="avis-message">{message}</p>
+                <p className="avis-message" role="status">
+                  {message}
+                </p>
               )}
 
               <div className="avis-form-actions">
 
-                <button type="submit" disabled={envoi}>
+                <button
+                  type="submit"
+                  disabled={envoi}
+                >
                   {envoi
                     ? "Enregistrement..."
                     : avisEdition

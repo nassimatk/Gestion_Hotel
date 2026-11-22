@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+
 import {
   Users,
   UserCheck,
@@ -7,21 +8,24 @@ import {
   UserPlus,
   Search,
   RefreshCw,
-  Eye,
-  X,
   Mail,
-  Phone,
-  CalendarDays,
-  MapPin,
   ChevronLeft,
   ChevronRight,
-  UserRound,
   AlertCircle,
   Ban,
 } from "lucide-react";
 
-import { getAllUsers } from "../../../services/authApi";
+import { getAllUsers, deleteUser } from "../../../services/authApi";
+import { toutesReservations } from "../../../services/disponibilitesApi";
+
 import "./AdminClientsPage.css";
+
+/* ============================================================
+   CONFIGURATION
+============================================================ */
+
+const SEUIL_VIP = 3;
+const ELEMENTS_PAR_PAGE = 8;
 
 /* ============================================================
    UTILITAIRES
@@ -35,6 +39,19 @@ const extraireListe = (response) => {
   if (Array.isArray(body?.data?.data)) return body.data.data;
   if (Array.isArray(body?.users)) return body.users;
   if (Array.isArray(body?.clients)) return body.clients;
+
+  return [];
+};
+
+const extraireReservations = (response) => {
+  const body = response?.data ?? response;
+
+  if (Array.isArray(body)) return body;
+  if (Array.isArray(body?.value)) return body.value;
+  if (Array.isArray(body?.data)) return body.data;
+  if (Array.isArray(body?.data?.value)) return body.data.value;
+  if (Array.isArray(body?.data?.data)) return body.data.data;
+  if (Array.isArray(body?.reservations)) return body.reservations;
 
   return [];
 };
@@ -72,35 +89,6 @@ const obtenirRole = (user) => {
   ).toLowerCase().trim();
 };
 
-const normaliserClient = (user) => {
-  const role = obtenirRole(user);
-
-  const dateInscription =
-    user?.created_at ??
-    user?.date_inscription ??
-    user?.createdAt ??
-    null;
-
-  const vip =
-    user?.is_vip === true ||
-    user?.vip === true ||
-    user?.client_vip === true ||
-    normaliserTexte(user?.statut) === "vip" ||
-    normaliserTexte(user?.status) === "vip" ||
-    normaliserTexte(user?.status) === "premium";
-
-  return {
-    id: user.id,
-    nom: user.name ?? user.nom ?? user.username ?? "Sans nom",
-    email: user.email ?? "Non renseigné",
-    ville: user.ville ?? user.city ?? "Non renseignée",
-    role,
-    dateInscription,
-    statut: vip ? "VIP" : "Régulier",
-    raw: user,
-  };
-};
-
 const estAujourdHui = (date) => {
   if (!date) return false;
 
@@ -116,24 +104,92 @@ const estAujourdHui = (date) => {
 };
 
 /* ============================================================
+   NORMALISATION DES CLIENTS
+   VIP À PARTIR DE 3 RÉSERVATIONS
+============================================================ */
+
+const normaliserClient = (user, reservations = []) => {
+  const role = obtenirRole(user);
+
+  const dateInscription =
+    user?.created_at ??
+    user?.date_inscription ??
+    user?.createdAt ??
+    null;
+
+  const reservationsClient = reservations.filter((reservation) => {
+    const clientId =
+      reservation?.client_id ??
+      reservation?.user_id ??
+      reservation?.client?.id ??
+      reservation?.user?.id;
+
+    return (
+      clientId != null &&
+      String(clientId) === String(user.id)
+    );
+  });
+
+  const vip =
+    role !== "admin" &&
+    reservationsClient.length >= SEUIL_VIP;
+
+  const derniereReservation = [...reservationsClient].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0];
+
+  return {
+    id: user.id,
+
+    nom:
+      user?.name ??
+      user?.nom ??
+      user?.username ??
+      "Sans nom",
+
+    email: user?.email ?? "Non renseigné",
+
+    telephone:
+      user?.telephone ??
+      user?.phone ??
+      user?.numero_telephone ??
+      derniereReservation?.telephone ??
+      "Non renseigné",
+
+    ville:
+      user?.ville ??
+      user?.city ??
+      "Non renseignée",
+
+    role,
+
+    dateInscription,
+
+    statut: vip ? "VIP" : "Régulier",
+
+    raw: user,
+  };
+};
+
+/* ============================================================
    COMPOSANT PRINCIPAL
 ============================================================ */
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [recherche, setRecherche] = useState("");
   const [filtreRole, setFiltreRole] = useState("tous");
   const [page, setPage] = useState(1);
-
-  const [selection, setSelection] = useState(null);
-
-  const elementsParPage = 8;
+  const [desactivantId, setDesactivantId] = useState(null);
 
   /* ============================================================
-     CHARGEMENT
+     CHARGEMENT CLIENTS ET RÉSERVATIONS
   ============================================================ */
 
   const chargerClients = useCallback(async () => {
@@ -141,14 +197,44 @@ export default function AdminClientsPage() {
     setError("");
 
     try {
-      const response = await getAllUsers();
+      const [usersResult, reservationsResult] =
+        await Promise.allSettled([
+          getAllUsers(),
+          toutesReservations(),
+        ]);
 
-      const liste = extraireListe(response)
+      if (usersResult.status === "rejected") {
+        throw usersResult.reason;
+      }
+
+      const utilisateurs = extraireListe(usersResult.value);
+
+      let reservations = [];
+
+      if (reservationsResult.status === "fulfilled") {
+        reservations = extraireReservations(
+          reservationsResult.value
+        );
+      } else {
+        console.error(
+          "Erreur chargement réservations :",
+          reservationsResult.reason
+        );
+
+        setError(
+          "Les utilisateurs sont chargés, mais impossible de récupérer les réservations. Les statuts VIP ne peuvent pas être actualisés."
+        );
+      }
+
+      const liste = utilisateurs
         .filter((user) => user && user.id != null)
-        .map(normaliserClient);
+        .map((user) =>
+          normaliserClient(user, reservations)
+        );
 
       setClients(liste);
       setPage(1);
+
     } catch (err) {
       console.error("Erreur chargement clients :", err);
 
@@ -157,6 +243,7 @@ export default function AdminClientsPage() {
         err?.response?.data?.error ||
         "Impossible de charger les utilisateurs."
       );
+
     } finally {
       setLoading(false);
     }
@@ -165,6 +252,29 @@ export default function AdminClientsPage() {
   useEffect(() => {
     chargerClients();
   }, [chargerClients]);
+
+  const handleDesactiver = async (client) => {
+    const nomAffiche = client.nom || client.name || client.email;
+    const confirmation = window.confirm(
+      `Êtes-vous sûr de vouloir désactiver le compte de ${nomAffiche} (${client.email}) ?`
+    );
+    if (!confirmation) return;
+
+    setDesactivantId(client.id);
+    try {
+      await deleteUser(client.id);
+      await chargerClients();
+    } catch (err) {
+      console.error("Erreur désactivation utilisateur :", err);
+      alert(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Impossible de désactiver cet utilisateur."
+      );
+    } finally {
+      setDesactivantId(null);
+    }
+  };
 
   /* ============================================================
      STATISTIQUES
@@ -287,13 +397,13 @@ export default function AdminClientsPage() {
   const totalPages = Math.max(
     1,
     Math.ceil(
-      utilisateursFiltres.length / elementsParPage
+      utilisateursFiltres.length / ELEMENTS_PAR_PAGE
     )
   );
 
   const utilisateursAffiches = utilisateursFiltres.slice(
-    (page - 1) * elementsParPage,
-    page * elementsParPage
+    (page - 1) * ELEMENTS_PAR_PAGE,
+    page * ELEMENTS_PAR_PAGE
   );
 
   useEffect(() => {
@@ -301,59 +411,6 @@ export default function AdminClientsPage() {
       setPage(totalPages);
     }
   }, [page, totalPages]);
-
-  /* ============================================================
-     EXPORT CSV
-  ============================================================ */
-
-  const exporterCSV = () => {
-    if (!utilisateursFiltres.length) return;
-
-    const entetes = [
-      "ID",
-      "Nom",
-      "Email",
-      "Téléphone",
-      "Ville",
-      "Rôle",
-      "Statut",
-      "Date inscription",
-    ];
-
-    const lignes = utilisateursFiltres.map((c) => [
-      c.id,
-      c.nom,
-      c.email,
-      c.ville,
-      c.role,
-      c.statut,
-      c.dateInscription ?? "",
-    ]);
-
-    const contenu = [entetes, ...lignes]
-      .map((ligne) =>
-        ligne
-          .map((v) =>
-            `"${String(v ?? "").replace(/"/g, '""')}"`
-          )
-          .join(";")
-      )
-      .join("\n");
-
-    const blob = new Blob(
-      ["\uFEFF" + contenu],
-      { type: "text/csv;charset=utf-8;" }
-    );
-
-    const url = URL.createObjectURL(blob);
-    const lien = document.createElement("a");
-
-    lien.href = url;
-    lien.download = "hotelhub-clients.csv";
-    lien.click();
-
-    URL.revokeObjectURL(url);
-  };
 
   /* ============================================================
      RENDU
@@ -383,6 +440,7 @@ export default function AdminClientsPage() {
             className="clients-btn clients-btn-secondary"
             onClick={chargerClients}
             disabled={loading}
+            type="button"
           >
             <RefreshCw size={16} />
             Actualiser
@@ -398,7 +456,7 @@ export default function AdminClientsPage() {
 
           <span>{error}</span>
 
-          <button onClick={chargerClients}>
+          <button onClick={chargerClients} type="button">
             Réessayer
           </button>
         </div>
@@ -477,7 +535,7 @@ export default function AdminClientsPage() {
             {loading ? "—" : statistiques.vip}
           </strong>
 
-          <small>Selon le statut enregistré</small>
+          <small>Selon les réservations</small>
         </div>
 
       </section>
@@ -535,7 +593,7 @@ export default function AdminClientsPage() {
           </select>
         </div>
 
-        {/* TABLE */}
+        {/* TABLEAU */}
 
         <div className="clients-table-wrapper">
           <table className="clients-table">
@@ -544,7 +602,6 @@ export default function AdminClientsPage() {
               <tr>
                 <th>CLIENT</th>
                 <th>COORDONNÉES</th>
-                <th>VILLE</th>
                 <th>RÔLE</th>
                 <th>STATUT</th>
                 <th>INSCRIPTION</th>
@@ -556,20 +613,19 @@ export default function AdminClientsPage() {
 
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="clients-empty">
+                  <td colSpan={6} className="clients-empty">
                     Chargement des utilisateurs...
                   </td>
                 </tr>
               ) : utilisateursAffiches.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="clients-empty">
+                  <td colSpan={6} className="clients-empty">
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
               ) : (
                 utilisateursAffiches.map((client) => (
                   <tr key={client.id}>
-
 
                     <td>
                       <div className="clients-user-cell">
@@ -587,12 +643,8 @@ export default function AdminClientsPage() {
                           <Mail size={13} />
                           {client.email}
                         </span>
-
-                     
                       </div>
                     </td>
-
-                    <td>{client.ville}</td>
 
                     <td>
                       <span
@@ -624,35 +676,26 @@ export default function AdminClientsPage() {
                       {formaterDate(client.dateInscription)}
                     </td>
 
-                    {/* ACTIONS */}
+                    {/* ACTIONS SANS ICÔNE ŒIL */}
 
                     <td>
                       <div className="clients-actions-group">
 
-                        <button
-                          className="clients-action-btn"
-                          title="Voir les détails"
-                          type="button"
-                          onClick={() => setSelection(client)}
-                        >
-                          <Eye size={17} />
-                        </button>
-
-                        {client.role !== "admin" && (
+                        {client.role !== "admin" ? (
                           <button
                             className="clients-disable-btn"
                             title="Désactiver le compte"
                             type="button"
-                            onClick={() =>
-                              console.log(
-                                "Désactivation à implémenter :",
-                                client.id
-                              )
-                            }
+                            disabled={desactivantId === client.id}
+                            onClick={() => handleDesactiver(client)}
                           >
-                            <Ban size={16} />
-                            Désactiver
+                            <Ban size={15} />
+                            {desactivantId === client.id ? "Désactivation..." : "Désactiver"}
                           </button>
+                        ) : (
+                          <span className="clients-no-action">
+                            —
+                          </span>
                         )}
 
                       </div>
@@ -673,10 +716,10 @@ export default function AdminClientsPage() {
 
             <span>
               Affichage de{" "}
-              {(page - 1) * elementsParPage + 1}
+              {(page - 1) * ELEMENTS_PAR_PAGE + 1}
               {" à "}
               {Math.min(
-                page * elementsParPage,
+                page * ELEMENTS_PAR_PAGE,
                 utilisateursFiltres.length
               )}
               {" sur "}
@@ -687,6 +730,7 @@ export default function AdminClientsPage() {
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
+                type="button"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -698,6 +742,7 @@ export default function AdminClientsPage() {
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => p + 1)}
+                type="button"
               >
                 <ChevronRight size={18} />
               </button>
@@ -706,104 +751,6 @@ export default function AdminClientsPage() {
         )}
 
       </section>
-
-      {/* MODALE PROFIL */}
-
-      {selection && (
-        <div
-          className="clients-modal-overlay"
-          onClick={() => setSelection(null)}
-        >
-          <div
-            className="clients-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-
-            <div className="clients-modal-header">
-              <div>
-                <span>DOSSIER CLIENT</span>
-                <h2>Profil utilisateur</h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelection(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="clients-modal-profile">
-
-              <div className="clients-modal-avatar">
-                {selection.nom.charAt(0).toUpperCase()}
-              </div>
-
-              <h3>{selection.nom}</h3>
-
-
-              <span
-                className={`clients-badge ${
-                  selection.role === "admin"
-                    ? "admin"
-                    : "regular"
-                }`}
-              >
-                {selection.role === "admin"
-                  ? "Administrateur"
-                  : selection.role}
-              </span>
-            </div>
-
-            <div className="clients-details-list">
-
-              <div>
-                <UserRound size={18} />
-                <span>Nom complet</span>
-                <strong>{selection.nom}</strong>
-              </div>
-
-              <div>
-                <Mail size={18} />
-                <span>Adresse email</span>
-                <strong>{selection.email}</strong>
-              </div>
-
-             
-
-              <div>
-                <MapPin size={18} />
-                <span>Ville</span>
-                <strong>{selection.ville}</strong>
-              </div>
-
-              <div>
-                <ShieldCheck size={18} />
-                <span>Statut</span>
-                <strong>{selection.statut}</strong>
-              </div>
-
-              <div>
-                <CalendarDays size={18} />
-                <span>Date d'inscription</span>
-                <strong>
-                  {formaterDate(selection.dateInscription)}
-                </strong>
-              </div>
-
-            </div>
-
-            <button
-              className="clients-btn clients-btn-primary clients-modal-close"
-              type="button"
-              onClick={() => setSelection(null)}
-            >
-              Fermer
-            </button>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

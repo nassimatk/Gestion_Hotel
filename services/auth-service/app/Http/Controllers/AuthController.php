@@ -149,7 +149,7 @@ class AuthController extends Controller
      */
     public function getUserById($id)
     {
-        $user = User::with('role')->find($id);
+        $user = User::withTrashed()->with('role')->find($id);
 
         if (!$user) {
             return response()->json([
@@ -163,6 +163,78 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role ? $user->role->name : 'client',
+            'is_active' => !$user->trashed(),
+        ], 200);
+    }
+
+    /**
+     * DELETE /api/users/{id}
+     * Supprimer un compte utilisateur (Administrateur uniquement)
+     */
+    public function destroy(Request $request, $id)
+    {
+        $authUser = $request->attributes->get('auth_user');
+
+        // 1. Vérification que l'utilisateur connecté est administrateur
+        $role = $authUser && $authUser->role ? $authUser->role->name : 'client';
+        if ($role !== 'admin') {
+            return response()->json([
+                'error' => 'Accès refusé : seuls les administrateurs peuvent supprimer un compte.',
+                'code' => 403,
+            ], 403);
+        }
+
+        // 2. Interdire la suppression de son propre compte
+        if ((int) $authUser->id === (int) $id) {
+            return response()->json([
+                'error' => 'Action impossible : vous ne pouvez pas supprimer votre propre compte administrateur.',
+                'code' => 400,
+            ], 400);
+        }
+
+        // 3. Recherche de l'utilisateur à supprimer
+        $targetUser = User::with('role')->find($id);
+
+        if (!$targetUser) {
+            return response()->json([
+                'error' => 'Utilisateur introuvable.',
+                'code' => 404,
+            ], 404);
+        }
+
+        // 4. Interdire la suppression d'un autre compte administrateur
+        $targetRole = $targetUser->role ? $targetUser->role->name : 'client';
+        if ($targetRole === 'admin' || (int) $targetUser->id === 1) {
+            return response()->json([
+                'error' => 'Action impossible : la suppression d\'un compte administrateur est interdite.',
+                'code' => 403,
+            ], 403);
+        }
+
+        $userId = $targetUser->id;
+        $userEmail = $targetUser->email;
+        $userName = $targetUser->name;
+
+        // 5. Nettoyage des tokens de réinitialisation associés
+        \Illuminate\Support\Facades\DB::table('password_resets')->where('email', $userEmail)->delete();
+
+        // 6. Suppression (Soft Delete par défaut, ou Hard Delete si ?force=true)
+        if ($request->query('force') === 'true' || $request->query('force') === '1') {
+            $targetUser->forceDelete();
+            $mode = 'definitive';
+        } else {
+            $targetUser->delete();
+            $mode = 'soft';
+        }
+
+        return response()->json([
+            'message' => 'Compte utilisateur supprimé avec succès.',
+            'data' => [
+                'id' => $userId,
+                'name' => $userName,
+                'email' => $userEmail,
+                'mode' => $mode,
+            ],
         ], 200);
     }
 }

@@ -118,7 +118,9 @@ export default function MesReservationsPage() {
                       <div className="mes-card__top">
                         <div>
                           <span className="mes-card__ref">Réservation #{r.id}</span>
-                          <h2 className="mes-card__title">Chambre #{r.chambre_id}</h2>
+                          <h2 className="mes-card__title">
+                            {r.chambre_nom ?? r.chambreNom ?? `Chambre #${r.chambre_id}`}
+                          </h2>
                         </div>
 
                         <span

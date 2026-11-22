@@ -1,5 +1,6 @@
 package com.hotel.disponibilites.controller;
 
+import com.hotel.disponibilites.client.TarifsClient;
 import com.hotel.disponibilites.dto.ChambresOccupeesResponse;
 import com.hotel.disponibilites.dto.DisponibiliteResponse;
 import com.hotel.disponibilites.service.DisponibiliteService;
@@ -9,7 +10,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.hotel.disponibilites.client.TarifsClient;
 
 import java.time.LocalDate;
 
@@ -20,7 +20,7 @@ public class DisponibiliteController {
     private final DisponibiliteService disponibiliteService;
     private final TarifsClient tarifsClient;
 
-    public DisponibiliteController(DisponibiliteService disponibiliteService , TarifsClient tarifsClient) {
+    public DisponibiliteController(DisponibiliteService disponibiliteService, TarifsClient tarifsClient) {
         this.disponibiliteService = disponibiliteService;
         this.tarifsClient = tarifsClient;
     }
@@ -33,11 +33,12 @@ public class DisponibiliteController {
 
         boolean libre = disponibiliteService.estLibre(id, dateDebut, dateFin);
         Double prix = null;
-        if (libre){
+        if (libre) {
             prix = tarifsClient.obtenirPrix(id, dateDebut, dateFin);
         }
-        return new DisponibiliteResponse(id, libre, dateDebut, dateFin,prix);
+        return new DisponibiliteResponse(id, libre, dateDebut, dateFin, prix);
     }
+
     @GetMapping
     public ChambresOccupeesResponse occupees(
             @RequestParam("date_debut") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,

@@ -991,3 +991,139 @@
     padding: 14px;
   }
 }
+
+
+/* =========================================
+   TABLEAU CLIENTS - LARGEUR NORMALE
+========================================= */
+
+.clients-table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.clients-table {
+    width: 100%;
+    min-width: 850px;
+    table-layout: auto;
+    border-collapse: collapse;
+}
+
+/* Largeur des colonnes */
+
+.clients-table th:nth-child(1),
+.clients-table td:nth-child(1) {
+    width: 19%;
+}
+
+.clients-table th:nth-child(2),
+.clients-table td:nth-child(2) {
+    width: 25%;
+}
+
+.clients-table th:nth-child(3),
+.clients-table td:nth-child(3) {
+    width: 15%;
+}
+
+.clients-table th:nth-child(4),
+.clients-table td:nth-child(4) {
+    width: 12%;
+}
+
+.clients-table th:nth-child(5),
+.clients-table td:nth-child(5) {
+    width: 16%;
+}
+
+.clients-table th:nth-child(6),
+.clients-table td:nth-child(6) {
+    width: 13%;
+}
+
+/* En-têtes */
+
+.clients-table th {
+    padding: 15px 12px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Cellules */
+
+.clients-table td {
+    padding: 14px 12px;
+    vertical-align: middle;
+}
+
+/* Client */
+
+.clients-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.clients-user-cell strong {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Coordonnées */
+
+.clients-contact {
+    min-width: 0;
+}
+
+.clients-contact span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #71685e;
+    font-size: 11px;
+}
+
+.clients-contact span svg {
+    flex-shrink: 0;
+    color: #b38a50;
+}
+
+/* Badges */
+
+.clients-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+/* Actions */
+
+.clients-actions-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.clients-disable-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 9px;
+    white-space: nowrap;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+    .clients-table {
+        min-width: 850px;
+    }
+}
