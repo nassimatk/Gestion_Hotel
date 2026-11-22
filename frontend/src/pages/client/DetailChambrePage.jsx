@@ -209,6 +209,9 @@ const extraireEquipements = (equipements) => {
 // COMPOSANT IMAGE
 // ==================================================
 
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80";
+
 function ImageChambre({ src, alt, className = "" }) {
   const [erreur, setErreur] = useState(false);
 
@@ -216,20 +219,13 @@ function ImageChambre({ src, alt, className = "" }) {
     setErreur(false);
   }, [src]);
 
-  if (!src || erreur) {
-    return <div className="no-image">Image indisponible</div>;
-  }
-
   return (
     <img
-      src={src}
+      src={!src || erreur ? FALLBACK_IMAGE : src}
       alt={alt}
       className={className}
       loading="lazy"
-      onError={() => {
-        console.error("Erreur chargement image :", src);
-        setErreur(true);
-      }}
+      onError={() => setErreur(true)}
     />
   );
 }
