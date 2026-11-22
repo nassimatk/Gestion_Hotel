@@ -24,6 +24,15 @@ export const tarifsApi = {
   getAllPromotions: () => http.get("/promotions").then(unwrap),
 };
 
+// Compatibilité avec ReservationPage : accepte date_debut / date_fin
+// et les traduit vers arrivee / depart attendus par l'API de calcul.
+export const getTarifs = (params = {}) =>
+  tarifsApi.calculer({
+    chambre_id: params.chambre_id,
+    arrivee: params.arrivee ?? params.date_debut,
+    depart: params.depart ?? params.date_fin,
+  });
+
 // Message d'erreur lisible, au format de l'API { error, code }
 export function messageErreur(err) {
   return (

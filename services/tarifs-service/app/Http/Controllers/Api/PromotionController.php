@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\VerifieChambre;
 use App\Http\Controllers\Controller;
 use App\Models\Promotion;
 use Illuminate\Http\JsonResponse;
@@ -9,6 +10,8 @@ use Illuminate\Http\Request;
 
 class PromotionController extends Controller
 {
+    use VerifieChambre;
+
     public function index(Request $request): JsonResponse
     {
         $query = Promotion::query();
@@ -24,9 +27,11 @@ class PromotionController extends Controller
             });
         }
 
+        $promotions = $query->orderByDesc('created_at')->get()->toArray();
+
         return response()->json([
             'success' => true,
-            'data' => $query->orderByDesc('created_at')->get(),
+            'data' => $this->avecChambres($promotions),
         ]);
     }
 
@@ -38,7 +43,9 @@ class PromotionController extends Controller
             return response()->json(['success' => false, 'error' => 'Promotion introuvable.'], 404);
         }
 
-        return response()->json(['success' => true, 'data' => $promotion]);
+        [$donnees] = $this->avecChambres([$promotion->toArray()]);
+
+        return response()->json(['success' => true, 'data' => $donnees]);
     }
 
     public function store(Request $request): JsonResponse
@@ -61,6 +68,11 @@ class PromotionController extends Controller
             ], 422);
         }
 
+        // Si la promotion cible une chambre, on la recherche réellement dans le service Chambres
+        if (!empty($validated['chambre_id']) && ($erreur = $this->erreurChambre((int) $validated['chambre_id']))) {
+            return $erreur;
+        }
+
         $promotion = Promotion::create([
             'libelle' => $validated['libelle'],
             'chambre_id' => $validated['chambre_id'] ?? null,
@@ -72,10 +84,9 @@ class PromotionController extends Controller
             'statut' => $validated['statut'] ?? 'active',
         ]);
 
-        return response()->json([
-            'success' => true,
-            'data' => $promotion,
-        ], 201);
+        [$donnees] = $this->avecChambres([$promotion->toArray()]);
+
+        return response()->json(['success' => true, 'data' => $donnees], 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -116,12 +127,15 @@ class PromotionController extends Controller
             ], 422);
         }
 
+        if (!empty($validated['chambre_id']) && ($erreur = $this->erreurChambre((int) $validated['chambre_id']))) {
+            return $erreur;
+        }
+
         $promotion->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $promotion->fresh(),
-        ]);
+        [$donnees] = $this->avecChambres([$promotion->fresh()->toArray()]);
+
+        return response()->json(['success' => true, 'data' => $donnees]);
     }
 
     public function destroy(int $id): JsonResponse
@@ -134,9 +148,6 @@ class PromotionController extends Controller
 
         $promotion->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Promotion supprimée.',
-        ]);
+        return response()->json(['success' => true, 'message' => 'Promotion supprimée.']);
     }
 }

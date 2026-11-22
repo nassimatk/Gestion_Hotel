@@ -4,34 +4,40 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tarif extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'tarifs';
 
     protected $fillable = [
         'chambre_id',
+        'numero_chambre',
         'saison_id',
+        'coefficient_saison',
+        'promotion_id',
+        'promotion_pourcent',
+        'prix_base',
         'prix_nuit',
         'devise',
         'statut',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'chambre_id' => 'integer',
-            'saison_id' => 'integer',
-            'prix_nuit' => 'float',
-        ];
-    }
+    protected $casts = [
+        'prix_base' => 'float',
+        'prix_nuit' => 'float',
+        'coefficient_saison' => 'float',
+        'promotion_pourcent' => 'float',
+    ];
 
-    public function saison(): BelongsTo
+    public function saison()
     {
         return $this->belongsTo(Saison::class, 'saison_id');
+    }
+
+    public function promotion()
+    {
+        return $this->belongsTo(Promotion::class, 'promotion_id');
     }
 }

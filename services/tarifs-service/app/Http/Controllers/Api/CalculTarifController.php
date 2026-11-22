@@ -2,22 +2,27 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\VerifieChambre;
 use App\Http\Controllers\Controller;
 use App\Models\Promotion;
 use App\Models\Tarif;
 use App\Services\CalculPrixService;
+use App\Services\ChambreClientService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CalculTarifController extends Controller
 {
+    use VerifieChambre;
+
     public function __construct(
         protected CalculPrixService $calculPrixService
     ) {}
 
     /**
      * GET /api/tarifs/calcul?chambre_id=1&arrivee=2026-07-10&depart=2026-07-15
-     * Calcule automatiquement le prix à partir des tarifs, saisons et promotions en base.
+     * Vérifie la chambre dans le service Chambres, puis calcule le prix à partir
+     * des tarifs, saisons et promotions enregistrés.
      */
     public function calculerDepuisBase(Request $request): JsonResponse
     {
@@ -30,6 +35,11 @@ class CalculTarifController extends Controller
         $chambreId = (int) $validated['chambre_id'];
         $arrivee = $validated['arrivee'];
         $depart = $validated['depart'];
+
+        // 0. Recherche réelle de la chambre dans le service Chambres
+        if ($erreur = $this->erreurChambre($chambreId)) {
+            return $erreur;
+        }
 
         // 1. Tarif standard actif de la chambre (saison_id IS NULL)
         $tarifStandard = Tarif::where('chambre_id', $chambreId)
@@ -61,7 +71,7 @@ class CalculTarifController extends Controller
             ->values()
             ->all();
 
-        // 3. Promotion active applicable (spécifique à la chambre ou globale)
+        // 3. Promotion active applicable (propre à la chambre ou globale)
         $nbNuits = $this->calculPrixService->nombreNuits($arrivee, $depart);
 
         $promoModel = Promotion::where('statut', 'active')
@@ -94,6 +104,9 @@ class CalculTarifController extends Controller
                 'success' => true,
                 'data' => array_merge($resultat, [
                     'chambre_id' => $chambreId,
+                    'chambre' => $this->chambreTrouvee
+                        ? ['id' => $chambreId, 'nom' => ChambreClientService::nom($this->chambreTrouvee)]
+                        : null,
                     'devise' => $tarifStandard->devise,
                     'promotion_appliquee' => $promoModel?->libelle,
                 ]),
@@ -128,10 +141,7 @@ class CalculTarifController extends Controller
                 $validated['promotion'] ?? null
             );
 
-            return response()->json([
-                'success' => true,
-                'data' => $resultat,
-            ], 200);
+            return response()->json(['success' => true, 'data' => $resultat], 200);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,

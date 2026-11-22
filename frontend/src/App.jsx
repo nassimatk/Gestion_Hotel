@@ -1,4 +1,3 @@
-
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -9,6 +8,7 @@ import RequireAdmin from "./components/RequireAdmin";
 
 // Pages client
 import HomePage from "./pages/client/HomePage";
+import TarifsPage from "./pages/client/TarifsPage";
 import ChambresPage from "./pages/client/ChambresPage";
 import DetailChambrePage from "./pages/client/DetailChambrePage";
 import ReservationPage from "./pages/client/ReservationPage";
@@ -105,6 +105,9 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+
+          {/* Tarifs */}
+          <Route path="/tarifs" element={<TarifsPage />} />
 
           {/* Chambres */}
           <Route path="/chambres" element={<ChambresPage />} />

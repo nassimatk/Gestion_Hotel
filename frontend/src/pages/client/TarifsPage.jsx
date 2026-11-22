@@ -1,207 +1,331 @@
-import { useEffect, useState } from "react";
-import { tarifsApi, messageErreur } from "../../services/tarifsApi";
-import "../tarifs.css";
+import React, { useEffect, useMemo, useState } from "react";
 
-const mad = (n) =>
-  `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n))} MAD`;
+const CHAMBRES_API = "http://localhost:8001/api/chambres";
 
-const dateFr = (d) => {
-  const [y, m, j] = String(d).slice(0, 10).split("-");
-  return `${j}/${m}/${y}`;
+const styles = {
+  card: {
+    maxWidth: "540px",
+    margin: "0 auto",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e6e2da",
+    borderRadius: "14px",
+    padding: "24px",
+    boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
+    fontFamily: "system-ui, -apple-system, sans-serif",
+    color: "#1e293b",
+  },
+  title: {
+    margin: "0 0 18px 0",
+    fontSize: "20px",
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  group: {
+    marginBottom: "15px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  grid2: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+  },
+  label: {
+    fontSize: "12px",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    color: "#475569",
+  },
+  input: {
+    padding: "10px 12px",
+    borderRadius: "8px",
+    border: "1px solid #cbd5e1",
+    fontSize: "14px",
+    color: "#0f172a",
+    backgroundColor: "#fff",
+  },
+  select: {
+    padding: "10px 12px",
+    borderRadius: "8px",
+    border: "1px solid #cbd5e1",
+    fontSize: "14px",
+    color: "#0f172a",
+    backgroundColor: "#fff",
+  },
+  priceBanner: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "12px 14px",
+    borderRadius: "10px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    marginBottom: "16px",
+    fontSize: "14px",
+  },
+  summaryBox: {
+    padding: "16px",
+    borderRadius: "12px",
+    backgroundColor: "#f4f1ea",
+    border: "1px solid #e2dccf",
+    marginTop: "8px",
+  },
+  row: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "14px",
+    marginBottom: "8px",
+  },
+  totalRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "18px",
+    fontWeight: "700",
+    color: "#0f172a",
+    paddingTop: "10px",
+    borderTop: "1px solid #dcd5c5",
+  },
+  error: {
+    color: "#b91c1c",
+    backgroundColor: "#fef2f2",
+    border: "1px solid #fecaca",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    marginTop: "4px",
+  },
 };
 
-export default function TarifsPage() {
-  // ----- Liste des tarifs -----
-  const [tarifs, setTarifs] = useState([]);
-  const [filtre, setFiltre] = useState("");
-  const [chargement, setChargement] = useState(true);
-  const [erreurListe, setErreurListe] = useState("");
+function trouverSaisonPourDate(saisons, dateStr) {
+  if (!dateStr || !Array.isArray(saisons)) return null;
+  const dateChoisie = new Date(dateStr);
+  return (
+    saisons.find((s) => {
+      if (!s.date_debut || !s.date_fin) return false;
+      return (
+        dateChoisie >= new Date(s.date_debut) &&
+        dateChoisie <= new Date(s.date_fin)
+      );
+    }) || null
+  );
+}
 
-  const charger = async (chambreId) => {
-    setChargement(true);
-    setErreurListe("");
-    try {
-      const params = { statut: "active" };
-      if (chambreId) params.chambre_id = chambreId;
-      setTarifs(await tarifsApi.list("tarifs", params));
-    } catch (err) {
-      setErreurListe(messageErreur(err));
-    } finally {
-      setChargement(false);
-    }
-  };
-
-  // ----- Saisons et promotions (lecture publique) -----
-  const [saisons, setSaisons] = useState([]);
-  const [promotions, setPromotions] = useState([]);
-  const [erreurInfos, setErreurInfos] = useState("");
+export default function SimulateurPrixClient({
+  saisons = [],
+  promotions = [],
+}) {
+  const [numeroChambre, setNumeroChambre] = useState("");
+  const [chambre, setChambre] = useState(null);
+  const [prixBase, setPrixBase] = useState(0);
+  const [dateArrivee, setDateArrivee] = useState("");
+  const [nuitees, setNuitees] = useState(1);
+  const [saisonManuelleId, setSaisonManuelleId] = useState("");
+  const [promotionId, setPromotionId] = useState("");
+  const [erreur, setErreur] = useState("");
 
   useEffect(() => {
-    charger("");
-    tarifsApi.list("saisons").then(setSaisons).catch((err) => setErreurInfos(messageErreur(err)));
-    tarifsApi.list("promotions", { statut: "active" }).then(setPromotions).catch((err) => setErreurInfos(messageErreur(err)));
-  }, []);
-
-  // ----- Calcul du prix -----
-  const [form, setForm] = useState({ chambre_id: "", arrivee: "", depart: "" });
-  const [resultat, setResultat] = useState(null);
-  const [erreurCalcul, setErreurCalcul] = useState("");
-
-  const calculer = async (e) => {
-    e.preventDefault();
-    setResultat(null);
-    setErreurCalcul("");
-    try {
-      setResultat(await tarifsApi.calculer(form));
-    } catch (err) {
-      setErreurCalcul(messageErreur(err));
+    const num = numeroChambre.trim();
+    if (!num) {
+      setChambre(null);
+      setPrixBase(0);
+      setErreur("");
+      return;
     }
-  };
 
-  const remise = resultat ? Number(resultat.sous_total) - Number(resultat.prix_total) : 0;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(CHAMBRES_API);
+        if (!res.ok) throw new Error("Erreur service chambres");
+        const json = await res.json();
+        const liste = Array.isArray(json) ? json : json.data || [];
+
+        const match = liste.find(
+          (c) =>
+            String(c.numero ?? c.numero_chambre ?? c.code ?? "")
+              .trim()
+              .toLowerCase() === num.toLowerCase()
+        );
+
+        if (cancelled) return;
+        if (!match) {
+          setChambre(null);
+          setPrixBase(0);
+          setErreur(`Chambre "${num}" introuvable.`);
+        } else {
+          setErreur("");
+          setChambre(match);
+          setPrixBase(
+            Number(match.prix_nuit ?? match.prix ?? match.tarif_base ?? 0)
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setChambre(null);
+          setPrixBase(0);
+          setErreur("Service Chambres indisponible.");
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [numeroChambre]);
+
+  const calcul = useMemo(() => {
+    const saisonDate = trouverSaisonPourDate(saisons, dateArrivee);
+    const saisonManuelle = saisons.find(
+      (s) => String(s.id) === String(saisonManuelleId)
+    );
+    const saisonActive = saisonDate || saisonManuelle || null;
+
+    const coeff = Number(saisonActive?.coefficient ?? 1);
+    const promoObj = promotions.find(
+      (p) => String(p.id) === String(promotionId)
+    );
+    const remise = Number(
+      promoObj?.pourcentage ?? promoObj?.reduction ?? promoObj?.remise ?? 0
+    );
+    const nbNuits = Math.max(1, Number(nuitees || 1));
+
+    const nuitAvecSaison = prixBase * coeff;
+    const nuitFinale = nuitAvecSaison * (1 - remise / 100);
+    const total = nuitFinale * nbNuits;
+
+    return {
+      saisonNom: saisonActive?.nom || "Standard",
+      coeff,
+      remise,
+      nbNuits,
+      nuitFinale: Number(nuitFinale.toFixed(2)),
+      total: Number(total.toFixed(2)),
+    };
+  }, [
+    prixBase,
+    saisons,
+    dateArrivee,
+    saisonManuelleId,
+    promotions,
+    promotionId,
+    nuitees,
+  ]);
+
+  const devise = chambre?.devise || "MAD";
 
   return (
-    <div className="tf-page">
-      <div className="tf-eyebrow">Tarification</div>
-      <h1 className="tf-title">Nos tarifs par chambre</h1>
-      <p className="tf-sub">Consultez les prix par nuit selon la saison et calculez le prix de votre séjour.</p>
+    <div style={styles.card}>
+      <h2 style={styles.title}>Estimation du séjour</h2>
 
-      <div className="tf-grid">
-        <div className="tf-card" style={{ flex: 1.4 }}>
-          <h3>Liste des tarifs</h3>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              charger(filtre);
-            }}
-            style={{ display: "flex", gap: 12, alignItems: "flex-end" }}
-          >
-            <div style={{ flex: 1 }}>
-              <label className="tf-label" style={{ marginTop: 0 }}>Numéro de chambre</label>
+      <div style={styles.group}>
+        <label style={styles.label}>Numéro de chambre</label>
+        <input
+          type="text"
+          style={styles.input}
+          value={numeroChambre}
+          onChange={(e) => setNumeroChambre(e.target.value)}
+          placeholder="Entrez votre numéro de chambre"
+        />
+        {erreur && <div style={styles.error}>{erreur}</div>}
+      </div>
+
+      {chambre && (
+        <>
+          <div style={styles.priceBanner}>
+            <span>
+              Chambre{" "}
+              <strong>{chambre.titre || chambre.nom || numeroChambre}</strong>
+            </span>
+            <strong>
+              {prixBase.toFixed(2)} {devise} / nuit
+            </strong>
+          </div>
+
+          <div style={styles.grid2}>
+            <div style={styles.group}>
+              <label style={styles.label}>Date d'arrivée</label>
               <input
-                className="tf-input"
-                type="number"
-                min="1"
-                placeholder="Toutes les chambres"
-                value={filtre}
-                onChange={(e) => setFiltre(e.target.value)}
+                type="date"
+                style={styles.input}
+                value={dateArrivee}
+                onChange={(e) => setDateArrivee(e.target.value)}
               />
             </div>
-            <button className="tf-btn" type="submit" style={{ marginTop: 0 }}>Filtrer</button>
-          </form>
 
-          {chargement && <p className="tf-hint">Chargement…</p>}
-          {erreurListe && <div className="tf-msg err" style={{ marginTop: 14 }}>{erreurListe}</div>}
-          {!chargement && !erreurListe && tarifs.length === 0 && <p className="tf-hint">Aucun tarif disponible pour l’instant.</p>}
-
-          {tarifs.length > 0 && (
-            <table className="tf-table" style={{ marginTop: 16 }}>
-              <thead>
-                <tr><th>Chambre</th><th>Saison</th><th>Prix par nuit</th><th>Statut</th></tr>
-              </thead>
-              <tbody>
-                {tarifs.map((t) => (
-                  <tr key={t.id}>
-                    <td>Chambre {t.chambre_id}</td>
-                    <td>{t.saison ? t.saison.nom : "Standard"}</td>
-                    <td>{mad(t.prix_nuit)}</td>
-                    <td><span className="tf-tag">{t.statut === "active" ? "Active" : "Inactive"}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="tf-card">
-          <h3>Calculer le prix d’un séjour</h3>
-          <form onSubmit={calculer}>
-            <label className="tf-label" style={{ marginTop: 0 }}>Numéro de chambre *</label>
-            <input className="tf-input" type="number" min="1" required value={form.chambre_id}
-              onChange={(e) => setForm({ ...form, chambre_id: e.target.value })} />
-            <div className="tf-row">
-              <div>
-                <label className="tf-label">Arrivée *</label>
-                <input className="tf-input" type="date" required value={form.arrivee}
-                  onChange={(e) => setForm({ ...form, arrivee: e.target.value })} />
-              </div>
-              <div>
-                <label className="tf-label">Départ *</label>
-                <input className="tf-input" type="date" required value={form.depart}
-                  onChange={(e) => setForm({ ...form, depart: e.target.value })} />
-              </div>
+            <div style={styles.group}>
+              <label style={styles.label}>Nombre de nuitées</label>
+              <input
+                type="number"
+                min="1"
+                style={styles.input}
+                value={nuitees}
+                onChange={(e) => setNuitees(e.target.value)}
+              />
             </div>
-            <button className="tf-btn" type="submit">Calculer le prix</button>
-          </form>
+          </div>
 
-          {erreurCalcul && <div className="tf-msg err" style={{ marginTop: 16 }}>{erreurCalcul}</div>}
+          <div style={styles.group}>
+            <label style={styles.label}>Saison</label>
+            <select
+              style={styles.select}
+              value={saisonManuelleId}
+              onChange={(e) => setSaisonManuelleId(e.target.value)}
+            >
+              <option value="">Automatique selon date / Standard (×1.00)</option>
+              {saisons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nom} (×{Number(s.coefficient ?? 1).toFixed(2)})
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {resultat && (
-            <div className="tf-result">
-              <div className="tf-line"><span>Séjour ({resultat.nb_nuits} nuit{resultat.nb_nuits > 1 ? "s" : ""})</span><span>{mad(resultat.sous_total)}</span></div>
-              {remise > 0 && (
-                <div className="tf-line">
-                  <span>Promotion {resultat.promotion_appliquee || ""}</span>
-                  <span>− {mad(remise)}</span>
-                </div>
-              )}
-              <div className="tf-total"><span>Total</span><span>{mad(resultat.prix_total)}</span></div>
+          <div style={styles.group}>
+            <label style={styles.label}>Promotion</label>
+            <select
+              style={styles.select}
+              value={promotionId}
+              onChange={(e) => setPromotionId(e.target.value)}
+            >
+              <option value="">Aucune promotion</option>
+              {promotions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.titre || p.nom || p.code} (-
+                  {Number(p.pourcentage ?? p.reduction ?? p.remise ?? 0)}%)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={styles.summaryBox}>
+            <div style={styles.row}>
+              <span>Saison appliquée</span>
+              <strong>
+                {calcul.saisonNom} (×{calcul.coeff.toFixed(2)})
+              </strong>
             </div>
-          )}
-        </div>
-      </div>
-      <div className="tf-grid" style={{ marginTop: 26 }}>
-        <div className="tf-card">
-          <h3>Saisons</h3>
-          {saisons.length === 0 ? (
-            <p className="tf-hint">Aucune saison définie pour l’instant.</p>
-          ) : (
-            <table className="tf-table">
-              <thead>
-                <tr><th>Saison</th><th>Du</th><th>Au</th></tr>
-              </thead>
-              <tbody>
-                {saisons.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.nom}</td>
-                    <td>{dateFr(s.date_debut)}</td>
-                    <td>{dateFr(s.date_fin)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <p className="tf-hint">Le prix d’une nuit dépend de la saison qui la couvre.</p>
-        </div>
-
-        <div className="tf-card">
-          <h3>Promotions en cours</h3>
-          {promotions.length === 0 ? (
-            <p className="tf-hint">Aucune promotion pour l’instant.</p>
-          ) : (
-            <table className="tf-table">
-              <thead>
-                <tr><th>Offre</th><th>Réduction</th><th>Conditions</th><th>Validité</th></tr>
-              </thead>
-              <tbody>
-                {promotions.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.libelle}</td>
-                    <td>{p.type_reduction === "POURCENTAGE" ? `${Number(p.valeur)} %` : mad(p.valeur)}</td>
-                    <td>
-                      {p.nuits_min} nuit{p.nuits_min > 1 ? "s" : ""} minimum
-                      <br />
-                      <span className="tf-hint">{p.chambre_id ? `Chambre ${p.chambre_id}` : "Toutes les chambres"}</span>
-                    </td>
-                    <td>{dateFr(p.date_debut)} au {dateFr(p.date_fin)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {erreurInfos && <div className="tf-msg err" style={{ marginTop: 14 }}>{erreurInfos}</div>}
-        </div>
-      </div>
+            <div style={styles.row}>
+              <span>Promotion</span>
+              <strong>-{calcul.remise}%</strong>
+            </div>
+            <div style={styles.row}>
+              <span>Prix / nuit final</span>
+              <strong>
+                {calcul.nuitFinale.toFixed(2)} {devise}
+              </strong>
+            </div>
+            <div style={styles.totalRow}>
+              <span>Total ({calcul.nbNuits} nuit(s))</span>
+              <span>
+                {calcul.total.toFixed(2)} {devise}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

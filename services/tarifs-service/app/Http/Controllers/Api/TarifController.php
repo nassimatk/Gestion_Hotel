@@ -4,129 +4,93 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tarif;
-use App\Services\ChambreClientService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TarifController extends Controller
 {
-    public function __construct(
-        protected ChambreClientService $chambreClient
-    ) {}
-
-    public function index(Request $request): JsonResponse
+    public function index()
     {
-        $query = Tarif::with('saison');
+        $query = Tarif::query();
 
-        if ($request->filled('chambre_id')) {
-            $query->where('chambre_id', (int) $request->query('chambre_id'));
+        if (method_exists(Tarif::class, 'saison') && method_exists(Tarif::class, 'promotion')) {
+            $query->with(['saison', 'promotion']);
         }
 
-        if ($request->filled('saison_id')) {
-            $query->where('saison_id', (int) $request->query('saison_id'));
-        }
-
-        if ($request->filled('statut')) {
-            $query->where('statut', $request->query('statut'));
-        }
+        $tarifs = $query->orderByDesc('id')->get();
 
         return response()->json([
             'success' => true,
-            'data' => $query->orderBy('chambre_id')->orderBy('saison_id')->get(),
+            'data'    => $tarifs,
         ]);
     }
 
-    public function show(int $id): JsonResponse
-    {
-        $tarif = Tarif::with('saison')->find($id);
-
-        if (!$tarif) {
-            return response()->json(['success' => false, 'error' => 'Tarif introuvable.'], 404);
-        }
-
-        return response()->json(['success' => true, 'data' => $tarif]);
-    }
-
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
         $validated = $request->validate([
-            'chambre_id' => 'required|integer|min:1',
-            'saison_id' => 'nullable|integer|exists:saisons,id',
-            'prix_nuit' => 'required|numeric|gt:0',
-            'devise' => 'sometimes|string|size:3',
-            'statut' => 'sometimes|in:active,inactive',
+            'chambre_id'         => 'nullable|integer',
+            'numero_chambre'     => 'required|string|max:50',
+            'saison_id'          => 'nullable|integer',
+            'coefficient_saison' => 'nullable|numeric|min:0.1',
+            'promotion_id'       => 'nullable|integer',
+            'promotion_pourcent' => 'nullable|numeric|min:0|max:100',
+            'prix_base'          => 'nullable|numeric|min:0',
+            'prix_nuit'          => 'required|numeric|min:0',
+            'devise'             => 'required|string|max:10',
+            'statut'             => 'required|string|in:active,inactive',
         ]);
 
-        // Vérifier l'existence de la chambre via chambres-service
-        if ($this->chambreClient->verifierChambreExiste((int) $validated['chambre_id']) === false) {
-            return response()->json([
-                'success' => false,
-                'error' => 'La chambre spécifiée est introuvable dans chambres-service.',
-            ], 404);
-        }
-
-        // Vérifier l'unicité (RG4 : 1 tarif standard ou 1 tarif par saison et par chambre)
-        $saisonId = $validated['saison_id'] ?? null;
-        $doublon = Tarif::where('chambre_id', $validated['chambre_id'])
-            ->when($saisonId === null, fn ($q) => $q->whereNull('saison_id'))
-            ->when($saisonId !== null, fn ($q) => $q->where('saison_id', $saisonId))
-            ->exists();
-
-        if ($doublon) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Un tarif existe déjà pour cette chambre et cette saison.',
-            ], 422);
-        }
-
         $tarif = Tarif::create([
-            'chambre_id' => $validated['chambre_id'],
-            'saison_id' => $saisonId,
-            'prix_nuit' => $validated['prix_nuit'],
-            'devise' => strtoupper($validated['devise'] ?? 'MAD'),
-            'statut' => $validated['statut'] ?? 'active',
+            'chambre_id'         => $validated['chambre_id'] ?? null,
+            'numero_chambre'     => $validated['numero_chambre'],
+            'saison_id'          => $validated['saison_id'] ?? null,
+            'coefficient_saison' => $validated['coefficient_saison'] ?? 1.0,
+            'promotion_id'       => $validated['promotion_id'] ?? null,
+            'promotion_pourcent' => $validated['promotion_pourcent'] ?? 0,
+            'prix_base'          => $validated['prix_base'] ?? $validated['prix_nuit'],
+            'prix_nuit'          => $validated['prix_nuit'],
+            'devise'             => strtoupper($validated['devise']),
+            'statut'             => $validated['statut'],
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $tarif->load('saison'),
+            'message' => 'Tarif enregistré avec succès.',
+            'data'    => (method_exists($tarif, 'saison') && method_exists($tarif, 'promotion'))
+                ? $tarif->load(['saison', 'promotion'])
+                : $tarif,
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, int $id)
     {
-        $tarif = Tarif::find($id);
-
-        if (!$tarif) {
-            return response()->json(['success' => false, 'error' => 'Tarif introuvable.'], 404);
-        }
+        $tarif = Tarif::findOrFail($id);
 
         $validated = $request->validate([
-            'prix_nuit' => 'sometimes|required|numeric|gt:0',
-            'devise' => 'sometimes|string|size:3',
-            'statut' => 'sometimes|in:active,inactive',
+            'chambre_id'         => 'nullable|integer',
+            'numero_chambre'     => 'sometimes|string|max:50',
+            'saison_id'          => 'nullable|integer',
+            'coefficient_saison' => 'nullable|numeric|min:0.1',
+            'promotion_id'       => 'nullable|integer',
+            'promotion_pourcent' => 'nullable|numeric|min:0|max:100',
+            'prix_base'          => 'nullable|numeric|min:0',
+            'prix_nuit'          => 'sometimes|numeric|min:0',
+            'devise'             => 'sometimes|string|max:10',
+            'statut'             => 'sometimes|string|in:active,inactive',
         ]);
-
-        if (isset($validated['devise'])) {
-            $validated['devise'] = strtoupper($validated['devise']);
-        }
 
         $tarif->update($validated);
 
         return response()->json([
             'success' => true,
-            'data' => $tarif->fresh('saison'),
+            'data'    => (method_exists($tarif, 'saison') && method_exists($tarif, 'promotion'))
+                ? $tarif->load(['saison', 'promotion'])
+                : $tarif->fresh(),
         ]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(int $id)
     {
-        $tarif = Tarif::find($id);
-
-        if (!$tarif) {
-            return response()->json(['success' => false, 'error' => 'Tarif introuvable.'], 404);
-        }
-
+        $tarif = Tarif::findOrFail($id);
         $tarif->delete();
 
         return response()->json([
