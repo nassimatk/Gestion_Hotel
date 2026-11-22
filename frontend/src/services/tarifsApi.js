@@ -1,31 +1,44 @@
 import { client } from "./http";
 
-// Client axios du service Tarifs (le token JWT stocké après connexion est ajouté automatiquement)
+// Client Axios du microservice Tarifs
 const http = client("tarifs");
 
-// L'API renvoie { success, data } : on récupère directement "data"
+// Extraction des données de l'API
 const unwrap = (res) => res.data?.data ?? res.data;
 
 export const tarifsApi = {
-  // Lecture publique : resource = "tarifs" | "saisons" | "promotions"
-  list: (resource, params) => http.get(`/${resource}`, { params }).then(unwrap),
+  // Récupération des ressources
+  list: (resource, params) =>
+    http.get(`/${resource}`, { params }).then(unwrap),
 
-  // Écriture réservée à l'administrateur
-  create: (resource, body) => http.post(`/${resource}`, body).then((res) => res.data),
-  update: (resource, id, body) => http.put(`/${resource}/${id}`, body).then((res) => res.data),
-  remove: (resource, id) => http.delete(`/${resource}/${id}`).then((res) => res.data),
+  // Création
+  create: (resource, body) =>
+    http.post(`/${resource}`, body).then((res) => res.data),
 
-  // Calcul du prix d'un séjour (public)
-  calculer: (params) => http.get("/tarifs/calcul", { params }).then(unwrap),
+  // Modification
+  update: (resource, id, body) =>
+    http.put(`/${resource}/${id}`, body).then((res) => res.data),
 
-  // Raccourcis conservés pour compatibilité
-  getAllTarifs: () => http.get("/tarifs").then(unwrap),
-  getAllSaisons: () => http.get("/saisons").then(unwrap),
-  getAllPromotions: () => http.get("/promotions").then(unwrap),
+  // Suppression
+  remove: (resource, id) =>
+    http.delete(`/${resource}/${id}`).then((res) => res.data),
+
+  // Calcul du prix d'un séjour
+  calculer: (params) =>
+    http.get("/tarifs/calcul", { params }).then(unwrap),
+
+  // Raccourcis
+  getAllTarifs: () =>
+    http.get("/tarifs").then(unwrap),
+
+  getAllSaisons: () =>
+    http.get("/saisons").then(unwrap),
+
+  getAllPromotions: () =>
+    http.get("/promotions").then(unwrap),
 };
 
-// Compatibilité avec ReservationPage : accepte date_debut / date_fin
-// et les traduit vers arrivee / depart attendus par l'API de calcul.
+// Compatibilité avec ReservationPage
 export const getTarifs = (params = {}) =>
   tarifsApi.calculer({
     chambre_id: params.chambre_id,
@@ -33,10 +46,12 @@ export const getTarifs = (params = {}) =>
     depart: params.depart ?? params.date_fin,
   });
 
-// Message d'erreur lisible, au format de l'API { error, code }
+// Gestion des erreurs
 export function messageErreur(err) {
   return (
     err?.response?.data?.error ||
-    (err?.response ? `Erreur ${err.response.status}` : "Le service Tarifs est injoignable (port 8004).")
+    (err?.response
+      ? `Erreur ${err.response.status}`
+      : "Le service Tarifs est injoignable (port 8004).")
   );
 }

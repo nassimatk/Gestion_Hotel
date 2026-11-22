@@ -1,1440 +1,1027 @@
-import React, { useEffect, useMemo, useState } from "react";
 
-const CHAMBRES_API = "http://localhost:8001/api/chambres";
-const TARIFS_API = "http://localhost:8004/api/tarifs";
-const SAISONS_API = "http://localhost:8004/api/saisons";
-const PROMOTIONS_API = "http://localhost:8004/api/promotions";
+import { useMemo, useState } from "react";
+import "./AdminTarifsPage.css";
 
-const styles = {
-  wrapper: {
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    color: "#1e293b",
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "20px",
+// ==========================================
+// DONNÉES STATIQUES
+// ==========================================
+
+const CHAMBRES = [
+  { id: 1, numero: "101", type: "Simple", prix_base: 300 },
+  { id: 2, numero: "102", type: "Double", prix_base: 450 },
+  { id: 3, numero: "201", type: "Suite", prix_base: 800 },
+  { id: 4, numero: "202", type: "Double", prix_base: 500 },
+  { id: 5, numero: "301", type: "Familiale", prix_base: 650 },
+];
+
+const SAISONS_INITIALES = [
+  {
+    id: 1,
+    nom: "Basse saison",
+    coefficient: 0.8,
+    date_debut: "2026-01-01",
+    date_fin: "2026-03-31",
   },
-  tabsBar: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-    borderBottom: "1px solid #e2e8f0",
-    paddingBottom: "12px",
-    marginBottom: "22px",
+  {
+    id: 2,
+    nom: "Moyenne saison",
+    coefficient: 1,
+    date_debut: "2026-04-01",
+    date_fin: "2026-06-30",
   },
-  tabBtn: {
-    padding: "10px 18px",
-    borderRadius: "8px",
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#ffffff",
-    color: "#334155",
-    fontWeight: "600",
-    fontSize: "14px",
-    cursor: "pointer",
+  {
+    id: 3,
+    nom: "Haute saison",
+    coefficient: 1.5,
+    date_debut: "2026-07-01",
+    date_fin: "2026-08-31",
   },
-  tabBtnActive: {
-    backgroundColor: "#14273e",
-    color: "#ffffff",
-    borderColor: "#14273e",
+];
+
+const PROMOTIONS_INITIALES = [
+  {
+    id: 1,
+    libelle: "Offre été",
+    type_reduction: "POURCENTAGE",
+    valeur: 15,
+    nuits_min: 2,
+    date_debut: "2026-07-01",
+    date_fin: "2026-08-31",
+    chambre_id: null,
+    statut: "active",
   },
-  grid2: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1.2fr",
-    gap: "24px",
-    alignItems: "start",
+  {
+    id: 2,
+    libelle: "Offre spéciale",
+    type_reduction: "MONTANT_FIXE",
+    valeur: 50,
+    nuits_min: 1,
+    date_debut: "2026-04-01",
+    date_fin: "2026-06-30",
+    chambre_id: 2,
+    statut: "active",
   },
-  gridDates: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "12px",
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #e6e2da",
-    borderRadius: "12px",
-    padding: "22px",
-    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.04)",
-  },
-  titleRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "16px",
-  },
-  title: {
-    margin: 0,
-    fontSize: "19px",
-    fontWeight: "700",
-    color: "#0f172a",
-  },
-  group: {
-    marginBottom: "14px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  label: {
-    fontSize: "12px",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-    color: "#475569",
-  },
-  input: {
-    padding: "10px 12px",
-    borderRadius: "8px",
-    border: "1px solid #cbd5e1",
-    fontSize: "14px",
-    color: "#0f172a",
-    backgroundColor: "#ffffff",
-    outline: "none",
-  },
-  select: {
-    padding: "10px 12px",
-    borderRadius: "8px",
-    border: "1px solid #cbd5e1",
-    fontSize: "14px",
-    color: "#0f172a",
-    backgroundColor: "#ffffff",
-    outline: "none",
-  },
-  roomCard: {
-    padding: "14px",
-    borderRadius: "10px",
-    backgroundColor: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    marginBottom: "16px",
-    fontSize: "14px",
-    lineHeight: "1.6",
-  },
-  autoBadgeBox: {
-    padding: "10px 12px",
-    borderRadius: "8px",
-    backgroundColor: "#eef6ff",
-    border: "1px solid #bfdbfe",
-    color: "#1e3a8a",
-    fontSize: "13px",
-    marginBottom: "14px",
-    lineHeight: "1.5",
-  },
-  summaryBox: {
-    padding: "14px",
-    borderRadius: "10px",
-    backgroundColor: "#f4f1ea",
-    border: "1px solid #e2dccf",
-    marginBottom: "16px",
-  },
-  row: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "14px",
-    marginBottom: "6px",
-  },
-  totalRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "16px",
-    fontWeight: "700",
-    color: "#0f172a",
-    paddingTop: "8px",
-    borderTop: "1px solid #dcd5c5",
-  },
-  btnPrimary: {
-    width: "100%",
-    padding: "12px 16px",
-    borderRadius: "8px",
-    border: "none",
-    backgroundColor: "#14273e",
-    color: "#ffffff",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-  btnSecondary: {
-    padding: "6px 10px",
-    borderRadius: "6px",
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#ffffff",
-    color: "#0f172a",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-  btnDanger: {
-    padding: "6px 10px",
-    borderRadius: "6px",
-    border: "1px solid #fecaca",
-    backgroundColor: "#fef2f2",
-    color: "#b91c1c",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-  btnCancel: {
-    padding: "6px 12px",
-    borderRadius: "6px",
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#f8fafc",
-    color: "#475569",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-  actionsCell: {
-    display: "flex",
-    gap: "6px",
-    flexWrap: "wrap",
-  },
-  btnDisabled: {
-    opacity: 0.5,
-    cursor: "not-allowed",
-  },
-  error: {
-    color: "#b91c1c",
-    backgroundColor: "#fef2f2",
-    border: "1px solid #fecaca",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    fontSize: "13px",
-    marginBottom: "12px",
-    whiteSpace: "pre-line",
-  },
-  success: {
-    color: "#166534",
-    backgroundColor: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    fontSize: "13px",
-    marginBottom: "12px",
-    fontWeight: "600",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "13px",
-  },
-  th: {
-    textAlign: "left",
-    padding: "10px 8px",
-    borderBottom: "1px solid #e2e8f0",
-    fontSize: "11px",
-    textTransform: "uppercase",
-    color: "#64748b",
-  },
-  td: {
-    padding: "10px 8px",
-    borderBottom: "1px solid #f1f5f9",
-    verticalAlign: "middle",
-  },
-  badgeActive: {
-    display: "inline-block",
-    padding: "3px 8px",
-    borderRadius: "999px",
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    fontSize: "11px",
-    fontWeight: "600",
-  },
-  badgeInactive: {
-    display: "inline-block",
-    padding: "3px 8px",
-    borderRadius: "999px",
-    backgroundColor: "#f1f5f9",
-    color: "#475569",
-    fontSize: "11px",
-    fontWeight: "600",
-  },
+];
+
+// ==========================================
+// FONCTIONS UTILITAIRES
+// ==========================================
+
+const dateValide = (date) => {
+  return date && !Number.isNaN(new Date(date).getTime());
 };
 
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("auth_token") ||
-    localStorage.getItem("jwt") ||
-    sessionStorage.getItem("token") ||
-    "";
-  return {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+const estDansPeriode = (date, debut, fin) => {
+  return date >= debut && date <= fin;
+};
 
-function parsePrix(val) {
-  if (typeof val === "number") return Number.isFinite(val) ? val : 0;
-  const cleaned = String(val ?? "").replace(/[^0-9.]/g, "");
-  return Number(cleaned) || 0;
-}
+const calculerPrix = (prixBase, coefficient, promotion) => {
+  const prixSaisonnier = prixBase * coefficient;
 
-function getSaisonCoeff(s) {
-  return (
-    Number(
-      s?.coefficient ?? s?.multiplicateur ?? s?.taux ?? s?.coeff ?? 1
-    ) || 1
-  );
-}
+  if (!promotion) return prixSaisonnier;
 
-function getPromoValeur(p) {
-  return (
-    Number(
-      p?.valeur ??
-        p?.pourcentage ??
-        p?.reduction ??
-        p?.remise ??
-        p?.taux ??
-        p?.discount ??
-        0
-    ) || 0
-  );
-}
-
-function getPromoType(p) {
-  const raw = String(p?.type_reduction ?? p?.type ?? "POURCENTAGE").toUpperCase();
-  return raw === "MONTANT_FIXE" ? "MONTANT_FIXE" : "POURCENTAGE";
-}
-
-function formatPromoLabel(p) {
-  const val = getPromoValeur(p);
-  if (!val) return "0%";
-  return getPromoType(p) === "MONTANT_FIXE" ? `-${val} MAD` : `-${val}%`;
-}
-
-function getLabelItem(item, fallback = "Sans nom") {
-  return (
-    item?.libelle ||
-    item?.nom ||
-    item?.titre ||
-    item?.name ||
-    item?.code ||
-    fallback
-  );
-}
-
-function normalizeDateOnly(dateInput) {
-  if (!dateInput) return null;
-  const d = new Date(dateInput);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
-function toInputDate(dateInput) {
-  if (!dateInput) return "";
-  return String(dateInput).slice(0, 10);
-}
-
-function findMatchingByDate(items, dateStr) {
-  const target = normalizeDateOnly(dateStr);
-  if (!target || !Array.isArray(items)) return null;
-
-  return (
-    items.find((item) => {
-      const start = normalizeDateOnly(
-        item.date_debut ?? item.start_date ?? item.dateDebut
-      );
-      const end = normalizeDateOnly(
-        item.date_fin ?? item.end_date ?? item.dateFin
-      );
-      if (start && end) return target >= start && target <= end;
-      if (start && !end) return target >= start;
-      if (!start && end) return target <= end;
-      return false;
-    }) || null
-  );
-}
-
-function formatApiError(errData, status) {
-  if (errData?.errors && typeof errData.errors === "object") {
-    const details = Object.entries(errData.errors)
-      .map(([champ, msgs]) => `${champ}: ${[].concat(msgs).join(", ")}`)
-      .join("\n");
-    if (details) return details;
-  }
-  if (typeof errData === "string" && errData.trim()) {
-    return errData.trim();
-  }
-  return errData?.message || errData?.error || `Erreur HTTP ${status}`;
-}
-
-async function sendJsonRequest(url, method, payload = null) {
-  const options = {
-    method,
-    headers: getAuthHeaders(),
-  };
-  if (payload !== null && method !== "DELETE") {
-    options.body = JSON.stringify(payload);
+  if (promotion.type_reduction === "POURCENTAGE") {
+    return prixSaisonnier * (1 - promotion.valeur / 100);
   }
 
-  const res = await fetch(url, options);
-  const rawText = await res.text();
-  let parsed = {};
-  try {
-    parsed = rawText ? JSON.parse(rawText) : {};
-  } catch {
-    parsed = { message: rawText };
-  }
+  return Math.max(0, prixSaisonnier - promotion.valeur);
+};
 
-  if (!res.ok) {
-    throw new Error(formatApiError(parsed, res.status));
-  }
-  return parsed;
-}
+const formatPrix = (prix) =>
+  `${Number(prix).toFixed(2)} DH`;
 
-export default function AdminGestionTarifsPromotions() {
-  const [activeTab, setActiveTab] = useState("tarifs");
+const formatDate = (date) =>
+  date ? new Date(`${date}T00:00:00`).toLocaleDateString("fr-FR") : "-";
 
-  const [chambres, setChambres] = useState([]);
-  const [saisons, setSaisons] = useState([]);
-  const [promotions, setPromotions] = useState([]);
-  const [tarifs, setTarifs] = useState([]);
+// ==========================================
+// COMPOSANT PRINCIPAL
+// ==========================================
 
-  // --- CRUD TARIFS ---
-  const [editingTarifId, setEditingTarifId] = useState(null);
-  const [numeroChambre, setNumeroChambre] = useState("");
-  const [dateApplication, setDateApplication] = useState(() =>
-    new Date().toISOString().slice(0, 10)
+export default function AdminTarifsPage() {
+  const [onglet, setOnglet] = useState("tarifs");
+
+  const [saisons, setSaisons] = useState(SAISONS_INITIALES);
+  const [promotions, setPromotions] = useState(PROMOTIONS_INITIALES);
+
+  const [tarifs, setTarifs] = useState(
+    CHAMBRES.map((chambre, index) => ({
+      id: index + 1,
+      chambre_id: chambre.id,
+      numero_chambre: chambre.numero,
+      prix_base: chambre.prix_base,
+      saison_id: null,
+      promotion_id: null,
+      statut: "active",
+    }))
   );
-  const [saisonId, setSaisonId] = useState("");
-  const [promotionId, setPromotionId] = useState("");
-  const [statut, setStatut] = useState("active");
-  const [savingTarif, setSavingTarif] = useState(false);
 
-  // --- CRUD SAISONS ---
-  const [editingSaisonId, setEditingSaisonId] = useState(null);
-  const [saisonNom, setSaisonNom] = useState("");
-  const [saisonCoeff, setSaisonCoeff] = useState("1.00");
-  const [saisonDateDebut, setSaisonDateDebut] = useState("");
-  const [saisonDateFin, setSaisonDateFin] = useState("");
-  const [saisonStatut, setSaisonStatut] = useState("active");
-  const [savingSaison, setSavingSaison] = useState(false);
+  const [formTarif, setFormTarif] = useState({
+    chambre_id: "",
+    saison_id: "",
+    promotion_id: "",
+    statut: "active",
+  });
 
-  // --- CRUD PROMOTIONS ---
-  const [editingPromoId, setEditingPromoId] = useState(null);
-  const [promoLibelle, setPromoLibelle] = useState("");
-  const [promoTypeReduction, setPromoTypeReduction] = useState("POURCENTAGE");
-  const [promoValeur, setPromoValeur] = useState("");
-  const [promoDateDebut, setPromoDateDebut] = useState("");
-  const [promoDateFin, setPromoDateFin] = useState("");
-  const [promoStatut, setPromoStatut] = useState("active");
-  const [savingPromo, setSavingPromo] = useState(false);
+  const [formSaison, setFormSaison] = useState({
+    nom: "",
+    coefficient: "1",
+    date_debut: "",
+    date_fin: "",
+  });
+
+  const [formPromotion, setFormPromotion] = useState({
+    libelle: "",
+    type_reduction: "POURCENTAGE",
+    valeur: "",
+    nuits_min: "1",
+    chambre_id: "",
+    date_debut: "",
+    date_fin: "",
+    statut: "active",
+  });
+
+  const [editionTarif, setEditionTarif] = useState(null);
+  const [editionSaison, setEditionSaison] = useState(null);
+  const [editionPromotion, setEditionPromotion] = useState(null);
 
   const [erreur, setErreur] = useState("");
-  const [succes, setSucces] = useState("");
 
-  async function chargerDonnees() {
-    const [resCh, resSa, resPr, resTa] = await Promise.allSettled([
-      fetch(CHAMBRES_API),
-      fetch(SAISONS_API),
-      fetch(PROMOTIONS_API),
-      fetch(TARIFS_API),
-    ]);
+  // ==========================================
+  // CALCUL DU PRIX D'UN TARIF
+  // ==========================================
 
-    if (resCh.status === "fulfilled" && resCh.value.ok) {
-      const d = await resCh.value.json();
-      setChambres(Array.isArray(d) ? d : d.data || []);
-    }
-    if (resSa.status === "fulfilled" && resSa.value.ok) {
-      const d = await resSa.value.json();
-      setSaisons(Array.isArray(d) ? d : d.data || []);
-    }
-    if (resPr.status === "fulfilled" && resPr.value.ok) {
-      const d = await resPr.value.json();
-      setPromotions(Array.isArray(d) ? d : d.data || []);
-    }
-    if (resTa.status === "fulfilled" && resTa.value.ok) {
-      const d = await resTa.value.json();
-      setTarifs(Array.isArray(d) ? d : d.data || []);
-    }
-  }
-
-  useEffect(() => {
-    chargerDonnees();
-  }, []);
-
-  // Résout toujours le NUMÉRO de chambre (jamais l'ID) pour un tarif enregistré
-  function getNumeroFromTarif(tarif) {
-    if (tarif?.numero_chambre) {
-      return String(tarif.numero_chambre);
-    }
-    const ch = chambres.find(
-      (c) => String(c.id) === String(tarif?.chambre_id)
+  const obtenirPrixTarif = (tarif) => {
+    const saison = saisons.find(
+      (s) => s.id === Number(tarif.saison_id)
     );
-    return String(ch?.numero ?? ch?.numero_chambre ?? "");
-  }
 
-  const saisonAuto = useMemo(
-    () => findMatchingByDate(saisons, dateApplication),
-    [saisons, dateApplication]
-  );
-  const promotionAuto = useMemo(
-    () => findMatchingByDate(promotions, dateApplication),
-    [promotions, dateApplication]
-  );
-
-  useEffect(() => {
-    if (!editingTarifId) {
-      setSaisonId(saisonAuto ? String(saisonAuto.id) : "");
-    }
-  }, [saisonAuto, editingTarifId]);
-
-  useEffect(() => {
-    if (!editingTarifId) {
-      setPromotionId(promotionAuto ? String(promotionAuto.id) : "");
-    }
-  }, [promotionAuto, editingTarifId]);
-
-  const chambreTrouvee = useMemo(() => {
-    const num = numeroChambre.trim().toLowerCase();
-    if (!num) return null;
-    return (
-      chambres.find(
-        (c) =>
-          String(c.numero ?? c.numero_chambre ?? c.code ?? "")
-            .trim()
-            .toLowerCase() === num
-      ) || null
+    const promotion = promotions.find(
+      (p) =>
+        p.id === Number(tarif.promotion_id) &&
+        p.statut === "active"
     );
-  }, [chambres, numeroChambre]);
 
-  const numChambreVal =
-    chambreTrouvee?.numero ??
-    chambreTrouvee?.numero_chambre ??
-    numeroChambre.trim();
+    return calculerPrix(
+      tarif.prix_base,
+      saison?.coefficient ?? 1,
+      promotion
+    );
+  };
 
-  const typeLabel = chambreTrouvee?.type
-    ? chambreTrouvee.type.charAt(0).toUpperCase() + chambreTrouvee.type.slice(1)
-    : "";
-  const vueLabel = chambreTrouvee?.vue ? `Vue ${chambreTrouvee.vue}` : "";
-  const detailsChambre = [typeLabel, vueLabel].filter(Boolean).join(" • ");
-
-  const nomChambre = chambreTrouvee
-    ? chambreTrouvee.nom?.trim() ||
-      `Chambre ${numChambreVal}${detailsChambre ? ` (${detailsChambre})` : ""}`
-    : "";
-
-  const prixChambreActuel = parsePrix(
-    chambreTrouvee?.prix_nuit ??
-      chambreTrouvee?.prix ??
-      chambreTrouvee?.tarif_base ??
-      0
+  const chambreSelectionnee = CHAMBRES.find(
+    (c) => c.id === Number(formTarif.chambre_id)
   );
 
   const saisonSelectionnee = saisons.find(
-    (s) => String(s.id) === String(saisonId)
+    (s) => s.id === Number(formTarif.saison_id)
   );
+
   const promotionSelectionnee = promotions.find(
-    (p) => String(p.id) === String(promotionId)
+    (p) =>
+      p.id === Number(formTarif.promotion_id) &&
+      p.statut === "active"
   );
 
-  const coefficientSaison = getSaisonCoeff(saisonSelectionnee);
-  const valeurPromo = getPromoValeur(promotionSelectionnee);
-  const typePromo = getPromoType(promotionSelectionnee);
+  const prixSimule = useMemo(() => {
+    if (!chambreSelectionnee) return 0;
 
-  const prixApresSaison = prixChambreActuel * coefficientSaison;
-  const prixApresPromo =
-    typePromo === "MONTANT_FIXE"
-      ? Math.max(0, prixApresSaison - valeurPromo)
-      : prixApresSaison * (1 - valeurPromo / 100);
-
-  const nouveauPrixChambre = Number(prixApresPromo.toFixed(2));
-
-  const pourcentageEquivalent =
-    typePromo === "MONTANT_FIXE" && prixApresSaison > 0
-      ? Number(
-          Math.min(100, (valeurPromo / prixApresSaison) * 100).toFixed(2)
-        )
-      : valeurPromo;
-
-  // ==================== HANDLERS TARIFS CRUD ====================
-  function resetTarifForm() {
-    setEditingTarifId(null);
-    setNumeroChambre("");
-    setDateApplication(new Date().toISOString().slice(0, 10));
-    setSaisonId("");
-    setPromotionId("");
-    setStatut("active");
-  }
-
-  function handleEditTarif(tarif) {
-    setErreur("");
-    setSucces("");
-    setEditingTarifId(tarif.id);
-    setNumeroChambre(getNumeroFromTarif(tarif));
-    setDateApplication(
-      toInputDate(tarif.date_application) || new Date().toISOString().slice(0, 10)
+    return calculerPrix(
+      chambreSelectionnee.prix_base,
+      saisonSelectionnee?.coefficient ?? 1,
+      promotionSelectionnee
     );
-    setSaisonId(tarif.saison_id ? String(tarif.saison_id) : "");
-    setPromotionId(tarif.promotion_id ? String(tarif.promotion_id) : "");
-    setStatut(tarif.statut || "active");
-  }
+  }, [
+    chambreSelectionnee,
+    saisonSelectionnee,
+    promotionSelectionnee,
+  ]);
 
-  async function handleSaveTarif(e) {
+  // ==========================================
+  // GESTION DES TARIFS
+  // ==========================================
+
+  const reinitialiserTarif = () => {
+    setFormTarif({
+      chambre_id: "",
+      saison_id: "",
+      promotion_id: "",
+      statut: "active",
+    });
+    setEditionTarif(null);
+    setErreur("");
+  };
+
+  const enregistrerTarif = (e) => {
     e.preventDefault();
     setErreur("");
-    setSucces("");
 
-    if (!chambreTrouvee) {
-      setErreur("Veuillez entrer un numéro de chambre valide.");
+    const chambre = CHAMBRES.find(
+      (c) => c.id === Number(formTarif.chambre_id)
+    );
+
+    if (!chambre) {
+      setErreur("Veuillez sélectionner une chambre.");
       return;
     }
 
-    setSavingTarif(true);
-    try {
-      const chambrePayload = {
-        ...chambreTrouvee,
-        prix_nuit: nouveauPrixChambre,
-      };
-      await sendJsonRequest(
-        `${CHAMBRES_API}/${chambreTrouvee.id}`,
-        "PUT",
-        chambrePayload
+    const saisonId = formTarif.saison_id
+      ? Number(formTarif.saison_id)
+      : null;
+
+    const promotionId = formTarif.promotion_id
+      ? Number(formTarif.promotion_id)
+      : null;
+
+    if (
+      tarifs.some(
+        (t) =>
+          t.chambre_id === chambre.id &&
+          t.saison_id === saisonId &&
+          t.id !== editionTarif
+      )
+    ) {
+      setErreur("Un tarif existe déjà pour cette chambre et cette saison.");
+      return;
+    }
+
+    const nouveauTarif = {
+      id: editionTarif ?? Date.now(),
+      chambre_id: chambre.id,
+      numero_chambre: chambre.numero,
+      prix_base: chambre.prix_base,
+      saison_id: saisonId,
+      promotion_id: promotionId,
+      statut: formTarif.statut,
+    };
+
+    if (editionTarif) {
+      setTarifs((anciens) =>
+        anciens.map((t) =>
+          t.id === editionTarif ? nouveauTarif : t
+        )
       );
-
-      const tarifPayload = {
-        chambre_id: chambreTrouvee.id,
-        numero_chambre: String(numChambreVal),
-        saison_id: saisonId ? Number(saisonId) : null,
-        coefficient_saison: coefficientSaison,
-        promotion_id: promotionId ? Number(promotionId) : null,
-        promotion_pourcent: pourcentageEquivalent,
-        date_application: dateApplication || null,
-        prix_base: prixChambreActuel,
-        prix_nuit: nouveauPrixChambre,
-        devise: "MAD",
-        statut,
-      };
-
-      if (editingTarifId) {
-        await sendJsonRequest(
-          `${TARIFS_API}/${editingTarifId}`,
-          "PUT",
-          tarifPayload
-        );
-        setSucces(
-          `Tarif mis à jour et chambre "${nomChambre}" réglée à ${nouveauPrixChambre.toFixed(
-            2
-          )} MAD / nuit.`
-        );
-      } else {
-        await sendJsonRequest(TARIFS_API, "POST", tarifPayload);
-        setSucces(
-          `Tarif ajouté et chambre "${nomChambre}" réglée à ${nouveauPrixChambre.toFixed(
-            2
-          )} MAD / nuit.`
-        );
-      }
-
-      resetTarifForm();
-      await chargerDonnees();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setSavingTarif(false);
+    } else {
+      setTarifs((anciens) => [...anciens, nouveauTarif]);
     }
-  }
 
-  async function handleDeleteTarif(id) {
-    if (!window.confirm("Supprimer ce tarif ?")) return;
-    setErreur("");
-    setSucces("");
-    try {
-      await sendJsonRequest(`${TARIFS_API}/${id}`, "DELETE");
-      if (editingTarifId === id) resetTarifForm();
-      setSucces("Tarif supprimé avec succès.");
-      await chargerDonnees();
-    } catch (err) {
-      setErreur(err.message);
+    reinitialiserTarif();
+  };
+
+  const modifierTarif = (tarif) => {
+    setEditionTarif(tarif.id);
+    setFormTarif({
+      chambre_id: String(tarif.chambre_id),
+      saison_id: tarif.saison_id ? String(tarif.saison_id) : "",
+      promotion_id: tarif.promotion_id
+        ? String(tarif.promotion_id)
+        : "",
+      statut: tarif.statut,
+    });
+    setOnglet("tarifs");
+  };
+
+  const supprimerTarif = (id) => {
+    if (window.confirm("Supprimer ce tarif ?")) {
+      setTarifs((anciens) => anciens.filter((t) => t.id !== id));
     }
-  }
+  };
 
-  // ==================== HANDLERS SAISONS CRUD ====================
-  function resetSaisonForm() {
-    setEditingSaisonId(null);
-    setSaisonNom("");
-    setSaisonCoeff("1.00");
-    setSaisonDateDebut("");
-    setSaisonDateFin("");
-    setSaisonStatut("active");
-  }
+  // ==========================================
+  // GESTION DES SAISONS
+  // ==========================================
 
-  function handleEditSaison(s) {
-    setErreur("");
-    setSucces("");
-    setEditingSaisonId(s.id);
-    setSaisonNom(getLabelItem(s, ""));
-    setSaisonCoeff(String(getSaisonCoeff(s)));
-    setSaisonDateDebut(toInputDate(s.date_debut));
-    setSaisonDateFin(toInputDate(s.date_fin));
-    setSaisonStatut(s.statut || "active");
-  }
-
-  async function handleSaveSaison(e) {
+  const enregistrerSaison = (e) => {
     e.preventDefault();
     setErreur("");
-    setSucces("");
-    setSavingSaison(true);
 
-    try {
-      const coeffVal = Number(saisonCoeff);
-      const payload = {
-        nom: saisonNom.trim(),
-        coefficient: Number.isFinite(coeffVal) && coeffVal > 0 ? coeffVal : 1,
-        date_debut: saisonDateDebut || null,
-        date_fin: saisonDateFin || null,
-        statut: saisonStatut,
-      };
+    const { nom, coefficient, date_debut, date_fin } = formSaison;
+    const coeff = Number(coefficient);
 
-      if (editingSaisonId) {
-        await sendJsonRequest(
-          `${SAISONS_API}/${editingSaisonId}`,
-          "PUT",
-          payload
-        );
-        setSucces("Saison modifiée avec succès.");
-      } else {
-        await sendJsonRequest(SAISONS_API, "POST", payload);
-        setSucces("Saison ajoutée avec succès.");
-      }
-
-      resetSaisonForm();
-      await chargerDonnees();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setSavingSaison(false);
+    if (!nom.trim() || !dateValide(date_debut) || !dateValide(date_fin)) {
+      setErreur("Veuillez remplir tous les champs.");
+      return;
     }
-  }
 
-  async function handleDeleteSaison(id) {
+    if (coeff < 0.1 || coeff > 10) {
+      setErreur("Le coefficient doit être entre 0.1 et 10.");
+      return;
+    }
+
+    if (date_fin < date_debut) {
+      setErreur("La date de fin doit être après la date de début.");
+      return;
+    }
+
+    const chevauchement = saisons.some((s) => {
+      if (s.id === editionSaison) return false;
+
+      return date_debut <= s.date_fin && date_fin >= s.date_debut;
+    });
+
+    if (chevauchement) {
+      setErreur("Cette période chevauche une autre saison.");
+      return;
+    }
+
+    const nouvelleSaison = {
+      id: editionSaison ?? Date.now(),
+      nom: nom.trim(),
+      coefficient: coeff,
+      date_debut,
+      date_fin,
+    };
+
+    setSaisons((anciens) =>
+      editionSaison
+        ? anciens.map((s) =>
+            s.id === editionSaison ? nouvelleSaison : s
+          )
+        : [...anciens, nouvelleSaison]
+    );
+
+    setFormSaison({
+      nom: "",
+      coefficient: "1",
+      date_debut: "",
+      date_fin: "",
+    });
+    setEditionSaison(null);
+  };
+
+  const modifierSaison = (saison) => {
+    setEditionSaison(saison.id);
+    setFormSaison({
+      nom: saison.nom,
+      coefficient: String(saison.coefficient),
+      date_debut: saison.date_debut,
+      date_fin: saison.date_fin,
+    });
+    setOnglet("saisons");
+  };
+
+  const supprimerSaison = (id) => {
     if (!window.confirm("Supprimer cette saison ?")) return;
-    setErreur("");
-    setSucces("");
-    try {
-      await sendJsonRequest(`${SAISONS_API}/${id}`, "DELETE");
-      if (editingSaisonId === id) resetSaisonForm();
-      setSucces("Saison supprimée avec succès.");
-      await chargerDonnees();
-    } catch (err) {
-      setErreur(err.message);
-    }
-  }
 
-  // ==================== HANDLERS PROMOTIONS CRUD ====================
-  function resetPromoForm() {
-    setEditingPromoId(null);
-    setPromoLibelle("");
-    setPromoTypeReduction("POURCENTAGE");
-    setPromoValeur("");
-    setPromoDateDebut("");
-    setPromoDateFin("");
-    setPromoStatut("active");
-  }
+    setSaisons((anciens) => anciens.filter((s) => s.id !== id));
 
-  function handleEditPromo(p) {
-    setErreur("");
-    setSucces("");
-    setEditingPromoId(p.id);
-    setPromoLibelle(getLabelItem(p, ""));
-    setPromoTypeReduction(getPromoType(p));
-    setPromoValeur(String(getPromoValeur(p)));
-    setPromoDateDebut(toInputDate(p.date_debut));
-    setPromoDateFin(toInputDate(p.date_fin));
-    setPromoStatut(p.statut || "active");
-  }
+    setTarifs((anciens) =>
+      anciens.map((t) =>
+        t.saison_id === id ? { ...t, saison_id: null } : t
+      )
+    );
+  };
 
-  async function handleSavePromotion(e) {
+  // ==========================================
+  // GESTION DES PROMOTIONS
+  // ==========================================
+
+  const enregistrerPromotion = (e) => {
     e.preventDefault();
     setErreur("");
-    setSucces("");
-    setSavingPromo(true);
 
-    try {
-      const val = Number(promoValeur);
-      const payload = {
-        libelle: promoLibelle.trim(),
-        type_reduction: promoTypeReduction,
-        valeur: val,
-        date_debut: promoDateDebut || null,
-        date_fin: promoDateFin || null,
-        statut: promoStatut,
-      };
+    const valeur = Number(formPromotion.valeur);
+    const nuits = Number(formPromotion.nuits_min);
 
-      if (editingPromoId) {
-        await sendJsonRequest(
-          `${PROMOTIONS_API}/${editingPromoId}`,
-          "PUT",
-          payload
-        );
-        setSucces("Promotion modifiée avec succès.");
-      } else {
-        await sendJsonRequest(PROMOTIONS_API, "POST", payload);
-        setSucces("Promotion ajoutée avec succès.");
-      }
-
-      resetPromoForm();
-      await chargerDonnees();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setSavingPromo(false);
+    if (
+      !formPromotion.libelle.trim() ||
+      !dateValide(formPromotion.date_debut) ||
+      !dateValide(formPromotion.date_fin) ||
+      !Number.isFinite(valeur) ||
+      valeur <= 0
+    ) {
+      setErreur("Veuillez remplir correctement tous les champs.");
+      return;
     }
-  }
 
-  async function handleDeletePromo(id) {
+    if (formPromotion.date_fin < formPromotion.date_debut) {
+      setErreur("La date de fin doit être après la date de début.");
+      return;
+    }
+
+    if (
+      formPromotion.type_reduction === "POURCENTAGE" &&
+      valeur >= 100
+    ) {
+      setErreur("La réduction en pourcentage doit être inférieure à 100.");
+      return;
+    }
+
+    if (!Number.isInteger(nuits) || nuits < 1) {
+      setErreur("Le nombre minimum de nuits doit être supérieur à zéro.");
+      return;
+    }
+
+    const nouvellePromotion = {
+      ...formPromotion,
+      id: editionPromotion ?? Date.now(),
+      libelle: formPromotion.libelle.trim(),
+      valeur,
+      nuits_min: nuits,
+      chambre_id: formPromotion.chambre_id
+        ? Number(formPromotion.chambre_id)
+        : null,
+    };
+
+    setPromotions((anciennes) =>
+      editionPromotion
+        ? anciennes.map((p) =>
+            p.id === editionPromotion ? nouvellePromotion : p
+          )
+        : [...anciennes, nouvellePromotion]
+    );
+
+    setFormPromotion({
+      libelle: "",
+      type_reduction: "POURCENTAGE",
+      valeur: "",
+      nuits_min: "1",
+      chambre_id: "",
+      date_debut: "",
+      date_fin: "",
+      statut: "active",
+    });
+
+    setEditionPromotion(null);
+  };
+
+  const modifierPromotion = (promotion) => {
+    setEditionPromotion(promotion.id);
+    setFormPromotion({
+      ...promotion,
+      valeur: String(promotion.valeur),
+      nuits_min: String(promotion.nuits_min),
+      chambre_id: promotion.chambre_id
+        ? String(promotion.chambre_id)
+        : "",
+    });
+    setOnglet("promotions");
+  };
+
+  const supprimerPromotion = (id) => {
     if (!window.confirm("Supprimer cette promotion ?")) return;
-    setErreur("");
-    setSucces("");
-    try {
-      await sendJsonRequest(`${PROMOTIONS_API}/${id}`, "DELETE");
-      if (editingPromoId === id) resetPromoForm();
-      setSucces("Promotion supprimée avec succès.");
-      await chargerDonnees();
-    } catch (err) {
-      setErreur(err.message);
-    }
-  }
+
+    setPromotions((anciennes) =>
+      anciennes.filter((p) => p.id !== id)
+    );
+
+    setTarifs((anciens) =>
+      anciens.map((t) =>
+        t.promotion_id === id
+          ? { ...t, promotion_id: null }
+          : t
+      )
+    );
+  };
+
+  // ==========================================
+  // INTERFACE
+  // ==========================================
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.tabsBar}>
-        <button
-          type="button"
-          onClick={() => {
-            setErreur("");
-            setSucces("");
-            setActiveTab("tarifs");
-          }}
-          style={{
-            ...styles.tabBtn,
-            ...(activeTab === "tarifs" ? styles.tabBtnActive : {}),
-          }}
-        >
-          Tarifs & Mise à jour Chambre
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setErreur("");
-            setSucces("");
-            setActiveTab("saisons");
-          }}
-          style={{
-            ...styles.tabBtn,
-            ...(activeTab === "saisons" ? styles.tabBtnActive : {}),
-          }}
-        >
-          Saisons
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setErreur("");
-            setSucces("");
-            setActiveTab("promotions");
-          }}
-          style={{
-            ...styles.tabBtn,
-            ...(activeTab === "promotions" ? styles.tabBtnActive : {}),
-          }}
-        >
-          Promotions
-        </button>
+    <div className="tarifs-page">
+      <div className="tarifs-header">
+        <div>
+          <h1>Gestion des tarifs</h1>
+          <p>Gérez les prix, les saisons et les promotions.</p>
+        </div>
       </div>
 
-      {erreur && <div style={styles.error}>{erreur}</div>}
-      {succes && <div style={styles.success}>{succes}</div>}
+      <div className="tarifs-stats">
+        <div className="tarif-stat">
+          <span>Tarifs</span>
+          <strong>{tarifs.length}</strong>
+        </div>
+        <div className="tarif-stat">
+          <span>Saisons</span>
+          <strong>{saisons.length}</strong>
+        </div>
+        <div className="tarif-stat">
+          <span>Promotions actives</span>
+          <strong>
+            {promotions.filter((p) => p.statut === "active").length}
+          </strong>
+        </div>
+      </div>
 
-      {/* ==================== ONGLET TARIFS CRUD ==================== */}
-      {activeTab === "tarifs" && (
-        <div style={styles.grid2}>
-          <div style={styles.card}>
-            <div style={styles.titleRow}>
-              <h2 style={styles.title}>
-                {editingTarifId
-                  ? `Modifier le tarif #${editingTarifId}`
-                  : "Appliquer Saison & Promotion sur une chambre"}
-              </h2>
-              {editingTarifId && (
-                <button
-                  type="button"
-                  style={styles.btnCancel}
-                  onClick={resetTarifForm}
-                >
-                  Annuler
-                </button>
+      <div className="tarifs-tabs">
+        {[
+          ["tarifs", "Tarifs"],
+          ["saisons", "Saisons"],
+          ["promotions", "Promotions"],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            className={onglet === value ? "active" : ""}
+            onClick={() => {
+              setOnglet(value);
+              setErreur("");
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {erreur && <div className="tarifs-error">{erreur}</div>}
+
+      {/* ================================= */}
+      {/* ONGLET TARIFS */}
+      {/* ================================= */}
+
+      {onglet === "tarifs" && (
+        <div className="tarifs-content">
+          <form className="tarifs-form" onSubmit={enregistrerTarif}>
+            <h2>{editionTarif ? "Modifier le tarif" : "Ajouter un tarif"}</h2>
+
+            <label>Chambre</label>
+            <select
+              value={formTarif.chambre_id}
+              onChange={(e) =>
+                setFormTarif({
+                  ...formTarif,
+                  chambre_id: e.target.value,
+                })
+              }
+              required
+            >
+              <option value="">Sélectionner une chambre</option>
+              {CHAMBRES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  Chambre {c.numero} - {c.type}
+                </option>
+              ))}
+            </select>
+
+            <label>Prix de base (DH / nuit)</label>
+            <input
+              value={
+                chambreSelectionnee
+                  ? formatPrix(chambreSelectionnee.prix_base)
+                  : ""
+              }
+              placeholder="Prix automatique"
+              disabled
+            />
+
+            <label>Saison</label>
+            <select
+              value={formTarif.saison_id}
+              onChange={(e) =>
+                setFormTarif({
+                  ...formTarif,
+                  saison_id: e.target.value,
+                })
+              }
+            >
+              <option value="">Tarif standard (toute l'année)</option>
+              {saisons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nom} - coefficient {s.coefficient}
+                </option>
+              ))}
+            </select>
+
+            <label>Promotion</label>
+            <select
+              value={formTarif.promotion_id}
+              onChange={(e) =>
+                setFormTarif({
+                  ...formTarif,
+                  promotion_id: e.target.value,
+                })
+              }
+            >
+              <option value="">Aucune promotion</option>
+              {promotions
+                .filter((p) => p.statut === "active")
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.libelle} -{" "}
+                    {p.type_reduction === "POURCENTAGE"
+                      ? `${p.valeur}%`
+                      : `${p.valeur} DH`}
+                  </option>
+                ))}
+            </select>
+
+            <label>Statut</label>
+            <select
+              value={formTarif.statut}
+              onChange={(e) =>
+                setFormTarif({
+                  ...formTarif,
+                  statut: e.target.value,
+                })
+              }
+            >
+              <option value="active">Actif</option>
+              <option value="inactive">Inactif</option>
+            </select>
+
+            <div className="tarif-preview">
+              <span>Prix final par nuit</span>
+              <strong>
+                {chambreSelectionnee ? formatPrix(prixSimule) : "--"}
+              </strong>
+              {chambreSelectionnee && (
+                <small>
+                  Base : {formatPrix(chambreSelectionnee.prix_base)}
+                  {" "}× {saisonSelectionnee?.coefficient ?? 1}
+                  {promotionSelectionnee
+                    ? ` - ${promotionSelectionnee.libelle}`
+                    : ""}
+                </small>
               )}
             </div>
 
-            <form onSubmit={handleSaveTarif}>
-              <div style={styles.group}>
-                <label style={styles.label}>Numéro de chambre *</label>
-                <input
-                  type="text"
-                  style={styles.input}
-                  value={numeroChambre}
-                  onChange={(e) => setNumeroChambre(e.target.value)}
-                  placeholder="Ex. 101 ou 201"
-                  required
-                />
-              </div>
-
-              {numeroChambre.trim() && !chambreTrouvee && (
-                <div style={styles.error}>
-                  Aucune chambre trouvée avec le numéro "{numeroChambre.trim()}".
-                </div>
-              )}
-
-              {chambreTrouvee && (
-                <div style={styles.roomCard}>
-                  <div>
-                    Nom de la chambre : <strong>{nomChambre}</strong>
-                  </div>
-                  <div>
-                    Prix actuel de la chambre :{" "}
-                    <strong>{prixChambreActuel.toFixed(2)} MAD / nuit</strong>
-                  </div>
-                </div>
-              )}
-
-              <div style={styles.group}>
-                <label style={styles.label}>Date d'application</label>
-                <input
-                  type="date"
-                  style={styles.input}
-                  value={dateApplication}
-                  onChange={(e) => setDateApplication(e.target.value)}
-                />
-              </div>
-
-              {dateApplication && !editingTarifId && (
-                <div style={styles.autoBadgeBox}>
-                  <div>
-                    Saison détectée pour le <strong>{dateApplication}</strong> :{" "}
-                    <strong>
-                      {saisonAuto
-                        ? getLabelItem(saisonAuto)
-                        : "Aucune (Standard)"}
-                    </strong>
-                  </div>
-                  <div>
-                    Promotion détectée pour le{" "}
-                    <strong>{dateApplication}</strong> :{" "}
-                    <strong>
-                      {promotionAuto
-                        ? `${getLabelItem(promotionAuto)} (${formatPromoLabel(
-                            promotionAuto
-                          )})`
-                        : "Aucune"}
-                    </strong>
-                  </div>
-                </div>
-              )}
-
-              <div style={styles.group}>
-                <label style={styles.label}>Saison</label>
-                <select
-                  style={styles.select}
-                  value={saisonId}
-                  onChange={(e) => setSaisonId(e.target.value)}
-                >
-                  <option value="">Standard (×1.00)</option>
-                  {saisons.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {getLabelItem(s)} (×{getSaisonCoeff(s).toFixed(2)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={styles.group}>
-                <label style={styles.label}>Promotion</label>
-                <select
-                  style={styles.select}
-                  value={promotionId}
-                  onChange={(e) => setPromotionId(e.target.value)}
-                >
-                  <option value="">Aucune promotion</option>
-                  {promotions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {getLabelItem(p)} ({formatPromoLabel(p)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={styles.group}>
-                <label style={styles.label}>Statut</label>
-                <select
-                  style={styles.select}
-                  value={statut}
-                  onChange={(e) => setStatut(e.target.value)}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div style={styles.summaryBox}>
-                <div style={styles.row}>
-                  <span>Prix chambre actuel</span>
-                  <span>{prixChambreActuel.toFixed(2)} MAD</span>
-                </div>
-                <div style={styles.row}>
-                  <span>
-                    Saison (
-                    {saisonSelectionnee
-                      ? getLabelItem(saisonSelectionnee)
-                      : "Standard"}{" "}
-                    ×{coefficientSaison.toFixed(2)})
-                  </span>
-                  <span>{prixApresSaison.toFixed(2)} MAD</span>
-                </div>
-                <div style={styles.row}>
-                  <span>Promotion</span>
-                  <span>
-                    {promotionSelectionnee
-                      ? formatPromoLabel(promotionSelectionnee)
-                      : "0%"}
-                  </span>
-                </div>
-                <div style={styles.totalRow}>
-                  <span>Nouveau prix chambre</span>
-                  <span>{nouveauPrixChambre.toFixed(2)} MAD</span>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={!chambreTrouvee || savingTarif}
-                style={{
-                  ...styles.btnPrimary,
-                  ...(!chambreTrouvee || savingTarif ? styles.btnDisabled : {}),
-                }}
-              >
-                {savingTarif
-                  ? "Enregistrement..."
-                  : editingTarifId
-                  ? "Mettre à jour le tarif et la chambre"
-                  : "Appliquer directement sur la chambre"}
+            <div className="tarifs-actions">
+              <button type="submit" className="btn-primary">
+                {editionTarif ? "Modifier" : "Enregistrer"}
               </button>
-            </form>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.titleRow}>
-              <h2 style={styles.title}>Tarifs enregistrés</h2>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={reinitialiserTarif}
+              >
+                Annuler
+              </button>
             </div>
-            <table style={styles.table}>
+          </form>
+
+          <div className="tarifs-table-container">
+            <h2>Liste des tarifs</h2>
+            <table>
               <thead>
                 <tr>
-                  <th style={styles.th}>N° Chambre</th>
-                  <th style={styles.th}>Saison</th>
-                  <th style={styles.th}>Promo</th>
-                  <th style={styles.th}>Prix / nuit</th>
-                  <th style={styles.th}>Statut</th>
-                  <th style={styles.th}>Actions</th>
+                  <th>Chambre</th>
+                  <th>Prix de base</th>
+                  <th>Saison</th>
+                  <th>Promotion</th>
+                  <th>Prix final</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {tarifs.length === 0 ? (
-                  <tr>
-                    <td style={styles.td} colSpan="6">
-                      Aucun tarif enregistré.
-                    </td>
-                  </tr>
-                ) : (
-                  tarifs.map((t) => (
+                {tarifs.map((t) => {
+                  const saison = saisons.find(
+                    (s) => s.id === t.saison_id
+                  );
+                  const promotion = promotions.find(
+                    (p) => p.id === t.promotion_id
+                  );
+
+                  return (
                     <tr key={t.id}>
-                      <td style={styles.td}>
-                        <strong>{getNumeroFromTarif(t) || "—"}</strong>
+                      <td>{t.numero_chambre}</td>
+                      <td>{formatPrix(t.prix_base)}</td>
+                      <td>{saison?.nom ?? "Standard"}</td>
+                      <td>{promotion?.libelle ?? "Aucune"}</td>
+                      <td>
+                        <strong>{formatPrix(obtenirPrixTarif(t))}</strong>
                       </td>
-                      <td style={styles.td}>
-                        {t.saison ? getLabelItem(t.saison) : "Standard"}
-                      </td>
-                      <td style={styles.td}>-{t.promotion_pourcent ?? 0}%</td>
-                      <td style={styles.td}>
-                        <strong>
-                          {Number(t.prix_nuit ?? 0).toFixed(2)} MAD
-                        </strong>
-                      </td>
-                      <td style={styles.td}>
-                        <span
-                          style={
-                            (t.statut || "active") === "active"
-                              ? styles.badgeActive
-                              : styles.badgeInactive
-                          }
-                        >
-                          {t.statut || "active"}
+                      <td>
+                        <span className={`status ${t.statut}`}>
+                          {t.statut === "active" ? "Actif" : "Inactif"}
                         </span>
                       </td>
-                      <td style={styles.td}>
-                        <div style={styles.actionsCell}>
-                          <button
-                            type="button"
-                            style={styles.btnSecondary}
-                            onClick={() => handleEditTarif(t)}
-                          >
-                            Modifier
-                          </button>
-                          <button
-                            type="button"
-                            style={styles.btnDanger}
-                            onClick={() => handleDeleteTarif(t.id)}
-                          >
-                            Supprimer
-                          </button>
-                        </div>
+                      <td>
+                        <button onClick={() => modifierTarif(t)}>Modifier</button>
+                        <button onClick={() => supprimerTarif(t.id)}>
+                          Supprimer
+                        </button>
                       </td>
                     </tr>
-                  ))
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* ==================== ONGLET SAISONS CRUD ==================== */}
-      {activeTab === "saisons" && (
-        <div style={styles.grid2}>
-          <div style={styles.card}>
-            <div style={styles.titleRow}>
-              <h2 style={styles.title}>
-                {editingSaisonId
-                  ? `Modifier la saison #${editingSaisonId}`
-                  : "Ajouter une saison"}
-              </h2>
-              {editingSaisonId && (
-                <button
-                  type="button"
-                  style={styles.btnCancel}
-                  onClick={resetSaisonForm}
-                >
-                  Annuler
-                </button>
-              )}
-            </div>
+      {/* ================================= */}
+      {/* ONGLET SAISONS */}
+      {/* ================================= */}
 
-            <form onSubmit={handleSaveSaison}>
-              <div style={styles.group}>
-                <label style={styles.label}>Nom de la saison *</label>
-                <input
-                  type="text"
-                  style={styles.input}
-                  value={saisonNom}
-                  onChange={(e) => setSaisonNom(e.target.value)}
-                  placeholder="Ex. Haute Saison / Printemps"
-                  required
-                />
-              </div>
+      {onglet === "saisons" && (
+        <div className="tarifs-content">
+          <form className="tarifs-form" onSubmit={enregistrerSaison}>
+            <h2>{editionSaison ? "Modifier la saison" : "Ajouter une saison"}</h2>
 
-              <div style={styles.group}>
-                <label style={styles.label}>Coefficient *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.1"
-                  style={styles.input}
-                  value={saisonCoeff}
-                  onChange={(e) => setSaisonCoeff(e.target.value)}
-                  placeholder="Ex. 1.30"
-                  required
-                />
-              </div>
+            <label>Nom de la saison</label>
+            <input
+              value={formSaison.nom}
+              onChange={(e) =>
+                setFormSaison({ ...formSaison, nom: e.target.value })
+              }
+              placeholder="Ex. Haute saison"
+              required
+            />
 
-              <div style={styles.gridDates}>
-                <div style={styles.group}>
-                  <label style={styles.label}>Date de début *</label>
-                  <input
-                    type="date"
-                    style={styles.input}
-                    value={saisonDateDebut}
-                    onChange={(e) => setSaisonDateDebut(e.target.value)}
-                    required
-                  />
-                </div>
-                <div style={styles.group}>
-                  <label style={styles.label}>Date de fin *</label>
-                  <input
-                    type="date"
-                    style={styles.input}
-                    value={saisonDateFin}
-                    onChange={(e) => setSaisonDateFin(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+            <label>Coefficient</label>
+            <input
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value={formSaison.coefficient}
+              onChange={(e) =>
+                setFormSaison({
+                  ...formSaison,
+                  coefficient: e.target.value,
+                })
+              }
+              required
+            />
 
-              <div style={styles.group}>
-                <label style={styles.label}>Statut</label>
-                <select
-                  style={styles.select}
-                  value={saisonStatut}
-                  onChange={(e) => setSaisonStatut(e.target.value)}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+            <label>Date de début</label>
+            <input
+              type="date"
+              value={formSaison.date_debut}
+              onChange={(e) =>
+                setFormSaison({
+                  ...formSaison,
+                  date_debut: e.target.value,
+                })
+              }
+              required
+            />
 
+            <label>Date de fin</label>
+            <input
+              type="date"
+              value={formSaison.date_fin}
+              onChange={(e) =>
+                setFormSaison({
+                  ...formSaison,
+                  date_fin: e.target.value,
+                })
+              }
+              required
+            />
+
+            <div className="tarifs-actions">
+              <button className="btn-primary" type="submit">
+                {editionSaison ? "Modifier" : "Enregistrer"}
+              </button>
               <button
-                type="submit"
-                disabled={savingSaison}
-                style={{
-                  ...styles.btnPrimary,
-                  ...(savingSaison ? styles.btnDisabled : {}),
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setEditionSaison(null);
+                  setFormSaison({
+                    nom: "",
+                    coefficient: "1",
+                    date_debut: "",
+                    date_fin: "",
+                  });
+                  setErreur("");
                 }}
               >
-                {savingSaison
-                  ? "Enregistrement..."
-                  : editingSaisonId
-                  ? "Mettre à jour la saison"
-                  : "Enregistrer la saison"}
+                Annuler
               </button>
-            </form>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.titleRow}>
-              <h2 style={styles.title}>Saisons existantes</h2>
             </div>
-            <table style={styles.table}>
+          </form>
+
+          <div className="tarifs-table-container">
+            <h2>Liste des saisons</h2>
+            <table>
               <thead>
                 <tr>
-                  <th style={styles.th}>Nom</th>
-                  <th style={styles.th}>Coeff.</th>
-                  <th style={styles.th}>Période</th>
-                  <th style={styles.th}>Actions</th>
+                  <th>Nom</th>
+                  <th>Coefficient</th>
+                  <th>Date de début</th>
+                  <th>Date de fin</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {saisons.length === 0 ? (
-                  <tr>
-                    <td style={styles.td} colSpan="4">
-                      Aucune saison enregistrée.
+                {saisons.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.nom}</td>
+                    <td>× {s.coefficient}</td>
+                    <td>{formatDate(s.date_debut)}</td>
+                    <td>{formatDate(s.date_fin)}</td>
+                    <td>
+                      <button onClick={() => modifierSaison(s)}>Modifier</button>
+                      <button onClick={() => supprimerSaison(s.id)}>
+                        Supprimer
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  saisons.map((s) => (
-                    <tr key={s.id}>
-                      <td style={styles.td}>
-                        <strong>{getLabelItem(s)}</strong>
-                      </td>
-                      <td style={styles.td}>×{getSaisonCoeff(s).toFixed(2)}</td>
-                      <td style={styles.td}>
-                        {toInputDate(s.date_debut) || "—"} →{" "}
-                        {toInputDate(s.date_fin) || "—"}
-                      </td>
-                      <td style={styles.td}>
-                        <div style={styles.actionsCell}>
-                          <button
-                            type="button"
-                            style={styles.btnSecondary}
-                            onClick={() => handleEditSaison(s)}
-                          >
-                            Modifier
-                          </button>
-                          <button
-                            type="button"
-                            style={styles.btnDanger}
-                            onClick={() => handleDeleteSaison(s.id)}
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* ==================== ONGLET PROMOTIONS CRUD ==================== */}
-      {activeTab === "promotions" && (
-        <div style={styles.grid2}>
-          <div style={styles.card}>
-            <div style={styles.titleRow}>
-              <h2 style={styles.title}>
-                {editingPromoId
-                  ? `Modifier la promotion #${editingPromoId}`
-                  : "Ajouter une promotion"}
-              </h2>
-              {editingPromoId && (
-                <button
-                  type="button"
-                  style={styles.btnCancel}
-                  onClick={resetPromoForm}
-                >
-                  Annuler
-                </button>
-              )}
-            </div>
+      {/* ================================= */}
+      {/* ONGLET PROMOTIONS */}
+      {/* ================================= */}
 
-            <form onSubmit={handleSavePromotion}>
-              <div style={styles.group}>
-                <label style={styles.label}>Libellé de la promotion *</label>
-                <input
-                  type="text"
-                  style={styles.input}
-                  value={promoLibelle}
-                  onChange={(e) => setPromoLibelle(e.target.value)}
-                  placeholder="Ex. WEEKEND"
-                  required
-                />
-              </div>
+      {onglet === "promotions" && (
+        <div className="tarifs-content">
+          <form className="tarifs-form" onSubmit={enregistrerPromotion}>
+            <h2>
+              {editionPromotion ? "Modifier la promotion" : "Ajouter une promotion"}
+            </h2>
 
-              <div style={styles.gridDates}>
-                <div style={styles.group}>
-                  <label style={styles.label}>Type de réduction *</label>
-                  <select
-                    style={styles.select}
-                    value={promoTypeReduction}
-                    onChange={(e) => setPromoTypeReduction(e.target.value)}
-                  >
-                    <option value="POURCENTAGE">Pourcentage (%)</option>
-                    <option value="MONTANT_FIXE">Montant fixe (MAD)</option>
-                  </select>
-                </div>
+            <label>Nom de la promotion</label>
+            <input
+              value={formPromotion.libelle}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  libelle: e.target.value,
+                })
+              }
+              placeholder="Ex. Offre été"
+              required
+            />
 
-                <div style={styles.group}>
-                  <label style={styles.label}>
-                    Valeur ({promoTypeReduction === "MONTANT_FIXE" ? "MAD" : "%"}) *
-                  </label>
-                  <input
-                    type="number"
-                    min="0.5"
-                    max={promoTypeReduction === "POURCENTAGE" ? "99.99" : undefined}
-                    step="0.5"
-                    style={styles.input}
-                    value={promoValeur}
-                    onChange={(e) => setPromoValeur(e.target.value)}
-                    placeholder={
-                      promoTypeReduction === "MONTANT_FIXE" ? "Ex. 100" : "Ex. 15"
-                    }
-                    required
-                  />
-                </div>
-              </div>
+            <label>Chambre concernée</label>
+            <select
+              value={formPromotion.chambre_id}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  chambre_id: e.target.value,
+                })
+              }
+            >
+              <option value="">Toutes les chambres</option>
+              {CHAMBRES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  Chambre {c.numero}
+                </option>
+              ))}
+            </select>
 
-              <div style={styles.gridDates}>
-                <div style={styles.group}>
-                  <label style={styles.label}>Date de début *</label>
-                  <input
-                    type="date"
-                    style={styles.input}
-                    value={promoDateDebut}
-                    onChange={(e) => setPromoDateDebut(e.target.value)}
-                    required
-                  />
-                </div>
-                <div style={styles.group}>
-                  <label style={styles.label}>Date de fin *</label>
-                  <input
-                    type="date"
-                    style={styles.input}
-                    value={promoDateFin}
-                    onChange={(e) => setPromoDateFin(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+            <label>Type de réduction</label>
+            <select
+              value={formPromotion.type_reduction}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  type_reduction: e.target.value,
+                })
+              }
+            >
+              <option value="POURCENTAGE">Pourcentage (%)</option>
+              <option value="MONTANT_FIXE">Montant fixe (DH)</option>
+            </select>
 
-              <div style={styles.group}>
-                <label style={styles.label}>Statut</label>
-                <select
-                  style={styles.select}
-                  value={promoStatut}
-                  onChange={(e) => setPromoStatut(e.target.value)}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+            <label>Valeur de réduction</label>
+            <input
+              type="number"
+              min="0.01"
+              max={
+                formPromotion.type_reduction === "POURCENTAGE"
+                  ? 99.99
+                  : undefined
+              }
+              step="0.01"
+              value={formPromotion.valeur}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  valeur: e.target.value,
+                })
+              }
+              required
+            />
 
+            <label>Nombre minimum de nuits</label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={formPromotion.nuits_min}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  nuits_min: e.target.value,
+                })
+              }
+              required
+            />
+
+            <label>Date de début</label>
+            <input
+              type="date"
+              value={formPromotion.date_debut}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  date_debut: e.target.value,
+                })
+              }
+              required
+            />
+
+            <label>Date de fin</label>
+            <input
+              type="date"
+              value={formPromotion.date_fin}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  date_fin: e.target.value,
+                })
+              }
+              required
+            />
+
+            <label>Statut</label>
+            <select
+              value={formPromotion.statut}
+              onChange={(e) =>
+                setFormPromotion({
+                  ...formPromotion,
+                  statut: e.target.value,
+                })
+              }
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <div className="tarifs-actions">
+              <button type="submit" className="btn-primary">
+                {editionPromotion ? "Modifier" : "Enregistrer"}
+              </button>
               <button
-                type="submit"
-                disabled={savingPromo}
-                style={{
-                  ...styles.btnPrimary,
-                  ...(savingPromo ? styles.btnDisabled : {}),
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setEditionPromotion(null);
+                  setFormPromotion({
+                    libelle: "",
+                    type_reduction: "POURCENTAGE",
+                    valeur: "",
+                    nuits_min: "1",
+                    chambre_id: "",
+                    date_debut: "",
+                    date_fin: "",
+                    statut: "active",
+                  });
+                  setErreur("");
                 }}
               >
-                {savingPromo
-                  ? "Enregistrement..."
-                  : editingPromoId
-                  ? "Mettre à jour la promotion"
-                  : "Enregistrer la promotion"}
+                Annuler
               </button>
-            </form>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.titleRow}>
-              <h2 style={styles.title}>Promotions existantes</h2>
             </div>
-            <table style={styles.table}>
+          </form>
+
+          <div className="tarifs-table-container">
+            <h2>Liste des promotions</h2>
+            <table>
               <thead>
                 <tr>
-                  <th style={styles.th}>Libellé</th>
-                  <th style={styles.th}>Réduction</th>
-                  <th style={styles.th}>Dates</th>
-                  <th style={styles.th}>Statut</th>
-                  <th style={styles.th}>Actions</th>
+                  <th>Promotion</th>
+                  <th>Chambre</th>
+                  <th>Réduction</th>
+                  <th>Nuits min.</th>
+                  <th>Période</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {promotions.length === 0 ? (
-                  <tr>
-                    <td style={styles.td} colSpan="5">
-                      Aucune promotion disponible.
+                {promotions.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.libelle}</td>
+                    <td>
+                      {p.chambre_id
+                        ? CHAMBRES.find((c) => c.id === p.chambre_id)?.numero
+                        : "Toutes"}
+                    </td>
+                    <td>
+                      {p.type_reduction === "POURCENTAGE"
+                        ? `${p.valeur}%`
+                        : `${p.valeur} DH`}
+                    </td>
+                    <td>{p.nuits_min}</td>
+                    <td>
+                      {formatDate(p.date_debut)} - {formatDate(p.date_fin)}
+                    </td>
+                    <td>
+                      <span className={`status ${p.statut}`}>
+                        {p.statut === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>
+                      <button onClick={() => modifierPromotion(p)}>
+                        Modifier
+                      </button>
+                      <button onClick={() => supprimerPromotion(p.id)}>
+                        Supprimer
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  promotions.map((p) => (
-                    <tr key={p.id}>
-                      <td style={styles.td}>
-                        <strong>{getLabelItem(p)}</strong>
-                      </td>
-                      <td style={styles.td}>{formatPromoLabel(p)}</td>
-                      <td style={styles.td}>
-                        {toInputDate(p.date_debut) || "—"} →{" "}
-                        {toInputDate(p.date_fin) || "—"}
-                      </td>
-                      <td style={styles.td}>
-                        <span
-                          style={
-                            (p.statut || "active") === "active"
-                              ? styles.badgeActive
-                              : styles.badgeInactive
-                          }
-                        >
-                          {p.statut || "active"}
-                        </span>
-                      </td>
-                      <td style={styles.td}>
-                        <div style={styles.actionsCell}>
-                          <button
-                            type="button"
-                            style={styles.btnSecondary}
-                            onClick={() => handleEditPromo(p)}
-                          >
-                            Modifier
-                          </button>
-                          <button
-                            type="button"
-                            style={styles.btnDanger}
-                            onClick={() => handleDeletePromo(p.id)}
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>

@@ -28,7 +28,15 @@ import "./ReservationPage.css";
 // CONFIGURATION
 // ==================================================
 
-const aujourdhui = new Date().toISOString().slice(0, 10);
+function obtenirDateLocale(date = new Date()) {
+  const annee = date.getFullYear();
+  const mois = String(date.getMonth() + 1).padStart(2, "0");
+  const jour = String(date.getDate()).padStart(2, "0");
+
+  return `${annee}-${mois}-${jour}`;
+}
+
+const aujourdhui = obtenirDateLocale();
 
 const CHAMBRES_HOST = (
   import.meta.env.VITE_CHAMBRES_API_URL ||
@@ -49,12 +57,15 @@ const IMAGES_SECOURS = [
 // ==================================================
 
 function imageSecours(id) {
-  const idx = Math.abs(Number(id || 1) - 1) % IMAGES_SECOURS.length;
+  const idx =
+    Math.abs(Number(id || 1) - 1) % IMAGES_SECOURS.length;
+
   return IMAGES_SECOURS[idx];
 }
 
 function resoudreImageChambre(chambre) {
   let images = chambre?.images;
+
   if (typeof images === "string") {
     try {
       images = JSON.parse(images);
@@ -64,6 +75,7 @@ function resoudreImageChambre(chambre) {
   }
 
   const premiereImage = Array.isArray(images) ? images[0] : null;
+
   const brutObj =
     chambre?.image_url ||
     chambre?.image ||
@@ -74,12 +86,23 @@ function resoudreImageChambre(chambre) {
     typeof brutObj === "string"
       ? brutObj
       : brutObj && typeof brutObj === "object"
-        ? brutObj.url || brutObj.path || brutObj.chemin || brutObj.image || brutObj.src || ""
+        ? brutObj.url ||
+          brutObj.path ||
+          brutObj.chemin ||
+          brutObj.image ||
+          brutObj.src ||
+          ""
         : "";
 
-  if (!brut || typeof brut !== "string") return imageSecours(chambre?.id);
+  if (!brut || typeof brut !== "string") {
+    return imageSecours(chambre?.id);
+  }
 
-  if (brut.startsWith("http://") || brut.startsWith("https://") || brut.startsWith("data:")) {
+  if (
+    brut.startsWith("http://") ||
+    brut.startsWith("https://") ||
+    brut.startsWith("data:")
+  ) {
     return brut;
   }
 
@@ -99,16 +122,17 @@ function nomChambre(chambre) {
 function prixChambre(chambre) {
   return Number(
     chambre?.prix_nuit ??
-    chambre?.prixNuit ??
-    chambre?.prix ??
-    0
+      chambre?.prixNuit ??
+      chambre?.prix ??
+      0
   );
 }
 
 function jourSuivant(dateStr) {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+
+  return obtenirDateLocale(d);
 }
 
 function nombreNuits(debut, fin) {
@@ -116,7 +140,8 @@ function nombreNuits(debut, fin) {
 
   const diff = Math.round(
     (new Date(`${fin}T00:00:00`) -
-      new Date(`${debut}T00:00:00`)) / 86400000
+      new Date(`${debut}T00:00:00`)) /
+      86400000
   );
 
   return diff > 0 ? diff : 0;
@@ -133,6 +158,13 @@ function formaterDate(dateStr) {
       year: "numeric",
     }
   );
+}
+
+function formaterPrix(prix) {
+  return Number(prix || 0).toLocaleString("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function messageErreur(err) {
@@ -153,7 +185,6 @@ function messageErreur(err) {
 
 async function chargerChambres() {
   const res = await getChambres();
-
   const chambres = res?.data ?? res;
 
   return Array.isArray(chambres) ? chambres : [];
@@ -162,6 +193,26 @@ async function chargerChambres() {
 async function chargerChambreParId(id) {
   const res = await getChambre(id);
   return res?.data ?? res;
+}
+
+// ==================================================
+// EXTRACTION DU TOTAL RETOURNÉ PAR L'API TARIFS
+// ==================================================
+
+function extraireTotalTarifs(res) {
+  const total =
+    res?.total ??
+    res?.prix_total ??
+    res?.data?.total ??
+    res?.data?.prix_total;
+
+  if (total === undefined || total === null) {
+    return null;
+  }
+
+  const montant = Number(total);
+
+  return Number.isFinite(montant) ? montant : null;
 }
 
 // ==================================================
@@ -177,13 +228,45 @@ export default function ReservationPage() {
 
   const { user, isAuthenticated } = useAuth();
 
-  // ------------------------------------------------
-  // RÉCUPÉRATION DES DONNÉES DE DETAILCHAMBREPAGE
-  // ------------------------------------------------
+  // ==================================================
+  // DONNÉES TRANSMISES DEPUIS DETAILCHAMBREPAGE
+  // ==================================================
 
   const reservationState = location.state || {};
 
   const chambreTransmise = reservationState.chambre || null;
+
+  // Prix transmis depuis DetailChambrePage
+  const prixInitialTransmis = reservationState.prixTotal;
+
+  const detailsTarifsTransmis =
+    reservationState.detailsTarifs || [];
+
+  const promotionsTransmises =
+    reservationState.promotionsUtilisees || [];
+
+  const reductionTransmise = Number(
+    reservationState.reductionTotale || 0
+  );
+
+  const prixAvantPromotionTransmis = Number(
+    reservationState.prixAvantPromotion || 0
+  );
+
+  const prixTransmisValide =
+    prixInitialTransmis !== null &&
+    prixInitialTransmis !== undefined &&
+    Number.isFinite(Number(prixInitialTransmis));
+
+  const dateDebutInitiale =
+    reservationState.dateDebut ||
+    reservationState.dateArrivee ||
+    "";
+
+  const dateFinInitiale =
+    reservationState.dateFin ||
+    reservationState.dateDepart ||
+    "";
 
   const initialChambreId =
     paramChambreId ||
@@ -207,28 +290,27 @@ export default function ReservationPage() {
   const initialPersonnes =
     Number(
       reservationState.nombrePersonnes ||
-      searchParams.get("adultes")
+        searchParams.get("adultes")
     ) || 2;
 
-  // ------------------------------------------------
+  // ==================================================
   // ÉTATS DE RECHERCHE
-  // ------------------------------------------------
+  // ==================================================
 
   const [dateDebut, setDateDebut] = useState(initialDebut);
 
   const [dateFin, setDateFin] = useState(initialFin);
 
-  const [nombrePersonnes, setNombrePersonnes] = useState(
-    initialPersonnes
-  );
+  const [nombrePersonnes, setNombrePersonnes] =
+    useState(initialPersonnes);
 
   const [libres, setLibres] = useState(null);
 
   const [loadingRecherche, setLoadingRecherche] = useState(false);
 
-  // ------------------------------------------------
+  // ==================================================
   // ÉTATS DE LA CHAMBRE
-  // ------------------------------------------------
+  // ==================================================
 
   const [selectedChambre, setSelectedChambre] = useState(
     chambreTransmise
@@ -238,9 +320,9 @@ export default function ReservationPage() {
     Boolean(initialChambreId && !chambreTransmise)
   );
 
-  // ------------------------------------------------
+  // ==================================================
   // COORDONNÉES CLIENT
-  // ------------------------------------------------
+  // ==================================================
 
   const [telephone, setTelephone] = useState("");
 
@@ -248,23 +330,34 @@ export default function ReservationPage() {
 
   const [emailClient, setEmailClient] = useState("");
 
-  // ------------------------------------------------
+  // ==================================================
   // TARIFS
-  // ------------------------------------------------
+  // ==================================================
 
   const [prixTotalTarifs, setPrixTotalTarifs] = useState(
-    reservationState.prixTotal ?? null
+    prixTransmisValide ? Number(prixInitialTransmis) : null
   );
 
-  // ------------------------------------------------
+  const [loadingTarifs, setLoadingTarifs] = useState(false);
+
+  // ==================================================
   // CONFIRMATION
-  // ------------------------------------------------
+  // ==================================================
 
   const [submitting, setSubmitting] = useState(false);
 
   const [message, setMessage] = useState(null);
 
   const [confirmation, setConfirmation] = useState(null);
+
+  // ==================================================
+  // VÉRIFIER SI LES DATES SONT CELLES TRANSMISES
+  // ==================================================
+
+  const afficherDetailsTransmis =
+    Boolean(dateDebutInitiale && dateFinInitiale) &&
+    dateDebut === dateDebutInitiale &&
+    dateFin === dateFinInitiale;
 
   // ==================================================
   // PRÉREMPLIR LES INFORMATIONS CLIENT
@@ -293,9 +386,6 @@ export default function ReservationPage() {
       setLoadingChambre(true);
 
       try {
-        // Si la chambre est transmise depuis DetailChambrePage,
-        // on l'utilise directement sans nouvel appel API.
-
         const chambre = chambreTransmise
           ? chambreTransmise
           : await chargerChambreParId(initialChambreId);
@@ -324,7 +414,7 @@ export default function ReservationPage() {
     return () => {
       actif = false;
     };
-  }, [initialChambreId]);
+  }, [initialChambreId, chambreTransmise]);
 
   // ==================================================
   // RECHERCHE AUTOMATIQUE DEPUIS HOMEPAGE
@@ -346,6 +436,8 @@ export default function ReservationPage() {
 
   useEffect(() => {
     if (!selectedChambre || !dateDebut || !dateFin) {
+      setPrixTotalTarifs(null);
+      setLoadingTarifs(false);
       return;
     }
 
@@ -353,42 +445,71 @@ export default function ReservationPage() {
 
     if (nuits <= 0) {
       setPrixTotalTarifs(null);
+      setLoadingTarifs(false);
       return;
     }
 
     let actif = true;
 
-    getTarifs({
-      chambre_id: selectedChambre.id,
-      date_debut: dateDebut,
-      date_fin: dateFin,
-    })
-      .then((res) => {
+    // Si les dates n'ont pas changé, on conserve le prix
+    // exact calculé dans DetailChambrePage.
+    const datesIdentiques =
+      afficherDetailsTransmis &&
+      prixTransmisValide;
+
+    if (datesIdentiques) {
+      setPrixTotalTarifs(Number(prixInitialTransmis));
+      setLoadingTarifs(false);
+
+      return () => {
+        actif = false;
+      };
+    }
+
+    // Si les dates ont changé, on recalcule le tarif
+    // à partir du microservice Tarifs.
+    async function calculerTarif() {
+      setLoadingTarifs(true);
+      setPrixTotalTarifs(null);
+
+      try {
+        const res = await getTarifs({
+          chambre_id: selectedChambre.id,
+          date_debut: dateDebut,
+          date_fin: dateFin,
+        });
+
         if (!actif) return;
 
-        const total =
-          res?.total ??
-          res?.prix_total ??
-          res?.data?.total ??
-          res?.data?.prix_total;
-    
+        const total = extraireTotalTarifs(res);
 
-        setPrixTotalTarifs(
-          total !== undefined && total !== null
-            ? Number(total)
-            : null
-        );
-      })
-      .catch(() => {
+        setPrixTotalTarifs(total);
+      } catch (err) {
+        console.error("Erreur calcul tarif :", err);
+
         if (actif) {
           setPrixTotalTarifs(null);
         }
-      });
+      } finally {
+        if (actif) {
+          setLoadingTarifs(false);
+        }
+      }
+    }
+
+    calculerTarif();
 
     return () => {
       actif = false;
     };
-  }, [selectedChambre, dateDebut, dateFin]);
+  }, [
+    selectedChambre,
+    dateDebut,
+    dateFin,
+    afficherDetailsTransmis,
+    prixTransmisValide,
+    prixInitialTransmis,
+  ]);
 
   // ==================================================
   // MODIFIER LA DATE D'ARRIVÉE
@@ -419,6 +540,7 @@ export default function ReservationPage() {
         type: "error",
         text: "La date de départ doit être après la date d'arrivée.",
       });
+
       return;
     }
 
@@ -434,14 +556,21 @@ export default function ReservationPage() {
       ]);
 
       const occupees =
-        dispo.data?.chambres_occupees ?? [];
+        dispo?.data?.chambres_occupees ??
+        dispo?.chambres_occupees ??
+        [];
 
-      const disponibles = chambres.filter(
-        (c) =>
-          !occupees.includes(c.id) &&
-          (!c.capacite ||
-            c.capacite >= Number(nombrePersonnes))
-      );
+      const disponibles = chambres.filter((c) => {
+        const estOccupee = occupees.some(
+          (id) => Number(id) === Number(c.id)
+        );
+
+        const capaciteSuffisante =
+          !c.capacite ||
+          Number(nombrePersonnes) <= Number(c.capacite);
+
+        return !estOccupee && capaciteSuffisante;
+      });
 
       setLibres(disponibles);
     } catch (err) {
@@ -468,6 +597,7 @@ export default function ReservationPage() {
         type: "error",
         text: "Vous devez être connecté pour confirmer une réservation.",
       });
+
       return;
     }
 
@@ -476,6 +606,7 @@ export default function ReservationPage() {
         type: "error",
         text: "Veuillez sélectionner une chambre.",
       });
+
       return;
     }
 
@@ -484,6 +615,7 @@ export default function ReservationPage() {
         type: "error",
         text: "Veuillez saisir votre numéro de téléphone.",
       });
+
       return;
     }
 
@@ -494,6 +626,7 @@ export default function ReservationPage() {
         type: "error",
         text: "La date de départ doit être après la date d'arrivée.",
       });
+
       return;
     }
 
@@ -504,6 +637,25 @@ export default function ReservationPage() {
         type: "error",
         text: `Cette chambre accepte au maximum ${capacite} personnes.`,
       });
+
+      return;
+    }
+
+    if (loadingTarifs) {
+      setMessage({
+        type: "error",
+        text: "Le calcul du tarif est en cours. Veuillez patienter.",
+      });
+
+      return;
+    }
+
+    if (prixTotalTarifs === null || !Number.isFinite(Number(prixTotalTarifs))) {
+      setMessage({
+        type: "error",
+        text: "Impossible de déterminer le prix de votre séjour. Veuillez réessayer.",
+      });
+
       return;
     }
 
@@ -511,7 +663,6 @@ export default function ReservationPage() {
 
     try {
       // Vérifier la disponibilité avant la réservation.
-
       const check = await verifierChambre(
         selectedChambre.id,
         {
@@ -520,16 +671,23 @@ export default function ReservationPage() {
         }
       );
 
-      if (check?.data?.disponible === false) {
+      const disponible =
+        check?.data?.disponible ??
+        check?.disponible;
+
+      if (disponible === false) {
         setMessage({
           type: "error",
           text: "Désolé, cette chambre vient d'être réservée sur ces dates.",
         });
+
         return;
       }
 
-      // Créer la réservation dans le microservice.
+      // Le montant affiché est celui calculé pour les dates choisies.
+      const total = Number(prixTotalTarifs);
 
+      // Créer la réservation dans le microservice.
       const res = await creerReservation({
         chambre_id: Number(selectedChambre.id),
         date_debut: dateDebut,
@@ -538,15 +696,8 @@ export default function ReservationPage() {
         telephone: telephone.trim(),
       });
 
-      const prixNuit = prixChambre(selectedChambre);
-
-      const total =
-        prixTotalTarifs !== null
-          ? Number(prixTotalTarifs)
-          : prixNuit * nuits;
-
       setConfirmation({
-        id: res.data?.id,
+        id: res?.data?.id ?? res?.id ?? null,
         chambre: selectedChambre,
         dateDebut,
         dateFin,
@@ -574,7 +725,6 @@ export default function ReservationPage() {
     return (
       <section className="res-page">
         <div className="res-confirm-card">
-
           <span className="res-confirm-card__badge">
             Réservation confirmée
           </span>
@@ -592,7 +742,6 @@ export default function ReservationPage() {
           </p>
 
           <div className="res-confirm-card__grid">
-
             <div>
               <span>Hébergement</span>
               <strong>
@@ -604,8 +753,8 @@ export default function ReservationPage() {
               <span>Dates du séjour</span>
               <strong>
                 {formaterDate(confirmation.dateDebut)} →{" "}
-                {formaterDate(confirmation.dateFin)}
-                {" "}({confirmation.nuits} nuit
+                {formaterDate(confirmation.dateFin)} (
+                {confirmation.nuits} nuit
                 {confirmation.nuits > 1 ? "s" : ""})
               </strong>
             </div>
@@ -626,11 +775,10 @@ export default function ReservationPage() {
             <div>
               <span>Total à régler sur place</span>
               <strong>
-                {confirmation.total.toLocaleString("fr-FR")}{" "}
+                {formaterPrix(confirmation.total)}{" "}
                 {confirmation.devise}
               </strong>
             </div>
-
           </div>
 
           <div className="res-confirm-card__actions">
@@ -642,7 +790,6 @@ export default function ReservationPage() {
               Retour à l'accueil
             </Link>
           </div>
-
         </div>
       </section>
     );
@@ -655,7 +802,6 @@ export default function ReservationPage() {
   if (!selectedChambre && !loadingChambre) {
     return (
       <section className="res-page">
-
         <div className="res-header">
           <span className="badge">
             Disponibilités en temps réel
@@ -675,7 +821,6 @@ export default function ReservationPage() {
           className="res-search-bar"
           onSubmit={rechercherChambres}
         >
-
           <label className="res-search-bar__field">
             <span>Arrivée</span>
 
@@ -684,9 +829,7 @@ export default function ReservationPage() {
               value={dateDebut}
               min={aujourdhui}
               required
-              onChange={(e) =>
-                changerDebut(e.target.value)
-              }
+              onChange={(e) => changerDebut(e.target.value)}
             />
           </label>
 
@@ -698,9 +841,7 @@ export default function ReservationPage() {
               value={dateFin}
               min={dateDebut ? jourSuivant(dateDebut) : aujourdhui}
               required
-              onChange={(e) =>
-                setDateFin(e.target.value)
-              }
+              onChange={(e) => setDateFin(e.target.value)}
             />
           </label>
 
@@ -726,11 +867,8 @@ export default function ReservationPage() {
             className="btn-dark res-search-bar__btn"
             disabled={loadingRecherche}
           >
-            {loadingRecherche
-              ? "Recherche..."
-              : "Rechercher"}
+            {loadingRecherche ? "Recherche..." : "Rechercher"}
           </button>
-
         </form>
 
         {message && (
@@ -741,7 +879,6 @@ export default function ReservationPage() {
 
         {libres && (
           <div className="res-results">
-
             <h2 className="res-results__heading">
               {libres.length > 0
                 ? `${libres.length} chambre${libres.length > 1 ? "s" : ""} disponible${libres.length > 1 ? "s" : ""}`
@@ -749,7 +886,6 @@ export default function ReservationPage() {
             </h2>
 
             <div className="res-results__grid">
-
               {libres.map((chambre) => {
                 const prix = prixChambre(chambre);
 
@@ -758,7 +894,6 @@ export default function ReservationPage() {
                     key={chambre.id}
                     className="res-room-card"
                   >
-
                     <div className="res-room-card__media">
                       <img
                         src={resoudreImageChambre(chambre)}
@@ -772,7 +907,6 @@ export default function ReservationPage() {
                     </div>
 
                     <div className="res-room-card__body">
-
                       <div className="res-room-card__top">
                         <span className="res-room-card__tag">
                           Disponible
@@ -794,12 +928,12 @@ export default function ReservationPage() {
                       )}
 
                       <div className="res-room-card__footer">
-
                         <div className="res-room-card__price">
                           <strong>
-                            {prix} {chambre.devise || "MAD"}
+                            {formaterPrix(prix)}{" "}
+                            {chambre.devise || "MAD"}
                           </strong>
-                          <span> / nuit</span>
+                    
                         </div>
 
                         <button
@@ -812,17 +946,14 @@ export default function ReservationPage() {
                         >
                           Sélectionner
                         </button>
-
                       </div>
                     </div>
                   </article>
                 );
               })}
-
             </div>
           </div>
         )}
-
       </section>
     );
   }
@@ -860,9 +991,7 @@ export default function ReservationPage() {
 
   return (
     <section className="res-page">
-
       <div className="res-topbar">
-
         <div className="res-breadcrumb">
           <Link to="/">Accueil</Link>
 
@@ -885,7 +1014,6 @@ export default function ReservationPage() {
         </div>
 
         <div className="res-stepper">
-
           <div className="res-stepper__step is-active">
             <span className="res-stepper__num">1</span>
             <span>Coordonnées &amp; Séjour</span>
@@ -897,18 +1025,14 @@ export default function ReservationPage() {
             <span className="res-stepper__num">2</span>
             <span>Confirmation</span>
           </div>
-
         </div>
       </div>
 
       <div className="res-checkout">
-
         {/* COLONNE GAUCHE : FORMULAIRE */}
 
         <div className="res-checkout__main">
-
           <div className="res-checkout__intro">
-
             <span className="badge">
               HotelHub — Réservation directe
             </span>
@@ -921,12 +1045,10 @@ export default function ReservationPage() {
               Vérifiez les détails de votre séjour et renseignez
               votre numéro de téléphone pour confirmer.
             </p>
-
           </div>
 
           {!isAuthenticated && (
             <div className="res-alert res-alert--warning">
-
               <span>Vous n'êtes pas connecté.</span>
 
               <Link
@@ -936,7 +1058,6 @@ export default function ReservationPage() {
               >
                 Se connecter pour réserver →
               </Link>
-
             </div>
           )}
 
@@ -950,17 +1071,14 @@ export default function ReservationPage() {
             onSubmit={confirmerReservation}
             className="res-checkout__form"
           >
-
             {/* COORDONNÉES */}
 
             <div className="res-card">
-
               <h2 className="res-card__title">
                 Coordonnées du voyageur principal
               </h2>
 
               <div className="res-form-grid">
-
                 <label className="res-field">
                   <span>Nom complet</span>
 
@@ -1030,20 +1148,17 @@ export default function ReservationPage() {
                     Capacité maximale : {capaciteMax} personnes.
                   </small>
                 </label>
-
               </div>
             </div>
 
             {/* DATES DU SÉJOUR */}
 
             <div className="res-card">
-
               <h2 className="res-card__title">
                 Dates du séjour
               </h2>
 
               <div className="res-form-grid">
-
                 <label className="res-field">
                   <span>Date d'arrivée *</span>
 
@@ -1071,14 +1186,12 @@ export default function ReservationPage() {
                     }
                   />
                 </label>
-
               </div>
             </div>
 
             {/* MODALITÉS */}
 
             <div className="res-card res-card--notice">
-
               <h2 className="res-card__title">
                 Modalités de règlement
               </h2>
@@ -1092,28 +1205,32 @@ export default function ReservationPage() {
                 réservation à tout moment depuis la rubrique{" "}
                 <em>Mes réservations</em>.
               </p>
-
             </div>
 
             <button
               type="submit"
               className="btn-dark res-submit-btn"
-              disabled={submitting || !isAuthenticated}
+              disabled={
+                submitting ||
+                !isAuthenticated ||
+                loadingTarifs ||
+                prixTotalTarifs === null ||
+                nuits <= 0
+              }
             >
               {submitting
                 ? "Confirmation en cours..."
-                : "CONFIRMER LA RÉSERVATION →"}
+                : loadingTarifs
+                  ? "Calcul du tarif..."
+                  : "CONFIRMER LA RÉSERVATION →"}
             </button>
-
           </form>
         </div>
 
         {/* COLONNE DROITE : RÉCAPITULATIF */}
 
         <aside className="res-checkout__sidebar">
-
           <div className="res-summary">
-
             <img
               src={resoudreImageChambre(selectedChambre)}
               alt={nomChambre(selectedChambre)}
@@ -1125,7 +1242,6 @@ export default function ReservationPage() {
             />
 
             <div className="res-summary__body">
-
               <span className="res-summary__eyebrow">
                 {selectedChambre.type || "Hébergement d'exception"}
               </span>
@@ -1135,7 +1251,6 @@ export default function ReservationPage() {
               </h3>
 
               <div className="res-summary__specs">
-
                 <span>
                   Capacité : {capaciteMax} pers.
                 </span>
@@ -1145,11 +1260,9 @@ export default function ReservationPage() {
                     {selectedChambre.superficie} m²
                   </span>
                 )}
-
               </div>
 
               <div className="res-summary__dates">
-
                 <div>
                   <small>ARRIVÉE</small>
                   <strong>{formaterDate(dateDebut)}</strong>
@@ -1159,11 +1272,9 @@ export default function ReservationPage() {
                   <small>DÉPART</small>
                   <strong>{formaterDate(dateFin)}</strong>
                 </div>
-
               </div>
 
               <div className="res-summary__meta">
-
                 <span>
                   Durée :{" "}
                   <strong>
@@ -1175,52 +1286,75 @@ export default function ReservationPage() {
                   Voyageurs :{" "}
                   <strong>{nombrePersonnes}</strong>
                 </span>
-
               </div>
+
+              {/* DÉTAIL DU PRIX */}
 
               <div className="res-summary__breakdown">
-
                 <div className="res-summary__row">
+                
 
-                  <span>
-                    {nuits} nuit{nuits > 1 ? "s" : ""} ×{" "}
-                    {prixNuit} {devise}
-                  </span>
-
-                  <span>
-                    {(prixNuit * nuits).toLocaleString("fr-FR")}{" "}
-                    {devise}
-                  </span>
-
+                 
                 </div>
 
-                <div className="res-summary__row">
-                  <span>Taxes &amp; frais de service</span>
-                  <span>Inclus</span>
-                </div>
+           
+              
 
+                {/* PROMOTIONS UTILISÉES */}
+
+                {afficherDetailsTransmis &&
+                  promotionsTransmises.length > 0 && (
+                    <div className="res-summary__promotions">
+                      <strong>Promotions appliquées</strong>
+
+                      {promotionsTransmises.map((promotion, index) => (
+                        <div
+                          className="res-summary__row"
+                          key={promotion.id || index}
+                        >
+                          <span>
+                            {promotion.libelle ||
+                              promotion.nom ||
+                              "Promotion"}
+                          </span>
+
+                          <span>
+                            {promotion.valeur}
+                            {promotion.type_reduction === "pourcentage" ||
+                            promotion.type_reduction === "percentage"
+                              ? "%"
+                              : ` ${devise}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+         
               </div>
 
-              <div className="res-summary__total">
+              {/* TOTAL */}
 
+              <div className="res-summary__total">
                 <div>
                   <span>TOTAL SÉJOUR TTC</span>
 
                   <small>
-                    Règlement sur place à l'arrivée
+                    {loadingTarifs
+                      ? "Calcul du tarif en cours..."
+                      : "Règlement sur place à l'arrivée"}
                   </small>
                 </div>
 
                 <strong>
-                  {totalSejour.toLocaleString("fr-FR")} {devise}
+                  {loadingTarifs
+                    ? "Calcul..."
+                    : `${formaterPrix(totalSejour)} ${devise}`}
                 </strong>
-
               </div>
-
             </div>
           </div>
         </aside>
-
       </div>
     </section>
   );

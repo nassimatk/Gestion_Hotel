@@ -1,56 +1,104 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getChambres } from "../../services/chambresApi";
+import { tarifsApi } from "../../services/tarifsApi";
 import { useAuth } from "../../context/AuthContext";
 import ClientAvisPage from "./ClientAvisPage";
 import "./DetailChambrePage.css";
+
+// ==================================================
+// CONFIGURATION IMAGES
+// ==================================================
 
 const STORAGE_URL =
   import.meta.env.VITE_CHAMBRES_STORAGE_URL ||
   "http://localhost:8001/storage";
 
 // ==================================================
+// IMAGES DE SECOURS
+// ==================================================
+
+const DEFAULT_IMAGES = [
+  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
+  "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80",
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
+  "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80",
+  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
+  "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&q=80",
+];
+
+// ==================================================
 // EXTRACTION DES DONNÉES API
 // ==================================================
 
 const extraireListe = (response) => {
-  let data = response;
+  let data = response?.data ?? response;
 
   for (let i = 0; i < 3; i++) {
-    if (
-      data &&
-      !Array.isArray(data) &&
-      typeof data === "object" &&
-      Object.prototype.hasOwnProperty.call(data, "data")
-    ) {
+    if (Array.isArray(data)) return data;
+
+    if (data && typeof data === "object" && data.data !== undefined) {
       data = data.data;
-    } else {
-      break;
+      continue;
     }
+
+    break;
   }
 
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.chambres)) return data.chambres;
+  if (Array.isArray(data?.saisons)) return data.saisons;
+  if (Array.isArray(data?.promotions)) return data.promotions;
 
   return [];
 };
 
 // ==================================================
-// GESTION DES IMAGES
+// EXTRACTION DES CHEMINS DES IMAGES
 // ==================================================
 
 const extraireCheminImage = (image) => {
-  if (typeof image === "string") return image;
+  if (!image) return "";
 
-  if (image && typeof image === "object") {
-    return (
+  if (typeof image === "string") {
+    const valeur = image.trim();
+
+    if (!valeur) return "";
+
+    if (valeur.startsWith("[") || valeur.startsWith("{")) {
+      try {
+        return extraireCheminImage(JSON.parse(valeur));
+      } catch {
+        return valeur;
+      }
+    }
+
+    return valeur;
+  }
+
+  if (Array.isArray(image)) {
+    return image
+      .flatMap((item) => {
+        const resultat = extraireCheminImage(item);
+        return Array.isArray(resultat) ? resultat : [resultat];
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof image === "object") {
+    return extraireCheminImage(
       image.url ||
+      image.image_url ||
       image.path ||
       image.chemin ||
-      image.image ||
-      image.src ||
+      image.chemin_image ||
       image.filename ||
+      image.file_name ||
+      image.src ||
+      image.image ||
+      image.photo ||
       ""
     );
   }
@@ -58,59 +106,100 @@ const extraireCheminImage = (image) => {
   return "";
 };
 
+// ==================================================
+// CONSTRUCTION DES URL DES IMAGES
+// ==================================================
+
 const getRoomImage = (image) => {
-  const chemin = extraireCheminImage(image).trim();
+  const chemin = extraireCheminImage(image);
 
-  if (!chemin) return "";
-
-  if (/^(https?:\/\/|data:|blob:)/i.test(chemin)) {
-    return chemin;
+  if (Array.isArray(chemin)) {
+    return chemin.map(getRoomImage).filter(Boolean);
   }
 
-  const cheminNettoye = chemin
+  if (!chemin || typeof chemin !== "string") return "";
+
+  const valeur = chemin.trim();
+
+  if (!valeur) return "";
+
+  if (/^(https?:\/\/|data:|blob:)/i.test(valeur)) {
+    return valeur;
+  }
+
+  const cheminNettoye = valeur
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
-    .replace(/^(public\/)?storage\//, "")
-    .replace(/^public\//, "");
+    .replace(/^(public\/)?storage\//i, "")
+    .replace(/^public\//i, "");
 
   return `${STORAGE_URL.replace(/\/+$/, "")}/${cheminNettoye}`;
 };
 
+// ==================================================
+// RÉCUPÉRATION DE TOUTES LES IMAGES
+// ==================================================
+
 const getRoomImages = (room) => {
-  let images = room?.images;
+  if (!room) return [DEFAULT_IMAGES[0]];
 
-  if (!images) return [];
+  let source =
+    room.images ??
+    room.photos ??
+    room.galerie ??
+    room.image ??
+    room.image_url ??
+    room.photo ??
+    [];
 
-  if (typeof images === "string") {
+  if (typeof source === "string") {
     try {
-      images = JSON.parse(images);
+      source = JSON.parse(source);
     } catch {
-      images = [images];
+      source = source.trim() ? [source] : [];
     }
   }
 
-  if (!Array.isArray(images)) {
-    images = [images];
+  if (!Array.isArray(source)) {
+    source = source ? [source] : [];
   }
 
-  return images.map(getRoomImage).filter(Boolean);
+  const imagesReelles = source
+    .flatMap((image) => {
+      const resultat = getRoomImage(image);
+      return Array.isArray(resultat) ? resultat : [resultat];
+    })
+    .filter(
+      (url) => typeof url === "string" && url.trim().length > 0
+    );
+
+  if (imagesReelles.length === 0) {
+    return [DEFAULT_IMAGES[0]];
+  }
+
+  return imagesReelles;
 };
 
 // ==================================================
-// FORMATAGE DES PRIX
+// FORMATAGE
 // ==================================================
 
 const formatPrix = (valeur) => {
   const prix = Number(valeur || 0);
 
-  return `${new Intl.NumberFormat("fr-FR").format(
-    Number.isFinite(prix) ? prix : 0
-  )} DH`;
+  return `${new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(prix) ? prix : 0)} MAD`;
 };
 
-// ==================================================
-// DATES
-// ==================================================
+const formaterDateClient = (date) => {
+  if (!date) return "—";
+
+  const [annee, mois, jour] = String(date).slice(0, 10).split("-");
+
+  return `${jour}/${mois}/${annee}`;
+};
 
 const getDateAujourdhui = () => {
   const date = new Date();
@@ -137,6 +226,10 @@ const lendemain = (dateStr) => {
   ].join("-");
 };
 
+// ==================================================
+// CALCUL DES NUITS
+// ==================================================
+
 const nombreNuits = (arrivee, depart) => {
   if (!arrivee || !depart) return 0;
 
@@ -151,8 +244,32 @@ const nombreNuits = (arrivee, depart) => {
   return diff > 0 ? Math.round(diff / 86400000) : 0;
 };
 
+const obtenirDatesDuSejour = (arrivee, depart) => {
+  const dates = [];
+
+  if (!arrivee || !depart) return dates;
+
+  const [a1, m1, j1] = arrivee.split("-").map(Number);
+  const [a2, m2, j2] = depart.split("-").map(Number);
+
+  const date = new Date(a1, m1 - 1, j1);
+  const dateFin = new Date(a2, m2 - 1, j2);
+
+  while (date < dateFin) {
+    const annee = date.getFullYear();
+    const mois = String(date.getMonth() + 1).padStart(2, "0");
+    const jour = String(date.getDate()).padStart(2, "0");
+
+    dates.push(`${annee}-${mois}-${jour}`);
+
+    date.setDate(date.getDate() + 1);
+  }
+
+  return dates;
+};
+
 // ==================================================
-// NORMALISATION DES CRITÈRES DE RECHERCHE
+// RECHERCHE
 // ==================================================
 
 const normaliserCriteres = (criteres) => {
@@ -188,7 +305,7 @@ const normaliserCriteres = (criteres) => {
 };
 
 // ==================================================
-// EXTRACTION DES ÉQUIPEMENTS
+// ÉQUIPEMENTS
 // ==================================================
 
 const extraireEquipements = (equipements) => {
@@ -206,26 +323,78 @@ const extraireEquipements = (equipements) => {
 };
 
 // ==================================================
-// COMPOSANT IMAGE
+// STATUTS ET PÉRIODES
 // ==================================================
 
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80";
+const normaliserStatut = (value) => {
+  return (
+    value === true ||
+    value === 1 ||
+    ["actif", "active", "1", "true"].includes(
+      String(value ?? "").trim().toLowerCase()
+    )
+  );
+};
 
-function ImageChambre({ src, alt, className = "" }) {
-  const [erreur, setErreur] = useState(false);
+const dateDansPeriode = (date, debut, fin) => {
+  if (!date || !debut || !fin) return false;
+
+  const jour = String(date).slice(0, 10);
+  const dateDebut = String(debut).slice(0, 10);
+  const dateFin = String(fin).slice(0, 10);
+
+  return jour >= dateDebut && jour <= dateFin;
+};
+
+// ==================================================
+// CALCUL DES RÉDUCTIONS
+// ==================================================
+
+const calculerReduction = (prix, promotion) => {
+  const valeur = Number(promotion?.valeur || 0);
+
+  if (!promotion || !Number.isFinite(valeur) || valeur <= 0) {
+    return prix;
+  }
+
+  if (promotion.type_reduction === "MONTANT_FIXE") {
+    return Math.max(0, prix - valeur);
+  }
+
+  if (promotion.type_reduction === "POURCENTAGE") {
+    return Math.max(0, prix * (1 - valeur / 100));
+  }
+
+  return prix;
+};
+
+// ==================================================
+// IMAGE CHAMBRE AVEC SECOURS AUTOMATIQUE
+// ==================================================
+
+function ImageChambre({
+  src,
+  alt,
+  className = "",
+  fallbackSrc = DEFAULT_IMAGES[0],
+}) {
+  const [imageActuelle, setImageActuelle] = useState(src);
 
   useEffect(() => {
-    setErreur(false);
+    setImageActuelle(src);
   }, [src]);
 
   return (
     <img
-      src={!src || erreur ? FALLBACK_IMAGE : src}
+      src={imageActuelle || fallbackSrc}
       alt={alt}
       className={className}
       loading="lazy"
-      onError={() => setErreur(true)}
+      onError={() => {
+        if (imageActuelle !== fallbackSrc) {
+          setImageActuelle(fallbackSrc);
+        }
+      }}
     />
   );
 }
@@ -241,9 +410,7 @@ function DetailChambrePage() {
 
   const { isAuthenticated } = useAuth();
 
-  // ==================================================
-  // RÉCUPÉRATION DES DONNÉES TRANSMISES
-  // ==================================================
+  // CRITÈRES DE RECHERCHE
 
   const criteresRecherche = useMemo(
     () => normaliserCriteres(location.state?.criteresRecherche),
@@ -252,13 +419,7 @@ function DetailChambrePage() {
 
   const chambreTransmise = location.state?.chambre;
 
-  // Résultat déjà obtenu auprès du microservice Disponibilités
-  const disponibiliteRecherche =
-    chambreTransmise?.disponibilite || null;
-
-  // ==================================================
-  // ÉTATS
-  // ==================================================
+  // ÉTATS CHAMBRE
 
   const [chambre, setChambre] = useState(() => {
     if (
@@ -274,6 +435,16 @@ function DetailChambrePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ÉTATS TARIFS
+
+  const [saisons, setSaisons] = useState([]);
+  const [promotions, setPromotions] = useState([]);
+
+  const [chargementTarifs, setChargementTarifs] = useState(true);
+  const [erreurTarifs, setErreurTarifs] = useState("");
+
+  // ÉTATS RÉSERVATION
+
   const [arrivee, setArrivee] = useState(
     criteresRecherche?.dateArrivee || ""
   );
@@ -286,13 +457,15 @@ function DetailChambrePage() {
     criteresRecherche?.nombrePersonnes || 1
   );
 
+  const [erreurReservation, setErreurReservation] = useState("");
+
+  // GALERIE
+
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [indexActif, setIndexActif] = useState(0);
 
-  const [erreurReservation, setErreurReservation] = useState("");
-
   // ==================================================
-  // CHARGEMENT DE LA CHAMBRE
+  // CHARGEMENT CHAMBRE
   // ==================================================
 
   useEffect(() => {
@@ -303,7 +476,6 @@ function DetailChambrePage() {
         setError("");
         setLoading(true);
 
-        // 1. Utiliser directement la chambre transmise
         if (
           chambreTransmise &&
           String(chambreTransmise.id) === String(id)
@@ -315,7 +487,6 @@ function DetailChambrePage() {
           return;
         }
 
-        // 2. Sinon récupérer les chambres depuis le microservice Chambres
         setChambre(null);
 
         const response = await getChambres();
@@ -333,7 +504,6 @@ function DetailChambrePage() {
         }
 
         setChambre(chambreTrouvee);
-
       } catch (err) {
         console.error("Erreur chargement chambre :", err);
 
@@ -345,9 +515,7 @@ function DetailChambrePage() {
           );
         }
       } finally {
-        if (actif) {
-          setLoading(false);
-        }
+        if (actif) setLoading(false);
       }
     };
 
@@ -359,21 +527,69 @@ function DetailChambrePage() {
   }, [id, location.key, chambreTransmise]);
 
   // ==================================================
-  // SYNCHRONISATION DES CRITÈRES DE RECHERCHE
+  // CHARGEMENT SAISONS ET PROMOTIONS
+  // VIA LE SERVICE CENTRALISÉ TARIFS API
+  // ==================================================
+
+  useEffect(() => {
+    let actif = true;
+
+    const chargerTarifs = async () => {
+      setChargementTarifs(true);
+      setErreurTarifs("");
+
+      try {
+        const [saisonsRes, promotionsRes] = await Promise.all([
+          tarifsApi.getAllSaisons(),
+          tarifsApi.getAllPromotions(),
+        ]);
+
+        if (!actif) return;
+
+        setSaisons(extraireListe(saisonsRes));
+        setPromotions(extraireListe(promotionsRes));
+
+      } catch (err) {
+        console.error(
+          "Erreur chargement saisons et promotions :",
+          err.response?.data || err
+        );
+
+        if (actif) {
+          setErreurTarifs(
+            "Les tarifs promotionnels sont momentanément indisponibles."
+          );
+
+          setSaisons([]);
+          setPromotions([]);
+        }
+      } finally {
+        if (actif) {
+          setChargementTarifs(false);
+        }
+      }
+    };
+
+    chargerTarifs();
+
+    return () => {
+      actif = false;
+    };
+  }, []);
+
+  // ==================================================
+  // SYNCHRONISATION CRITÈRES
   // ==================================================
 
   useEffect(() => {
     setArrivee(criteresRecherche?.dateArrivee || "");
     setDepart(criteresRecherche?.dateDepart || "");
 
-    setVoyageurs(
-      criteresRecherche?.nombrePersonnes || 1
-    );
+    setVoyageurs(criteresRecherche?.nombrePersonnes || 1);
 
     setIndexActif(0);
     setLightboxOpen(false);
     setErreurReservation("");
-
   }, [
     id,
     location.key,
@@ -401,7 +617,7 @@ function DetailChambrePage() {
   );
 
   // ==================================================
-  // CAPACITÉ DE LA CHAMBRE
+  // CAPACITÉ
   // ==================================================
 
   const capacite = useMemo(() => {
@@ -417,10 +633,8 @@ function DetailChambrePage() {
     return Number.isFinite(nombre) && nombre > 0
       ? Math.floor(nombre)
       : 1;
-
   }, [chambre]);
 
-  // Limiter le nombre de voyageurs à la capacité
   useEffect(() => {
     if (!chambre) return;
 
@@ -433,11 +647,10 @@ function DetailChambrePage() {
 
       return Math.min(Math.floor(nombre), capacite);
     });
-
   }, [chambre, capacite]);
 
   // ==================================================
-  // GALERIE : NAVIGATION CLAVIER
+  // NAVIGATION GALERIE
   // ==================================================
 
   useEffect(() => {
@@ -469,7 +682,6 @@ function DetailChambrePage() {
       document.body.style.overflow = ancienOverflow;
       window.removeEventListener("keydown", onKey);
     };
-
   }, [lightboxOpen, images.length]);
 
   // ==================================================
@@ -477,12 +689,181 @@ function DetailChambrePage() {
   // ==================================================
 
   const nuits = nombreNuits(arrivee, depart);
-
-  const prixNuit = Number(chambre?.prix_nuit || 0);
-
-  const sousTotal = nuits * prixNuit;
-
+  const prixNaturel = Number(chambre?.prix_nuit || 0);
   const nombreVoyageurs = Number(voyageurs);
+
+  const datesSejour = useMemo(
+    () => obtenirDatesDuSejour(arrivee, depart),
+    [arrivee, depart]
+  );
+
+  // ==================================================
+  // CALCUL SAISONS ET PROMOTIONS
+  // ==================================================
+
+  const detailsPrix = useMemo(() => {
+    if (
+      !chambre ||
+      !Number.isFinite(prixNaturel) ||
+      prixNaturel <= 0 ||
+      datesSejour.length === 0
+    ) {
+      return {
+        lignes: [],
+        total: 0,
+        totalNaturel: 0,
+        totalAvantPromotion: 0,
+        reductionTotale: 0,
+        prixMoyen: prixNaturel,
+        promotionsUtilisees: [],
+      };
+    }
+
+    const lignes = datesSejour.map((date) => {
+      const saisonsApplicables = saisons
+        .filter((saison) =>
+          dateDansPeriode(date, saison.date_debut, saison.date_fin)
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.date_debut) - new Date(b.date_debut)
+        );
+
+      const saison = saisonsApplicables[0] || null;
+
+      const coefficient =
+        saison && Number(saison.coefficient) > 0
+          ? Number(saison.coefficient)
+          : 1;
+
+      const prixSaison = prixNaturel * coefficient;
+
+      const promotionsApplicables = promotions.filter(
+        (promotion) => {
+          if (
+            !normaliserStatut(
+              promotion.statut ?? promotion.active
+            )
+          ) {
+            return false;
+          }
+
+          if (
+            !dateDansPeriode(
+              date,
+              promotion.date_debut,
+              promotion.date_fin
+            )
+          ) {
+            return false;
+          }
+
+          if (
+            Number(promotion.nuits_min || 1) >
+            datesSejour.length
+          ) {
+            return false;
+          }
+
+          if (
+            promotion.chambre_id !== null &&
+            promotion.chambre_id !== undefined &&
+            promotion.chambre_id !== "" &&
+            String(promotion.chambre_id) !== String(chambre.id)
+          ) {
+            return false;
+          }
+
+          const valeur = Number(promotion.valeur);
+
+          if (!Number.isFinite(valeur) || valeur <= 0) {
+            return false;
+          }
+
+          if (
+            promotion.type_reduction === "POURCENTAGE" &&
+            valeur > 100
+          ) {
+            return false;
+          }
+
+          if (
+            !["POURCENTAGE", "MONTANT_FIXE"].includes(
+              promotion.type_reduction
+            )
+          ) {
+            return false;
+          }
+
+          return true;
+        }
+      );
+
+      const promotionsTriees = promotionsApplicables
+        .map((promotion) => ({
+          promotion,
+          prix: calculerReduction(prixSaison, promotion),
+        }))
+        .sort((a, b) => a.prix - b.prix);
+
+      const meilleurePromotion = promotionsTriees[0] || null;
+
+      const prixFinal = meilleurePromotion
+        ? meilleurePromotion.prix
+        : prixSaison;
+
+      return {
+        date,
+        saison,
+        coefficient,
+        prixNaturel,
+        prixSaison,
+        promotion: meilleurePromotion?.promotion || null,
+        prixFinal,
+        reduction: prixSaison - prixFinal,
+      };
+    });
+
+    const total = lignes.reduce(
+      (somme, ligne) => somme + ligne.prixFinal,
+      0
+    );
+
+    const totalNaturel = lignes.reduce(
+      (somme, ligne) => somme + ligne.prixNaturel,
+      0
+    );
+
+    const totalAvantPromotion = lignes.reduce(
+      (somme, ligne) => somme + ligne.prixSaison,
+      0
+    );
+
+    const reductionTotale = totalAvantPromotion - total;
+
+    const promotionsUtilisees = [
+      ...new Map(
+        lignes
+          .filter((ligne) => ligne.promotion)
+          .map((ligne) => [
+            ligne.promotion.id,
+            ligne.promotion,
+          ])
+      ).values(),
+    ];
+
+    return {
+      lignes,
+      total,
+      totalNaturel,
+      totalAvantPromotion,
+      reductionTotale,
+      prixMoyen: total / lignes.length,
+      promotionsUtilisees,
+    };
+  }, [chambre, prixNaturel, datesSejour, saisons, promotions]);
+
+  const sousTotal = detailsPrix.total;
 
   // ==================================================
   // CARACTÉRISTIQUES
@@ -490,8 +871,14 @@ function DetailChambrePage() {
 
   const caracteristiques = chambre
     ? [
-        { icone: "▢", texte: `${chambre.superficie || 0} m²` },
-        { icone: "☺", texte: `${capacite} voyageur(s)` },
+        {
+          icone: "▢",
+          texte: `${chambre.superficie || 0} m²`,
+        },
+        {
+          icone: "☺",
+          texte: `${capacite} voyageur(s)`,
+        },
         {
           icone: "↕",
           texte: `Étage ${chambre.etage ?? "Non précisé"}`,
@@ -536,9 +923,7 @@ function DetailChambrePage() {
       navigate("/login", {
         state: {
           from: location.pathname,
-
           chambreId: chambre.id,
-
           criteresRecherche: {
             dateArrivee: arrivee,
             dateDepart: depart,
@@ -581,29 +966,84 @@ function DetailChambrePage() {
       return;
     }
 
-    // Transmettre les informations à la page Réservation
-    navigate("/reservation", {
-      state: {
-        chambreId: chambre.id,
+    if (prixNaturel <= 0) {
+      setErreurReservation(
+        "Le prix de cette chambre est indisponible."
+      );
+      return;
+    }
 
-        dateDebut: arrivee,
-        dateFin: depart,
+    if (chargementTarifs || erreurTarifs) {
+      setErreurReservation(
+        "Impossible de vérifier les tarifs. Veuillez réessayer."
+      );
+      return;
+    }
 
-        nombrePersonnes: nombreVoyageurs,
+   navigate("/reservation", {
+  state: {
+    // Informations de la chambre
+    chambreId: chambre.id,
+    chambre,
 
-        chambre: chambre,
+    // Informations du séjour
+    dateDebut: arrivee,
+    dateFin: depart,
+    dateArrivee: arrivee,
+    dateDepart: depart,
+    nombrePersonnes: nombreVoyageurs,
 
-        criteresRecherche: {
-          dateArrivee: arrivee,
-          dateDepart: depart,
-          nombrePersonnes: nombreVoyageurs,
-        },
-      },
-    });
+    // Prix calculés dans DetailChambrePage
+    prixNuit: prixNaturel,
+    prixTotal: Number(sousTotal.toFixed(2)),
+    prixAvantPromotion: Number(
+      detailsPrix.totalAvantPromotion.toFixed(2)
+    ),
+    reductionTotale: Number(
+      detailsPrix.reductionTotale.toFixed(2)
+    ),
+
+    // Détail des tarifs par nuit
+    detailsTarifs: detailsPrix.lignes.map((ligne) => ({
+      date: ligne.date,
+      prixNaturel: ligne.prixNaturel,
+      prixSaison: ligne.prixSaison,
+      coefficient: ligne.coefficient,
+      saison: ligne.saison?.nom || null,
+      prixFinal: ligne.prixFinal,
+      reduction: ligne.reduction,
+      promotion: ligne.promotion
+        ? {
+            id: ligne.promotion.id,
+            libelle: ligne.promotion.libelle,
+            valeur: ligne.promotion.valeur,
+            type_reduction: ligne.promotion.type_reduction,
+          }
+        : null,
+    })),
+
+    // Promotions utilisées
+    promotionsUtilisees: detailsPrix.promotionsUtilisees.map(
+      (promotion) => ({
+        id: promotion.id,
+        libelle: promotion.libelle,
+        valeur: promotion.valeur,
+        type_reduction: promotion.type_reduction,
+      })
+    ),
+
+    // Critères de recherche
+    criteresRecherche: {
+      dateArrivee: arrivee,
+      dateDepart: depart,
+      nombrePersonnes: nombreVoyageurs,
+    },
+  },
+});
   };
 
   // ==================================================
-  // ÉTATS DE CHARGEMENT ET ERREURS
+  // CHARGEMENT ET ERREURS
   // ==================================================
 
   if (loading) {
@@ -640,74 +1080,51 @@ function DetailChambrePage() {
     <div className="detail-chambre-page">
       <div className="detail-container">
 
+        {/* GALERIE DES IMAGES */}
 
- 
+        <div className="detail-gallery">
+          {images.map((image, index) => (
+            <div
+              key={`${image}-${index}`}
+              className={`gallery-item ${
+                index === 0 ? "gallery-main" : "gallery-side"
+              }`}
+              onClick={() => {
+                setIndexActif(index);
+                setLightboxOpen(true);
+              }}
+            >
+              <ImageChambre
+                src={image}
+                fallbackSrc={DEFAULT_IMAGES[index % DEFAULT_IMAGES.length]}
+                alt={`Chambre ${chambre.numero} – vue ${index + 1}`}
+              />
 
-        <div
-          className={`detail-gallery count-${Math.min(
-            images.length,
-            3
-          )}`}
-        >
-          {images.length > 0 ? (
-
-            images.slice(0, 3).map((image, index) => (
-
-              <div
-                key={`${image}-${index}`}
-                className={`gallery-item ${
-                  index === 0
-                    ? "gallery-main"
-                    : "gallery-side"
-                }`}
-                onClick={() => {
-                  setIndexActif(index);
-                  setLightboxOpen(true);
-                }}
-              >
-
-                <ImageChambre
-                  src={image}
-                  alt={`Chambre ${chambre.numero} – vue ${index + 1}`}
-                />
-
-                {index === 0 && (
-                  <button
-                    type="button"
-                    className="gallery-fullscreen"
-                    onClick={(e) => {
-                      e.stopPropagation();
-
-                      setIndexActif(0);
-                      setLightboxOpen(true);
-                    }}
-                  >
-                    <span aria-hidden="true">⛶</span>
-                    Plein écran (1/{images.length})
-                  </button>
-                )}
-
-              </div>
-            ))
-
-          ) : (
-
-            <div className="no-image">
-              Aucune image disponible pour cette chambre
+              {index === 0 && (
+                <button
+                  type="button"
+                  className="gallery-fullscreen"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIndexActif(0);
+                    setLightboxOpen(true);
+                  }}
+                >
+                  <span aria-hidden="true">⛶</span>
+                  Plein écran ({images.length} images)
+                </button>
+              )}
             </div>
-
-          )}
+          ))}
         </div>
 
         {/* LIGHTBOX */}
 
         {lightboxOpen && images.length > 0 && (
-
           <div
             className="lightbox"
             onClick={() => setLightboxOpen(false)}
           >
-
             <button
               type="button"
               className="lightbox-close"
@@ -723,7 +1140,6 @@ function DetailChambrePage() {
               aria-label="Image précédente"
               onClick={(e) => {
                 e.stopPropagation();
-
                 setIndexActif(
                   (i) => (i - 1 + images.length) % images.length
                 );
@@ -732,10 +1148,11 @@ function DetailChambrePage() {
               ‹
             </button>
 
-            <img
+            <ImageChambre
               src={images[indexActif]}
+              fallbackSrc={DEFAULT_IMAGES[indexActif % DEFAULT_IMAGES.length]}
               alt={`Chambre ${chambre.numero} – image ${indexActif + 1}`}
-              onClick={(e) => e.stopPropagation()}
+              className="lightbox-image"
             />
 
             <button
@@ -744,7 +1161,6 @@ function DetailChambrePage() {
               aria-label="Image suivante"
               onClick={(e) => {
                 e.stopPropagation();
-
                 setIndexActif(
                   (i) => (i + 1) % images.length
                 );
@@ -756,39 +1172,26 @@ function DetailChambrePage() {
             <span className="lightbox-count">
               {indexActif + 1} / {images.length}
             </span>
-
           </div>
         )}
 
         {/* CARACTÉRISTIQUES */}
 
         <ul className="detail-features">
-
           {caracteristiques.map((c, index) => (
-
             <li key={index}>
-
-              <span
-                className="feature-icon"
-                aria-hidden="true"
-              >
+              <span className="feature-icon" aria-hidden="true">
                 {c.icone}
               </span>
-
               {c.texte}
-
             </li>
-
           ))}
-
         </ul>
 
-        {/* DESCRIPTION */}
+        {/* DESCRIPTION ET RÉSERVATION */}
 
         <div className="detail-content">
-
           <div className="detail-main">
-
             <h2>{chambre.titre || chambre.type}</h2>
 
             <p className="detail-description">
@@ -796,78 +1199,56 @@ function DetailChambrePage() {
                 "Aucune description disponible."}
             </p>
 
-            <h3>Équipements &amp; prestations</h3>
+            <h3>Équipements & prestations</h3>
 
             {equipements.length > 0 ? (
-
               <ul className="equipements-list">
-
                 {equipements.map((equipement, index) => (
-
                   <li key={index}>
-
-                    <span
-                      className="equipement-icon"
-                      aria-hidden="true"
-                    >
+                    <span className="equipement-icon" aria-hidden="true">
                       ✓
                     </span>
-
                     {typeof equipement === "object"
                       ? equipement.nom || equipement.name
                       : equipement}
-
                   </li>
-
                 ))}
-
               </ul>
-
             ) : (
-
               <p>Aucun équipement renseigné.</p>
-
             )}
-
           </div>
 
           {/* RÉSERVATION */}
 
           <aside className="detail-reservation">
-
             <div className="reservation-top">
-
-              <p className="reservation-prix">
-                {formatPrix(prixNuit)}
-                <small> / nuit</small>
-              </p>
-
+              {detailsPrix.promotionsUtilisees.map((promotion) => (
+                <span
+                  key={promotion.id}
+                  className="promotion-nom"
+                >
+                  Offre : {promotion.libelle}
+                </span>
+              ))}
             </div>
 
             {/* DATES */}
 
             <div className="reservation-dates">
-
               <label>
-
                 <span>Arrivée</span>
-
                 <input
                   type="date"
                   value={arrivee}
                   min={getDateAujourdhui()}
                   required
-                  onChange={(e) =>
-                    changerArrivee(e.target.value)
-                  }
+                  onChange={(e) => changerArrivee(e.target.value)}
                 />
-
               </label>
 
               <label>
-
                 <span>Départ</span>
-
                 <input
                   type="date"
                   value={depart}
@@ -877,19 +1258,14 @@ function DetailChambrePage() {
                       : lendemain(getDateAujourdhui())
                   }
                   required
-                  onChange={(e) =>
-                    changerDepart(e.target.value)
-                  }
+                  onChange={(e) => changerDepart(e.target.value)}
                 />
-
               </label>
-
             </div>
 
             {/* VOYAGEURS */}
 
             <label className="reservation-voyageurs">
-
               <span>Voyageurs</span>
 
               <select
@@ -902,78 +1278,117 @@ function DetailChambrePage() {
                   setErreurReservation("");
                 }}
               >
-
                 {Array.from(
                   { length: capacite },
                   (_, i) => i + 1
                 ).map((n) => (
-
                   <option key={n} value={n}>
                     {n} voyageur{n > 1 ? "s" : ""}
                   </option>
-
                 ))}
-
               </select>
-
             </label>
 
-            {/* CALCUL DU PRIX */}
+            {/* DÉTAIL DES PRIX */}
 
             <div className="reservation-lignes">
+              {chargementTarifs ? (
+                <p>Calcul des tarifs...</p>
+              ) : erreurTarifs ? (
+                <p className="reservation-error">
+                  {erreurTarifs}
+                </p>
+              ) : nuits > 0 ? (
+                <>
+                  <div>
+                    <span>Prix naturel / nuit</span>
+                    <span>{formatPrix(prixNaturel)}</span>
+                  </div>
 
-              <div>
+                  <h4>Détail des tarifs par nuit</h4>
 
-                <span>
-                  {formatPrix(prixNuit)} × {nuits} nuit
-                  {nuits > 1 ? "s" : ""}
-                </span>
+                  {detailsPrix.lignes.map((ligne, index) => (
+                    <div
+                      className="reservation-detail-nuit"
+                      key={ligne.date}
+                    >
+                      <span>
+                        Nuit {index + 1} –{" "}
+                        {formaterDateClient(ligne.date)}
+                      </span>
 
-                <span>{formatPrix(sousTotal)}</span>
+                      <strong>{formatPrix(ligne.prixFinal)}</strong>
 
-              </div>
+                      {ligne.saison && (
+                        <small>
+                          {ligne.saison.nom} (×{ligne.coefficient})
+                        </small>
+                      )}
 
-              <div className="reservation-total">
+                      {ligne.promotion && (
+                        <small className="reservation-remise">
+                          {ligne.promotion.libelle} :{" "}
+                          {ligne.promotion.type_reduction === "POURCENTAGE"
+                            ? `-${ligne.promotion.valeur}%`
+                            : `-${formatPrix(ligne.promotion.valeur)}`}
+                        </small>
+                      )}
+                    </div>
+                  ))}
 
-                <span>Total</span>
+                  {detailsPrix.reductionTotale > 0 && (
+                    <div className="reservation-economie">
+                      <span>Réduction totale</span>
+                      <strong>
+                        -{formatPrix(detailsPrix.reductionTotale)}
+                      </strong>
+                    </div>
+                  )}
 
-                <strong>
-                  {formatPrix(sousTotal)}
-                </strong>
+                  <div className="reservation-total">
+                    <span>
+                      Total du séjour ({nuits} nuit
+                      {nuits > 1 ? "s" : ""})
+                    </span>
+                    <strong>{formatPrix(sousTotal)}</strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span>Prix par nuit</span>
+                    <strong>{formatPrix(prixNaturel)}</strong>
+                  </div>
 
-              </div>
-
+                  <p className="reservation-info">
+                    Sélectionnez vos dates pour voir le détail
+                    des saisons et des promotions applicables.
+                  </p>
+                </>
+              )}
             </div>
 
-            {/* ERREUR RÉSERVATION */}
+            {/* ERREUR */}
 
             {erreurReservation && (
-
-              <p
-                className="reservation-error"
-                role="alert"
-              >
+              <p className="reservation-error" role="alert">
                 {erreurReservation}
               </p>
-
             )}
 
-            {/* BOUTON RÉSERVER */}
+            {/* BOUTON RÉSERVATION */}
 
             <button
               type="button"
               className="reservation-button"
               onClick={handleReservation}
+              disabled={chargementTarifs || Boolean(erreurTarifs)}
             >
-
               {isAuthenticated
                 ? "RÉSERVER CE SÉJOUR"
                 : "SE CONNECTER POUR RÉSERVER"}
-
             </button>
-
           </aside>
-
         </div>
 
         {/* AVIS CLIENTS */}
