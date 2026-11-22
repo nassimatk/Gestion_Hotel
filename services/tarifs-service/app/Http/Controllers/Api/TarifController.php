@@ -60,6 +60,7 @@ class TarifController extends Controller
                 : $tarif,
         ], 201);
     }
+    //
 
     public function update(Request $request, int $id)
     {
