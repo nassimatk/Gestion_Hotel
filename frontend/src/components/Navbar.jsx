@@ -11,8 +11,13 @@ export default function Navbar() {
 const links = [
     { to: "/", label: "Accueil" },
     { to: "/chambres", label: "Chambres" },
-    { to: "/apropos", label: "À propos" },
-    { to: "/contact", label: "Contact" },
+    { to: "/reservation", label: "Disponibilités" },
+    ...(!isAuthenticated
+      ? [
+          { to: "/apropos", label: "À propos" },
+          { to: "/contact", label: "Contact" },
+        ]
+      : []),
     ...(isAuthenticated ? [{ to: "/mes-reservations", label: "Mes réservations" }] : []),
     ...(isAdmin ? [{ to: "/admin", label: "Dashboard" }] : []),
   ];

@@ -482,14 +482,13 @@ export default function ReservationPage() {
         if (!actif) return;
 
         const total = extraireTotalTarifs(res);
-
-        setPrixTotalTarifs(total);
+        setPrixTotalTarifs(total !== null ? total : prixChambre(selectedChambre) * nuits);
       } catch (err) {
         console.error("Erreur calcul tarif :", err);
-
         if (actif) {
-          setPrixTotalTarifs(null);
+          setPrixTotalTarifs(prixChambre(selectedChambre) * nuits);
         }
+      
       } finally {
         if (actif) {
           setLoadingTarifs(false);
