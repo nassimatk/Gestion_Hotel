@@ -76,9 +76,9 @@ export default function MesReservationsPage() {
             </p>
           </div>
 
-          <Link to="/reservation" className="btn-gold">
-            + Nouvelle réservation
-          </Link>
+         <Link to="/" className="btn-gold">
+  + Nouvelle réservation
+</Link>
         </div>
 
         {message && (

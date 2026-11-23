@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
@@ -10,10 +9,6 @@ import "./HomePage.css";
 const TARIFS_API =
   import.meta.env.VITE_TARIFS_API_URL || "http://localhost:8004/api";
 
-// ==================================================
-// IMAGES DE SECOURS
-// ==================================================
-
 const DEFAULT_IMAGES = [
   "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
   "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80",
@@ -22,10 +17,6 @@ const DEFAULT_IMAGES = [
   "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
   "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&q=80",
 ];
-
-// ==================================================
-// FONCTIONNALITÉS
-// ==================================================
 
 const svgProps = {
   width: 20,
@@ -101,23 +92,19 @@ function jourSuivant(dateStr) {
   return formatDateISO(date);
 }
 
-function jourPrecedent(dateStr) {
-  const [annee, mois, jour] = dateStr.split("-").map(Number);
-  const date = new Date(annee, mois - 1, jour);
-  date.setDate(date.getDate() - 1);
-  return formatDateISO(date);
-}
-
 function calculerNombreNuits(debut, fin) {
-  if (!debut || !fin) return 1;
+  if (!debut || !fin) return 0;
 
   const [a1, m1, j1] = debut.split("-").map(Number);
   const [a2, m2, j2] = fin.split("-").map(Number);
 
-  const d1 = Date.UTC(a1, m1 - 1, j1);
-  const d2 = Date.UTC(a2, m2 - 1, j2);
-
-  return Math.max(0, Math.round((d2 - d1) / 86400000));
+  return Math.max(
+    0,
+    Math.round(
+      (Date.UTC(a2, m2 - 1, j2) - Date.UTC(a1, m1 - 1, j1)) /
+        86400000
+    )
+  );
 }
 
 // ==================================================
@@ -149,9 +136,7 @@ function extraireListe(response, noms = []) {
   if (Array.isArray(data)) return data;
 
   for (const nom of noms) {
-    if (Array.isArray(data?.[nom])) {
-      return data[nom];
-    }
+    if (Array.isArray(data?.[nom])) return data[nom];
   }
 
   return [];
@@ -196,21 +181,14 @@ function getCapaciteChambre(room) {
 
     for (const champ of champs) {
       const valeur = source[champ];
+      if (valeur === null || valeur === undefined || valeur === "") continue;
 
-      if (
-        valeur !== null &&
-        valeur !== undefined &&
-        valeur !== ""
-      ) {
-        const nombre = Number.parseInt(
-          String(valeur).match(/\d+/)?.[0] || "",
-          10
-        );
+      const nombre = Number.parseInt(
+        String(valeur).match(/\d+/)?.[0] || "",
+        10
+      );
 
-        if (Number.isFinite(nombre) && nombre > 0) {
-          return nombre;
-        }
-      }
+      if (Number.isFinite(nombre) && nombre > 0) return nombre;
     }
   }
 
@@ -221,11 +199,7 @@ function chambrePeutAccueillir(room, nombreVoyageurs) {
   const capacite = getCapaciteChambre(room);
   const voyageurs = Number(nombreVoyageurs);
 
-  // Si la capacité n'est pas renseignée dans les données,
-  // on laisse le service Disponibilités effectuer la vérification.
-  if (capacite <= 0) {
-    return true;
-  }
+  if (capacite <= 0) return true;
 
   return voyageurs >= 1 && voyageurs <= capacite;
 }
@@ -256,18 +230,6 @@ function dateDansPeriode(date, debut, fin) {
   return true;
 }
 
-function dateDansPeriodePromotion(date, debut, fin) {
-  const jour = String(date || "").slice(0, 10);
-  const dateDebut = debut ? String(debut).slice(0, 10) : null;
-  const dateFin = fin ? String(fin).slice(0, 10) : null;
-
-  if (!jour) return false;
-  if (dateDebut && jour < dateDebut) return false;
-  if (dateFin && jour >= dateFin) return false;
-
-  return true;
-}
-
 function formaterPrix(prix) {
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 2,
@@ -277,10 +239,7 @@ function formaterPrix(prix) {
 
 function formaterValeur(valeur) {
   const nombre = Number(valeur || 0);
-
-  return Number.isInteger(nombre)
-    ? String(nombre)
-    : formaterPrix(nombre);
+  return Number.isInteger(nombre) ? String(nombre) : formaterPrix(nombre);
 }
 
 function pluriel(nombre, singulier, plurielTexte) {
@@ -288,16 +247,13 @@ function pluriel(nombre, singulier, plurielTexte) {
 }
 
 // ==================================================
-// IDENTIFIER LE TARIF DE LA CHAMBRE
+// TARIFS ET SAISONS
 // ==================================================
 
 function trouverTarifsChambre(room, tarifs, date) {
   return tarifs
     .filter((tarif) => {
-      if (Number(tarif.chambre_id) !== Number(room.id)) {
-        return false;
-      }
-
+      if (Number(tarif.chambre_id) !== Number(room.id)) return false;
       if (!estActif(tarif)) return false;
 
       if (
@@ -309,115 +265,92 @@ function trouverTarifsChambre(room, tarifs, date) {
 
       return true;
     })
-    .sort((a, b) => {
-      const dateA = String(a.date_application || "");
-      const dateB = String(b.date_application || "");
-
-      return dateB.localeCompare(dateA);
-    });
+    .sort((a, b) =>
+      String(b.date_application || "").localeCompare(
+        String(a.date_application || "")
+      )
+    );
 }
 
-// ==================================================
-// TROUVER LA SAISON APPLICABLE
-// ==================================================
-
 function trouverSaisonApplicable(tarif, saisons, date) {
-  const saisonLiee = tarif?.saison;
-
-  if (
-    saisonLiee &&
-    estActif(saisonLiee) &&
-    dateDansPeriode(date, saisonLiee.date_debut, saisonLiee.date_fin)
-  ) {
-    return saisonLiee;
-  }
+  if (!tarif?.saison_id) return null;
 
   return (
-    saisons.find((saison) => {
-      return (
+    saisons.find(
+      (saison) =>
         Number(saison.id) === Number(tarif.saison_id) &&
         estActif(saison) &&
         dateDansPeriode(date, saison.date_debut, saison.date_fin)
-      );
-    }) || null
+    ) || null
   );
 }
-
-// ==================================================
-// TROUVER LE TARIF SAISONNIER
-// ==================================================
 
 function trouverTarifEtSaison(room, tarifs, saisons, date) {
   const tarifsChambre = trouverTarifsChambre(room, tarifs, date);
 
-  const tarifsAvecSaison = tarifsChambre
-    .filter((tarif) => tarif.saison_id || tarif.saison)
-    .map((tarif) => ({
-      tarif,
-      saison: trouverSaisonApplicable(tarif, saisons, date),
-    }))
-    .filter((element) => element.saison !== null);
+  for (const tarif of tarifsChambre) {
+    if (tarif.saison_id) {
+      const saison = trouverSaisonApplicable(tarif, saisons, date);
+      if (saison) return { tarif, saison };
+      continue;
+    }
 
-  if (tarifsAvecSaison.length > 0) {
-    tarifsAvecSaison.sort((a, b) => {
-      const dateA = String(a.tarif.date_application || "");
-      const dateB = String(b.tarif.date_application || "");
-
-      return dateB.localeCompare(dateA);
-    });
-
-    return tarifsAvecSaison[0];
+    return { tarif, saison: null };
   }
 
-  const tarifSansSaison =
-    tarifsChambre.find((tarif) => !tarif.saison_id && !tarif.saison) ||
-    null;
-
-  return {
-    tarif: tarifSansSaison,
-    saison: null,
-  };
+  return { tarif: null, saison: null };
 }
 
-// ==================================================
-// CALCUL DU PRIX SAISONNIER
-// ==================================================
-
 function calculerPrixSaisonnier(room, tarif, saison) {
-  const prixChambre = Number(room.prix_nuit);
-  const prixBaseTarif = Number(tarif?.prix_base ?? tarif?.prix_nuit);
+  const prixBaseTarif = Number(tarif?.prix_base);
+  const prixBaseChambre = Number(room?.prix_nuit);
 
   const prixBase =
     Number.isFinite(prixBaseTarif) && prixBaseTarif > 0
       ? prixBaseTarif
-      : Number.isFinite(prixChambre) && prixChambre > 0
-        ? prixChambre
+      : Number.isFinite(prixBaseChambre) && prixBaseChambre > 0
+        ? prixBaseChambre
         : 0;
 
   if (prixBase <= 0) {
     return { prixBase: 0, prixSaisonnier: 0, coefficient: 1 };
   }
 
-  let coefficient = Number(
-    saison?.coefficient_saison ??
-      saison?.coefficient ??
-      tarif?.coefficient_saison ??
-      1
+  const coefficientSaison = Number(
+    saison?.coefficient ?? saison?.coefficient_saison
   );
+  const coefficientTarif = Number(tarif?.coefficient_saison);
+
+  const coefficient =
+    Number.isFinite(coefficientSaison) && coefficientSaison > 0
+      ? coefficientSaison
+      : Number.isFinite(coefficientTarif) && coefficientTarif > 0
+        ? coefficientTarif
+        : 1;
+
+  const prixCalcule = prixBase * coefficient;
+  const prixEnregistre = Number(tarif?.prix_nuit);
+
+  // Le prix_nuit enregistré dans le service Tarifs est la référence.
+  // On le privilégie si le backend l'a renvoyé.
+  const prixSaisonnier =
+    Number.isFinite(prixEnregistre) && prixEnregistre > 0
+      ? prixEnregistre
+      : prixCalcule;
 
   if (
-    (!Number.isFinite(coefficient) || coefficient <= 0) &&
-    tarif?.prix_nuit &&
-    tarif?.prix_base
+    Number.isFinite(prixEnregistre) &&
+    prixEnregistre > 0 &&
+    Math.abs(prixEnregistre - prixCalcule) > 0.01
   ) {
-    coefficient = Number(tarif.prix_nuit) / Number(tarif.prix_base);
+    console.warn("Écart de calcul du tarif :", {
+      chambreId: room.id,
+      prixBase,
+      coefficient,
+      prixCalcule,
+      prixEnregistre,
+    });
   }
-
-  if (!Number.isFinite(coefficient) || coefficient <= 0) {
-    coefficient = 1;
-  }
-
-  const prixSaisonnier = prixBase * coefficient;
 
   return {
     prixBase: Number(prixBase.toFixed(2)),
@@ -427,7 +360,7 @@ function calculerPrixSaisonnier(room, tarif, saison) {
 }
 
 // ==================================================
-// OUTILS PROMOTION
+// PROMOTIONS
 // ==================================================
 
 function promotionCorrespondChambre(promotion, room) {
@@ -458,14 +391,11 @@ function getValeurPromotion(promotion) {
 }
 
 function getNuitsMinPromotion(promotion) {
-  return Number(
-    promotion?.nuits_min || promotion?.nombre_nuits_min || 1
-  );
+  return Number(promotion?.nuits_min || promotion?.nombre_nuits_min || 1);
 }
 
 function estPromotionPourcentage(promotion) {
   const type = getTypePromotion(promotion);
-
   return type === "POURCENTAGE" || type === "POURCENT";
 }
 
@@ -477,9 +407,162 @@ function getLibelleReduction(promotion) {
     : `-${valeur} MAD`;
 }
 
-// ==================================================
-// COMPTE À REBOURS DE LA PROMOTION
-// ==================================================
+function promotionPeutEtreAffichee(promotion, room, dateActuelle) {
+  if (!estActif(promotion)) return false;
+  if (!promotionCorrespondChambre(promotion, room)) return false;
+
+  const debut = promotion.date_debut
+    ? String(promotion.date_debut).slice(0, 10)
+    : null;
+  const fin = promotion.date_fin
+    ? String(promotion.date_fin).slice(0, 10)
+    : null;
+
+  if (debut && dateActuelle < debut) return false;
+  if (fin && dateActuelle > fin) return false;
+
+  return true;
+}
+
+function promotionValidePourSejour(
+  promotion,
+  room,
+  dateDebut,
+  dateFin,
+  nombreNuits
+) {
+  if (!estActif(promotion)) return false;
+  if (!promotionCorrespondChambre(promotion, room)) return false;
+  if (!dateDebut || !dateFin || nombreNuits <= 0) return false;
+  if (nombreNuits < getNuitsMinPromotion(promotion)) return false;
+
+  const debutPromotion = promotion.date_debut
+    ? String(promotion.date_debut).slice(0, 10)
+    : null;
+  const finPromotion = promotion.date_fin
+    ? String(promotion.date_fin).slice(0, 10)
+    : null;
+
+  // Le départ n'est pas une nuit facturée.
+  // Une promotion finissant le 24 couvre donc la nuit du 24
+  // si le départ a lieu le 25.
+  const lendemainFinPromotion = finPromotion
+    ? jourSuivant(finPromotion)
+    : null;
+
+  return (
+    (!debutPromotion || dateDebut >= debutPromotion) &&
+    (!lendemainFinPromotion || dateFin <= lendemainFinPromotion)
+  );
+}
+
+function calculerReductionPromotion(promotion, prixSaisonnier) {
+  const type = getTypePromotion(promotion);
+  const valeur = getValeurPromotion(promotion);
+
+  if (!Number.isFinite(valeur) || valeur <= 0) {
+    return {
+      prixFinal: prixSaisonnier,
+      montantReduction: 0,
+      pourcentageReduction: 0,
+      typeReduction: type,
+    };
+  }
+
+  if (type === "POURCENTAGE" || type === "POURCENT") {
+    const pourcentage = Math.min(100, Math.max(0, valeur));
+    const montantReduction = prixSaisonnier * (pourcentage / 100);
+
+    return {
+      prixFinal: Math.max(0, prixSaisonnier - montantReduction),
+      montantReduction,
+      pourcentageReduction: pourcentage,
+      typeReduction: "POURCENTAGE",
+    };
+  }
+
+  if (type === "MONTANT_FIXE" || type === "MONTANT") {
+    const montantReduction = Math.min(
+      prixSaisonnier,
+      Math.max(0, valeur)
+    );
+    const prixFinal = Math.max(0, prixSaisonnier - montantReduction);
+
+    return {
+      prixFinal,
+      montantReduction,
+      pourcentageReduction:
+        prixSaisonnier > 0
+          ? (montantReduction / prixSaisonnier) * 100
+          : 0,
+      typeReduction: "MONTANT_FIXE",
+    };
+  }
+
+  return {
+    prixFinal: prixSaisonnier,
+    montantReduction: 0,
+    pourcentageReduction: 0,
+    typeReduction: type,
+  };
+}
+
+function trouverPromotionAAfficher(promotions, room, dateActuelle) {
+  const valides = promotions.filter((promotion) =>
+    promotionPeutEtreAffichee(promotion, room, dateActuelle)
+  );
+
+  if (valides.length === 0) return null;
+
+  // Priorité à une promotion déjà commencée.
+  const enCours = valides.filter((promotion) => {
+    const debut = promotion.date_debut
+      ? String(promotion.date_debut).slice(0, 10)
+      : null;
+    return !debut || dateActuelle >= debut;
+  });
+
+  const candidates = enCours.length > 0 ? enCours : valides;
+
+  candidates.sort((a, b) =>
+    String(b.date_debut || "").localeCompare(String(a.date_debut || ""))
+  );
+
+  return candidates[0];
+}
+
+function trouverPromotionApplicable(
+  promotions,
+  room,
+  dateDebut,
+  dateFin,
+  nombreNuits,
+  prixSaisonnier
+) {
+  const valides = promotions.filter((promotion) =>
+    promotionValidePourSejour(
+      promotion,
+      room,
+      dateDebut,
+      dateFin,
+      nombreNuits
+    )
+  );
+
+  if (valides.length === 0) return null;
+
+  const calculees = valides.map((promotion) => ({
+    promotion,
+    reduction: calculerReductionPromotion(promotion, prixSaisonnier),
+  }));
+
+  calculees.sort(
+    (a, b) =>
+      b.reduction.montantReduction - a.reduction.montantReduction
+  );
+
+  return calculees[0];
+}
 
 function getCompteARebours(promotion, dateActuelle) {
   if (!promotion) return null;
@@ -487,27 +570,21 @@ function getCompteARebours(promotion, dateActuelle) {
   const debut = promotion.date_debut
     ? String(promotion.date_debut).slice(0, 10)
     : null;
-
   const fin = promotion.date_fin
     ? String(promotion.date_fin).slice(0, 10)
     : null;
 
-  if (debut && debut > dateActuelle) {
-    const joursAvantDebut = calculerNombreNuits(dateActuelle, debut);
+  if (debut && dateActuelle < debut) {
+    const jours = calculerNombreNuits(dateActuelle, debut);
 
     return {
       etat: "avenir",
-      jours: joursAvantDebut,
+      jours,
       progression: 0,
       libelleCourt:
-        joursAvantDebut === 1
-          ? "Débute demain"
-          : `Débute dans ${joursAvantDebut} jours`,
+        jours === 1 ? "Débute demain" : `Débute dans ${jours} jours`,
       libelleTitre: "Début de l'offre",
-      libelleValeur:
-        joursAvantDebut === 1
-          ? "Demain"
-          : pluriel(joursAvantDebut, "jour", "jours"),
+      libelleValeur: jours === 1 ? "Demain" : pluriel(jours, "jour", "jours"),
     };
   }
 
@@ -522,11 +599,13 @@ function getCompteARebours(promotion, dateActuelle) {
     };
   }
 
-  const joursRestants = calculerNombreNuits(dateActuelle, fin);
+  if (dateActuelle > fin) return null;
 
-  if (joursRestants <= 0) return null;
-
-  const dureeTotale = debut ? calculerNombreNuits(debut, fin) : 0;
+  const finExclusive = jourSuivant(fin);
+  const joursRestants = calculerNombreNuits(dateActuelle, finExclusive);
+  const dureeTotale = debut
+    ? calculerNombreNuits(debut, finExclusive)
+    : 0;
 
   const progression =
     dureeTotale > 0
@@ -561,203 +640,7 @@ function getCompteARebours(promotion, dateActuelle) {
 }
 
 // ==================================================
-// PROMOTION À AFFICHER
-// ==================================================
-
-function promotionPeutEtreAffichee(promotion, room, dateActuelle) {
-  if (!estActif(promotion)) return false;
-
-  if (!promotionCorrespondChambre(promotion, room)) {
-    return false;
-  }
-
-  const dateFin = promotion.date_fin
-    ? String(promotion.date_fin).slice(0, 10)
-    : null;
-
-  if (dateFin && dateActuelle >= dateFin) {
-    return false;
-  }
-
-  return true;
-}
-
-// ==================================================
-// PROMOTION VALIDE POUR TOUT LE SÉJOUR
-// ==================================================
-
-function promotionValidePourSejour(
-  promotion,
-  room,
-  dateDebut,
-  dateFin,
-  nombreNuits
-) {
-  if (!estActif(promotion)) return false;
-
-  if (!promotionCorrespondChambre(promotion, room)) {
-    return false;
-  }
-
-  if (!dateDebut || !dateFin || nombreNuits <= 0) {
-    return false;
-  }
-
-  if (nombreNuits < getNuitsMinPromotion(promotion)) {
-    return false;
-  }
-
-  const debutPromotion = promotion.date_debut
-    ? String(promotion.date_debut).slice(0, 10)
-    : null;
-
-  const finPromotion = promotion.date_fin
-    ? String(promotion.date_fin).slice(0, 10)
-    : null;
-
-  return (
-    (!debutPromotion || dateDebut >= debutPromotion) &&
-    (!finPromotion || dateFin <= finPromotion)
-  );
-}
-
-// ==================================================
-// CALCULER LA RÉDUCTION
-// ==================================================
-
-function calculerReductionPromotion(promotion, prixSaisonnier) {
-  const type = getTypePromotion(promotion);
-  const valeur = getValeurPromotion(promotion);
-
-  if (!Number.isFinite(valeur) || valeur <= 0) {
-    return {
-      prixFinal: prixSaisonnier,
-      montantReduction: 0,
-      pourcentageReduction: 0,
-      typeReduction: type,
-    };
-  }
-
-  if (type === "POURCENTAGE" || type === "POURCENT") {
-    const pourcentage = Math.min(100, Math.max(0, valeur));
-    const montantReduction = prixSaisonnier * (pourcentage / 100);
-
-    return {
-      prixFinal: Math.max(0, prixSaisonnier - montantReduction),
-      montantReduction,
-      pourcentageReduction: pourcentage,
-      typeReduction: "POURCENTAGE",
-    };
-  }
-
-  if (type === "MONTANT_FIXE" || type === "MONTANT") {
-    const montantReduction = Math.min(
-      prixSaisonnier,
-      Math.max(0, valeur)
-    );
-
-    const prixFinal = Math.max(0, prixSaisonnier - montantReduction);
-
-    const pourcentageReduction =
-      prixSaisonnier > 0
-        ? (montantReduction / prixSaisonnier) * 100
-        : 0;
-
-    return {
-      prixFinal,
-      montantReduction,
-      pourcentageReduction,
-      typeReduction: "MONTANT_FIXE",
-    };
-  }
-
-  return {
-    prixFinal: prixSaisonnier,
-    montantReduction: 0,
-    pourcentageReduction: 0,
-    typeReduction: type,
-  };
-}
-
-// ==================================================
-// PROMOTION À AFFICHER SUR LA CARTE
-// ==================================================
-
-function trouverPromotionAAfficher(promotions, room, dateActuelle) {
-  const promotionsValides = promotions.filter((promotion) =>
-    promotionPeutEtreAffichee(promotion, room, dateActuelle)
-  );
-
-  if (promotionsValides.length === 0) {
-    return null;
-  }
-
-  const promotionsActives = promotionsValides.filter((promotion) => {
-    const debut = promotion.date_debut
-      ? String(promotion.date_debut).slice(0, 10)
-      : null;
-
-    return !debut || dateActuelle >= debut;
-  });
-
-  if (promotionsActives.length > 0) {
-    promotionsActives.sort((a, b) =>
-      String(b.date_debut || "").localeCompare(
-        String(a.date_debut || "")
-      )
-    );
-
-    return promotionsActives[0];
-  }
-
-  promotionsValides.sort((a, b) =>
-    String(a.date_debut || "").localeCompare(String(b.date_debut || ""))
-  );
-
-  return promotionsValides[0];
-}
-
-// ==================================================
-// MEILLEURE PROMOTION DU SÉJOUR
-// ==================================================
-
-function trouverPromotionApplicable(
-  promotions,
-  room,
-  dateDebut,
-  dateFin,
-  nombreNuits,
-  prixSaisonnier
-) {
-  const promotionsValides = promotions.filter((promotion) =>
-    promotionValidePourSejour(
-      promotion,
-      room,
-      dateDebut,
-      dateFin,
-      nombreNuits
-    )
-  );
-
-  if (promotionsValides.length === 0) {
-    return null;
-  }
-
-  const promotionsCalculees = promotionsValides.map((promotion) => ({
-    promotion,
-    reduction: calculerReductionPromotion(promotion, prixSaisonnier),
-  }));
-
-  promotionsCalculees.sort(
-    (a, b) =>
-      b.reduction.montantReduction - a.reduction.montantReduction
-  );
-
-  return promotionsCalculees[0];
-}
-
-// ==================================================
-// CALCUL COMPLET DU PRIX DE LA CHAMBRE
+// CALCUL COMPLET DU PRIX
 // ==================================================
 
 function calculerPrixChambre(
@@ -780,6 +663,7 @@ function calculerPrixChambre(
     pourcentageReduction: 0,
     aPromotion: false,
     prixApercuPromotion: null,
+    montantApercuPromotion: 0,
     pourcentageApercuPromotion: 0,
     devise: "MAD",
     tarif: null,
@@ -787,9 +671,7 @@ function calculerPrixChambre(
     promotionInfo: null,
   };
 
-  if (nombreNuits <= 0) {
-    return resultatVide;
-  }
+  if (nombreNuits <= 0) return resultatVide;
 
   const { tarif, saison } = trouverTarifEtSaison(
     room,
@@ -800,7 +682,7 @@ function calculerPrixChambre(
 
   const prix = calculerPrixSaisonnier(room, tarif, saison);
 
-  if (prix.prixBase <= 0) {
+  if (prix.prixBase <= 0 || prix.prixSaisonnier <= 0) {
     return {
       ...resultatVide,
       devise: tarif?.devise || "MAD",
@@ -831,19 +713,16 @@ function calculerPrixChambre(
     prix.prixSaisonnier
   );
 
-  let prixFinal = prix.prixSaisonnier;
-  let montantReduction = 0;
-  let pourcentageReduction = 0;
-  let typeReduction = null;
-
-  if (promotionChoisie) {
-    const resultat = promotionChoisie.reduction;
-
-    prixFinal = resultat.prixFinal;
-    montantReduction = resultat.montantReduction;
-    pourcentageReduction = resultat.pourcentageReduction;
-    typeReduction = resultat.typeReduction;
-  }
+  const reductionAppliquee = promotionChoisie?.reduction || null;
+  const prixFinal = reductionAppliquee
+    ? reductionAppliquee.prixFinal
+    : prix.prixSaisonnier;
+  const montantReduction = reductionAppliquee
+    ? reductionAppliquee.montantReduction
+    : 0;
+  const pourcentageReduction = reductionAppliquee
+    ? reductionAppliquee.pourcentageReduction
+    : 0;
 
   return {
     disponible: true,
@@ -863,21 +742,20 @@ function calculerPrixChambre(
     pourcentageApercuPromotion: reductionApercu
       ? Number(reductionApercu.pourcentageReduction.toFixed(2))
       : 0,
-    typeReduction,
+    typeReduction: reductionAppliquee?.typeReduction || null,
     devise: tarif?.devise || "MAD",
     tarif,
     saison,
-    promotionInfo: promotionAAfficher,
+    promotionInfo: promotionChoisie?.promotion || promotionAAfficher,
   };
 }
 
 // ==================================================
-// NORMALISATION DES IMAGES
+// IMAGES
 // ==================================================
 
 function getImageChambre(room) {
   let images = room?.images;
-
   if (!images) return "";
 
   if (typeof images === "string") {
@@ -888,12 +766,9 @@ function getImageChambre(room) {
     }
   }
 
-  if (!Array.isArray(images)) {
-    images = [images];
-  }
+  if (!Array.isArray(images)) images = [images];
 
   const image = images[0];
-
   if (typeof image === "string") {
     if (
       /^https?:\/\//i.test(image) ||
@@ -945,28 +820,21 @@ function getImageChambre(room) {
 }
 
 // ==================================================
-// VÉRIFICATION DE DISPONIBILITÉ
+// DISPONIBILITÉ
 // ==================================================
 
 function estChambreDisponible(response) {
   const data = unwrapResponse(response);
 
-  if (data === true || data === 1 || data === "1") {
-    return true;
-  }
+  if (data === true || data === 1 || data === "1") return true;
 
   if (typeof data === "string") {
-    return [
-      "true",
-      "available",
-      "disponible",
-      "1",
-    ].includes(data.trim().toLowerCase());
+    return ["true", "available", "disponible", "1"].includes(
+      data.trim().toLowerCase()
+    );
   }
 
-  if (!data || typeof data !== "object") {
-    return false;
-  }
+  if (!data || typeof data !== "object") return false;
 
   const valeurs = [
     data.disponible,
@@ -982,12 +850,9 @@ function estChambreDisponible(response) {
     if (valeur === true || valeur === 1) return true;
 
     if (typeof valeur === "string") {
-      return [
-        "true",
-        "1",
-        "available",
-        "disponible",
-      ].includes(valeur.trim().toLowerCase());
+      return ["true", "1", "available", "disponible"].includes(
+        valeur.trim().toLowerCase()
+      );
     }
 
     if (valeur && typeof valeur === "object") {
@@ -1070,7 +935,7 @@ function PromotionPanel({
     statutTexte = "Promotion non applicable à ces dates";
   }
 
-
+ 
 }
 
 // ==================================================
@@ -1087,12 +952,10 @@ function RoomCard({
   dateActuelle,
 }) {
   const imagePersonnalisee = getImageChambre(room);
-
   const imageSrc =
     imagePersonnalisee || DEFAULT_IMAGES[index % DEFAULT_IMAGES.length];
 
-  const numero = room.numero ?? room.id;
-
+  const numero = room.numero ?? room.numero_chambre ?? room.id;
   const displayName = room.nom
     ? room.nom
     : `Chambre ${String(room.type || "STANDARD").toUpperCase()} N° ${numero}`;
@@ -1112,7 +975,6 @@ function RoomCard({
   const capacite = getCapaciteChambre(room);
 
   let amenities = room.equipements || [];
-
   if (typeof amenities === "string") {
     try {
       amenities = JSON.parse(amenities);
@@ -1143,23 +1005,47 @@ function RoomCard({
   const detailUrl = `/chambres/${room.id}`;
 
   const detailState = {
-    chambre: room,
-    prixInfo,
-    prixTotal,
-    nombreNuits: nuits,
-    criteresRecherche: criteresRecherche
-      ? {
-          dateArrivee: dateDebut,
-          dateDepart: dateFin,
-          nombrePersonnes: Number(criteresRecherche.adultes),
-        }
-      : null,
-    disponibilite: room.disponibilite || null,
-  };
+  chambre: room,
+
+  prixInfo,
+
+  prixNuit: prixInfo.prixFinal,
+  prixTotal: Number(prixTotal.toFixed(2)),
+  prixAvantPromotion: Number(
+    (prixInfo.prixSaisonnier * nuits).toFixed(2)
+  ),
+  reductionTotale: Number(
+    (prixInfo.montantReduction * nuits).toFixed(2)
+  ),
+
+  nombreNuits: nuits,
+
+  tarif: {
+    prixNuit: prixInfo.prixFinal,
+    prix_nuit: prixInfo.prixFinal,
+    prixTotal: Number(prixTotal.toFixed(2)),
+    prixAvantPromotion: Number(
+      (prixInfo.prixSaisonnier * nuits).toFixed(2)
+    ),
+    reductionTotale: Number(
+      (prixInfo.montantReduction * nuits).toFixed(2)
+    ),
+    devise: prixInfo.devise,
+  },
+
+  promotionsUtilisees: prixInfo.promotionInfo
+    ? [prixInfo.promotionInfo]
+    : [],
+
+  criteresRecherche: {
+    dateArrivee: dateDebut,
+    dateDepart: dateFin,
+    nombrePersonnes: Number(criteresRecherche?.adultes || 2),
+  },
+};
 
   const promotion = prixInfo.promotionInfo;
   const compteARebours = getCompteARebours(promotion, dateActuelle);
-
   const afficherPromotion = Boolean(promotion && compteARebours);
 
   const afficherApercuPromotion =
@@ -1185,7 +1071,6 @@ function RoomCard({
         />
 
         <span className="room-card__tag">{displayTag}</span>
-
         <span className="room-card__size">{displaySize} m²</span>
 
         {afficherPromotion && (
@@ -1193,7 +1078,6 @@ function RoomCard({
             <span className="room-card__discount-badge">
               {getLibelleReduction(promotion)}
             </span>
-
             <span
               className={`room-card__countdown-badge ${
                 compteARebours.etat === "derniere" ? "is-last-day" : ""
@@ -1210,7 +1094,6 @@ function RoomCard({
 
       <div className="room-card__body">
         <h3 className="room-card__name">{displayName}</h3>
-
         <p className="room-card__desc">{displayDesc}</p>
 
         <ul className="room-card__amenities">
@@ -1252,9 +1135,6 @@ function RoomCard({
                   )}{" "}
                   {prixInfo.devise}
                 </span>
-
-             
-             
               </>
             ) : (
               <span className="room-card__price-unit room-card__unavailable">
@@ -1263,11 +1143,7 @@ function RoomCard({
             )}
           </div>
 
-          <Link
-            to={detailUrl}
-            state={detailState}
-            className="room-card__btn"
-          >
+          <Link to={detailUrl} state={detailState} className="room-card__btn">
             Voir les détails
           </Link>
         </div>
@@ -1277,15 +1153,15 @@ function RoomCard({
             {capacite > 0 && (
               <p>
                 Capacité maximale :{" "}
-                <strong>
-                  {pluriel(capacite, "personne", "personnes")}
-                </strong>
+                <strong>{pluriel(capacite, "personne", "personnes")}</strong>
               </p>
             )}
 
-            
-
-           
+            {prixInfo.saison && (
+              <p>
+                Saison : <strong>{prixInfo.saison.nom}</strong>
+              </p>
+            )}
 
             {nuits > 1 && (
               <p className="room-card__total">
@@ -1310,32 +1186,12 @@ export default function HomePage() {
   const { isAuthenticated } = useAuth();
 
   const [dateActuelle, setDateActuelle] = useState(getDateAujourdhui);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const nouvelleDate = getDateAujourdhui();
-
-      setDateActuelle((ancienneDate) =>
-        ancienneDate !== nouvelleDate ? nouvelleDate : ancienneDate
-      );
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   const [dateDebut, setDateDebut] = useState(getDateAujourdhui);
   const [dateFin, setDateFin] = useState(getDateDemain);
   const [adultes, setAdultes] = useState(2);
 
   const [rooms, setRooms] = useState([]);
   const [searchedRooms, setSearchedRooms] = useState(null);
-  const capaciteRechercheMax = Math.max(
-    1,
-    ...rooms
-      .map((room) => getCapaciteChambre(room))
-      .filter((capacite) => capacite > 0)
-  );
-
   const [tarifs, setTarifs] = useState([]);
   const [saisons, setSaisons] = useState([]);
   const [promotions, setPromotions] = useState([]);
@@ -1349,6 +1205,24 @@ export default function HomePage() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [criteresRecherche, setCriteresRecherche] = useState(null);
 
+  const capaciteRechercheMax = Math.max(
+    1,
+    ...rooms
+      .map((room) => getCapaciteChambre(room))
+      .filter((capacite) => capacite > 0)
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nouvelleDate = getDateAujourdhui();
+      setDateActuelle((ancienneDate) =>
+        ancienneDate !== nouvelleDate ? nouvelleDate : ancienneDate
+      );
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // ==================================================
   // CHARGEMENT DES CHAMBRES
   // ==================================================
@@ -1359,7 +1233,6 @@ export default function HomePage() {
       setError(null);
 
       const response = await getChambres({ statut: "disponible" });
-
       const liste = extraireListe(response, ["chambres"]);
 
       console.log("CHAMBRES REÇUES DE L'API :", liste);
@@ -1373,13 +1246,9 @@ export default function HomePage() {
 
         if (!statut) return true;
 
-        return [
-          "disponible",
-          "available",
-          "active",
-          "actif",
-          "1",
-        ].includes(statut);
+        return ["disponible", "available", "active", "actif", "1"].includes(
+          statut
+        );
       });
 
       console.log(
@@ -1396,7 +1265,6 @@ export default function HomePage() {
       setRooms(chambresDisponibles);
     } catch (err) {
       console.error("Erreur récupération chambres :", err);
-
       setError(
         err.response?.data?.message ||
           err.message ||
@@ -1422,15 +1290,20 @@ export default function HomePage() {
           axios.get(`${TARIFS_API}/promotions`),
         ]);
 
-      setTarifs(extraireListe(tarifsResponse, ["tarifs"]).filter(estActif));
-
-      setSaisons(
-        extraireListe(saisonsResponse, ["saisons"]).filter(estActif)
+      const tarifsRecus = extraireListe(tarifsResponse, ["tarifs"]);
+      const saisonsRecues = extraireListe(saisonsResponse, ["saisons"]);
+      const promotionsRecues = extraireListe(
+        promotionsResponse,
+        ["promotions"]
       );
 
-      setPromotions(
-        extraireListe(promotionsResponse, ["promotions"]).filter(estActif)
-      );
+      console.log("TARIFS API :", tarifsRecus);
+      console.log("SAISONS API :", saisonsRecues);
+      console.log("PROMOTIONS API :", promotionsRecues);
+
+      setTarifs(tarifsRecus.filter(estActif));
+      setSaisons(saisonsRecues.filter(estActif));
+      setPromotions(promotionsRecues.filter(estActif));
     } catch (err) {
       console.error(
         "Erreur récupération Tarifs :",
@@ -1466,12 +1339,11 @@ export default function HomePage() {
   }
 
   // ==================================================
-  // RECHERCHE DES DISPONIBILITÉS + CAPACITÉ
+  // RECHERCHE DES DISPONIBILITÉS
   // ==================================================
 
   async function handleSearch(e) {
     e.preventDefault();
-
     setSearchError("");
 
     if (!dateDebut || !dateFin) {
@@ -1485,9 +1357,7 @@ export default function HomePage() {
     }
 
     if (dateFin <= dateDebut) {
-      setSearchError(
-        "La date de départ doit être après la date d'arrivée."
-      );
+      setSearchError("La date de départ doit être après la date d'arrivée.");
       return;
     }
 
@@ -1521,7 +1391,6 @@ export default function HomePage() {
     });
 
     try {
-      // ÉTAPE 1 : filtrer les chambres selon leur capacité connue.
       const chambresCompatibles = rooms.filter((room) =>
         chambrePeutAccueillir(room, nombreVoyageurs)
       );
@@ -1544,7 +1413,6 @@ export default function HomePage() {
         return;
       }
 
-      // ÉTAPE 2 : vérifier les disponibilités auprès du service.
       const verifications = await Promise.all(
         chambresCompatibles.map(async (room) => {
           try {
@@ -1564,10 +1432,7 @@ export default function HomePage() {
             });
 
             return {
-              room: {
-                ...room,
-                disponibilite: data,
-              },
+              room: { ...room, disponibilite: data },
               disponible,
               erreur: false,
             };
@@ -1577,16 +1442,11 @@ export default function HomePage() {
               err.response?.data || err.message
             );
 
-            return {
-              room,
-              disponible: false,
-              erreur: true,
-            };
+            return { room, disponible: false, erreur: true };
           }
         })
       );
 
-      // ÉTAPE 3 : vérifier que le service a répondu.
       const controlesReussis = verifications.filter(
         (resultat) => !resultat.erreur
       );
@@ -1597,18 +1457,13 @@ export default function HomePage() {
         );
       }
 
-      // ÉTAPE 4 : conserver les chambres disponibles et compatibles.
       const disponibles = verifications
-        .filter((resultat) => {
-          if (resultat.erreur || !resultat.disponible) {
-            return false;
-          }
-
-          return chambrePeutAccueillir(
-            resultat.room,
-            nombreVoyageurs
-          );
-        })
+        .filter(
+          (resultat) =>
+            !resultat.erreur &&
+            resultat.disponible &&
+            chambrePeutAccueillir(resultat.room, nombreVoyageurs)
+        )
         .map((resultat) => resultat.room);
 
       setSearchedRooms(disponibles);
@@ -1629,9 +1484,7 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error("Erreur recherche :", err);
-
       setSearchedRooms([]);
-
       setSearchError(
         err.message || "Une erreur est survenue pendant la recherche."
       );
@@ -1650,11 +1503,9 @@ export default function HomePage() {
     const type = String(room.type || "").toLowerCase();
 
     if (selectedFilter === "all") return true;
-
     if (selectedFilter === "suite") {
       return type === "suite" || type === "presidentielle";
     }
-
     if (selectedFilter === "double") return type === "double";
     if (selectedFilter === "simple") return type === "simple";
 
@@ -1669,10 +1520,8 @@ export default function HomePage() {
     setDateDebut(getDateAujourdhui());
     setDateFin(getDateDemain());
     setAdultes(2);
-
     setSearchedRooms(null);
     setCriteresRecherche(null);
-
     setSearchError("");
     setSelectedFilter("all");
   }
@@ -1729,7 +1578,6 @@ export default function HomePage() {
         <form className="search-bar" onSubmit={handleSearch}>
           <div className="search-bar__field">
             <span className="search-bar__icon">📍</span>
-
             <div className="search-bar__info">
               <span className="search-bar__label">Établissement</span>
               <span className="search-bar__value">
@@ -1740,10 +1588,8 @@ export default function HomePage() {
 
           <label className="search-bar__field">
             <span className="search-bar__icon">📅</span>
-
             <div className="search-bar__info">
               <span className="search-bar__label">Date d'arrivée</span>
-
               <input
                 type="date"
                 className="search-bar__input"
@@ -1757,10 +1603,8 @@ export default function HomePage() {
 
           <label className="search-bar__field">
             <span className="search-bar__icon">📅</span>
-
             <div className="search-bar__info">
               <span className="search-bar__label">Date de départ</span>
-
               <input
                 type="date"
                 className="search-bar__input"
@@ -1774,10 +1618,8 @@ export default function HomePage() {
 
           <label className="search-bar__field">
             <span className="search-bar__icon">👥</span>
-
             <div className="search-bar__info">
               <span className="search-bar__label">Voyageurs</span>
-
               <select
                 className="search-bar__input"
                 value={adultes}
@@ -1873,7 +1715,6 @@ export default function HomePage() {
         {error && !loading && (
           <div className="rooms-error">
             <p>⚠️ {error}</p>
-
             <button type="button" onClick={fetchRooms}>
               Réessayer
             </button>
@@ -1905,8 +1746,7 @@ export default function HomePage() {
             <div className="rooms-empty">
               <h3>Aucune chambre disponible</h3>
               <p>
-                Essayez d'autres dates ou modifiez le nombre de
-                voyageurs.
+                Essayez d'autres dates ou modifiez le nombre de voyageurs.
               </p>
             </div>
           )}
@@ -1936,9 +1776,7 @@ export default function HomePage() {
       <section className="features-section">
         <div className="features-section__header">
           <span className="badge">Excellence & Sérénité</span>
-
           <h2 className="section-title">Pourquoi choisir HotelHub</h2>
-
           <p className="section-subtitle">
             Une exigence continue conçue pour transformer chaque instant
             de réservation en une promesse de sérénité absolue.
@@ -1946,13 +1784,11 @@ export default function HomePage() {
         </div>
 
         <div className="features-grid">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="feature-card">
-              <div className="feature-card__icon">{f.icon}</div>
-
-              <h3 className="feature-card__title">{f.title}</h3>
-
-              <p className="feature-card__desc">{f.desc}</p>
+          {FEATURES.map((feature) => (
+            <div key={feature.title} className="feature-card">
+              <div className="feature-card__icon">{feature.icon}</div>
+              <h3 className="feature-card__title">{feature.title}</h3>
+              <p className="feature-card__desc">{feature.desc}</p>
             </div>
           ))}
         </div>

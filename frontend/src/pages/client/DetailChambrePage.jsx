@@ -1,24 +1,23 @@
-
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getChambres } from "../../services/chambresApi";
-import { tarifsApi } from "../../services/tarifsApi";
 import { useAuth } from "../../context/AuthContext";
 import ClientAvisPage from "./ClientAvisPage";
 import "./DetailChambrePage.css";
 
 // ==================================================
-// CONFIGURATION IMAGES
+// CONFIGURATION
 // ==================================================
 
 const STORAGE_URL =
   import.meta.env.VITE_CHAMBRES_STORAGE_URL ||
   "http://localhost:8001/storage";
 
-// ==================================================
-// IMAGES DE SECOURS
-// ==================================================
+// Même API que HomePage
+const TARIFS_API =
+  import.meta.env.VITE_TARIFS_API_URL || "http://localhost:8004/api";
 
 const DEFAULT_IMAGES = [
   "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
@@ -30,33 +29,595 @@ const DEFAULT_IMAGES = [
 ];
 
 // ==================================================
-// EXTRACTION DES DONNÉES API
+// DATES (identiques à HomePage)
 // ==================================================
 
-const extraireListe = (response) => {
-  let data = response?.data ?? response;
+function formatDateISO(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
 
-  for (let i = 0; i < 3; i++) {
-    if (Array.isArray(data)) return data;
+function getDateAujourdhui() {
+  return formatDateISO(new Date());
+}
 
-    if (data && typeof data === "object" && data.data !== undefined) {
-      data = data.data;
+function getDateDemain() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return formatDateISO(date);
+}
+
+function jourSuivant(dateStr) {
+  if (!dateStr) return "";
+  const [annee, mois, jour] = dateStr.split("-").map(Number);
+  const date = new Date(annee, mois - 1, jour);
+  date.setDate(date.getDate() + 1);
+  return formatDateISO(date);
+}
+
+function calculerNombreNuits(debut, fin) {
+  if (!debut || !fin) return 0;
+
+  const [a1, m1, j1] = debut.split("-").map(Number);
+  const [a2, m2, j2] = fin.split("-").map(Number);
+
+  return Math.max(
+    0,
+    Math.round(
+      (Date.UTC(a2, m2 - 1, j2) - Date.UTC(a1, m1 - 1, j1)) / 86400000
+    )
+  );
+}
+
+function obtenirDatesDuSejour(arrivee, depart) {
+  const dates = [];
+  if (!arrivee || !depart) return dates;
+
+  const [a1, m1, j1] = arrivee.split("-").map(Number);
+  const [a2, m2, j2] = depart.split("-").map(Number);
+
+  const date = new Date(a1, m1 - 1, j1);
+  const dateFin = new Date(a2, m2 - 1, j2);
+
+  while (date < dateFin) {
+    dates.push(formatDateISO(date));
+    date.setDate(date.getDate() + 1);
+  }
+
+  return dates;
+}
+
+// ==================================================
+// EXTRACTION DES RÉPONSES API (identique à HomePage)
+// ==================================================
+
+function unwrapResponse(response) {
+  let result = response;
+
+  for (let i = 0; i < 5; i++) {
+    if (
+      result &&
+      !Array.isArray(result) &&
+      typeof result === "object" &&
+      Object.prototype.hasOwnProperty.call(result, "data")
+    ) {
+      result = result.data;
+    } else {
+      break;
+    }
+  }
+
+  return result;
+}
+
+function extraireListe(response, noms = []) {
+  const data = unwrapResponse(response);
+
+  if (Array.isArray(data)) return data;
+
+  for (const nom of noms) {
+    if (Array.isArray(data?.[nom])) return data[nom];
+  }
+
+  return [];
+}
+
+// ==================================================
+// CAPACITÉ (identique à HomePage)
+// ==================================================
+
+function getCapaciteChambre(room) {
+  if (!room) return 0;
+
+  const sources = [
+    room,
+    room.capacite,
+    room.capacities,
+    room.type_chambre,
+    room.typeChambre,
+    room.details,
+    room.informations,
+  ];
+
+  const champs = [
+    "capacite",
+    "capacité",
+    "capacite_max",
+    "capacite_personnes",
+    "nombre_personnes",
+    "nb_personnes",
+    "max_personnes",
+    "nombre_personnes_max",
+    "capacite_maximale",
+    "capacity",
+    "max_capacity",
+    "max_guests",
+    "nombre_adultes",
+    "adultes_max",
+  ];
+
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+
+    for (const champ of champs) {
+      const valeur = source[champ];
+      if (valeur === null || valeur === undefined || valeur === "") continue;
+
+      const nombre = Number.parseInt(
+        String(valeur).match(/\d+/)?.[0] || "",
+        10
+      );
+
+      if (Number.isFinite(nombre) && nombre > 0) return nombre;
+    }
+  }
+
+  return 0;
+}
+
+// ==================================================
+// OUTILS COMMUNS (identiques à HomePage)
+// ==================================================
+
+function estActif(element) {
+  if (!element || element.deleted_at) return false;
+
+  const statut = String(element.statut ?? "active")
+    .trim()
+    .toLowerCase();
+
+  return ["actif", "active", "disponible", "1"].includes(statut);
+}
+
+function dateDansPeriode(date, debut, fin) {
+  const jour = String(date || "").slice(0, 10);
+  const dateDebut = debut ? String(debut).slice(0, 10) : null;
+  const dateFin = fin ? String(fin).slice(0, 10) : null;
+
+  if (!jour) return false;
+  if (dateDebut && jour < dateDebut) return false;
+  if (dateFin && jour > dateFin) return false;
+
+  return true;
+}
+
+function formaterPrix(prix) {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(prix || 0));
+}
+
+function formaterValeur(valeur) {
+  const nombre = Number(valeur || 0);
+  return Number.isInteger(nombre) ? String(nombre) : formaterPrix(nombre);
+}
+
+function pluriel(nombre, singulier, plurielTexte) {
+  return `${nombre} ${nombre > 1 ? plurielTexte : singulier}`;
+}
+
+// ==================================================
+// TARIFS ET SAISONS (identiques à HomePage)
+// ==================================================
+
+function trouverTarifsChambre(room, tarifs, date) {
+  return tarifs
+    .filter((tarif) => {
+      if (Number(tarif.chambre_id) !== Number(room.id)) return false;
+      if (!estActif(tarif)) return false;
+
+      if (
+        tarif.date_application &&
+        String(tarif.date_application).slice(0, 10) > date
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) =>
+      String(b.date_application || "").localeCompare(
+        String(a.date_application || "")
+      )
+    );
+}
+
+function trouverSaisonApplicable(tarif, saisons, date) {
+  if (!tarif?.saison_id) return null;
+
+  return (
+    saisons.find(
+      (saison) =>
+        Number(saison.id) === Number(tarif.saison_id) &&
+        estActif(saison) &&
+        dateDansPeriode(date, saison.date_debut, saison.date_fin)
+    ) || null
+  );
+}
+
+function trouverTarifEtSaison(room, tarifs, saisons, date) {
+  const tarifsChambre = trouverTarifsChambre(room, tarifs, date);
+
+  for (const tarif of tarifsChambre) {
+    if (tarif.saison_id) {
+      const saison = trouverSaisonApplicable(tarif, saisons, date);
+      if (saison) return { tarif, saison };
       continue;
     }
 
-    break;
+    return { tarif, saison: null };
   }
 
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.chambres)) return data.chambres;
-  if (Array.isArray(data?.saisons)) return data.saisons;
-  if (Array.isArray(data?.promotions)) return data.promotions;
+  return { tarif: null, saison: null };
+}
 
-  return [];
-};
+function calculerPrixSaisonnier(room, tarif, saison) {
+  const prixBaseTarif = Number(tarif?.prix_base);
+  const prixBaseChambre = Number(room?.prix_nuit);
+
+  const prixBase =
+    Number.isFinite(prixBaseTarif) && prixBaseTarif > 0
+      ? prixBaseTarif
+      : Number.isFinite(prixBaseChambre) && prixBaseChambre > 0
+        ? prixBaseChambre
+        : 0;
+
+  if (prixBase <= 0) {
+    return { prixBase: 0, prixSaisonnier: 0, coefficient: 1 };
+  }
+
+  const coefficientSaison = Number(
+    saison?.coefficient ?? saison?.coefficient_saison
+  );
+  const coefficientTarif = Number(tarif?.coefficient_saison);
+
+  const coefficient =
+    Number.isFinite(coefficientSaison) && coefficientSaison > 0
+      ? coefficientSaison
+      : Number.isFinite(coefficientTarif) && coefficientTarif > 0
+        ? coefficientTarif
+        : 1;
+
+  const prixCalcule = prixBase * coefficient;
+  const prixEnregistre = Number(tarif?.prix_nuit);
+
+  const prixSaisonnier =
+    Number.isFinite(prixEnregistre) && prixEnregistre > 0
+      ? prixEnregistre
+      : prixCalcule;
+
+  return {
+    prixBase: Number(prixBase.toFixed(2)),
+    prixSaisonnier: Number(prixSaisonnier.toFixed(2)),
+    coefficient,
+  };
+}
 
 // ==================================================
-// EXTRACTION DES CHEMINS DES IMAGES
+// PROMOTIONS (identiques à HomePage)
+// ==================================================
+
+function promotionCorrespondChambre(promotion, room) {
+  if (
+    promotion.chambre_id === null ||
+    promotion.chambre_id === undefined ||
+    promotion.chambre_id === ""
+  ) {
+    return true;
+  }
+
+  return Number(promotion.chambre_id) === Number(room.id);
+}
+
+function getTypePromotion(promotion) {
+  return String(promotion?.type_reduction || promotion?.type || "")
+    .trim()
+    .toUpperCase();
+}
+
+function getValeurPromotion(promotion) {
+  return Number(
+    promotion?.valeur ??
+      promotion?.valeur_reduction ??
+      promotion?.pourcentage ??
+      0
+  );
+}
+
+function getNuitsMinPromotion(promotion) {
+  return Number(promotion?.nuits_min || promotion?.nombre_nuits_min || 1);
+}
+
+function estPromotionPourcentage(promotion) {
+  const type = getTypePromotion(promotion);
+  return type === "POURCENTAGE" || type === "POURCENT";
+}
+
+function getLibelleReduction(promotion) {
+  const valeur = formaterValeur(getValeurPromotion(promotion));
+
+  return estPromotionPourcentage(promotion)
+    ? `-${valeur} %`
+    : `-${valeur} MAD`;
+}
+
+function promotionPeutEtreAffichee(promotion, room, dateActuelle) {
+  if (!estActif(promotion)) return false;
+  if (!promotionCorrespondChambre(promotion, room)) return false;
+
+  const debut = promotion.date_debut
+    ? String(promotion.date_debut).slice(0, 10)
+    : null;
+  const fin = promotion.date_fin
+    ? String(promotion.date_fin).slice(0, 10)
+    : null;
+
+  if (debut && dateActuelle < debut) return false;
+  if (fin && dateActuelle > fin) return false;
+
+  return true;
+}
+
+function promotionValidePourSejour(
+  promotion,
+  room,
+  dateDebut,
+  dateFin,
+  nombreNuits
+) {
+  if (!estActif(promotion)) return false;
+  if (!promotionCorrespondChambre(promotion, room)) return false;
+  if (!dateDebut || !dateFin || nombreNuits <= 0) return false;
+  if (nombreNuits < getNuitsMinPromotion(promotion)) return false;
+
+  const debutPromotion = promotion.date_debut
+    ? String(promotion.date_debut).slice(0, 10)
+    : null;
+  const finPromotion = promotion.date_fin
+    ? String(promotion.date_fin).slice(0, 10)
+    : null;
+
+  const lendemainFinPromotion = finPromotion
+    ? jourSuivant(finPromotion)
+    : null;
+
+  return (
+    (!debutPromotion || dateDebut >= debutPromotion) &&
+    (!lendemainFinPromotion || dateFin <= lendemainFinPromotion)
+  );
+}
+
+function calculerReductionPromotion(promotion, prixSaisonnier) {
+  const type = getTypePromotion(promotion);
+  const valeur = getValeurPromotion(promotion);
+
+  if (!Number.isFinite(valeur) || valeur <= 0) {
+    return {
+      prixFinal: prixSaisonnier,
+      montantReduction: 0,
+      pourcentageReduction: 0,
+      typeReduction: type,
+    };
+  }
+
+  if (type === "POURCENTAGE" || type === "POURCENT") {
+    const pourcentage = Math.min(100, Math.max(0, valeur));
+    const montantReduction = prixSaisonnier * (pourcentage / 100);
+
+    return {
+      prixFinal: Math.max(0, prixSaisonnier - montantReduction),
+      montantReduction,
+      pourcentageReduction: pourcentage,
+      typeReduction: "POURCENTAGE",
+    };
+  }
+
+  if (type === "MONTANT_FIXE" || type === "MONTANT") {
+    const montantReduction = Math.min(prixSaisonnier, Math.max(0, valeur));
+    const prixFinal = Math.max(0, prixSaisonnier - montantReduction);
+
+    return {
+      prixFinal,
+      montantReduction,
+      pourcentageReduction:
+        prixSaisonnier > 0 ? (montantReduction / prixSaisonnier) * 100 : 0,
+      typeReduction: "MONTANT_FIXE",
+    };
+  }
+
+  return {
+    prixFinal: prixSaisonnier,
+    montantReduction: 0,
+    pourcentageReduction: 0,
+    typeReduction: type,
+  };
+}
+
+function trouverPromotionAAfficher(promotions, room, dateActuelle) {
+  const valides = promotions.filter((promotion) =>
+    promotionPeutEtreAffichee(promotion, room, dateActuelle)
+  );
+
+  if (valides.length === 0) return null;
+
+  const enCours = valides.filter((promotion) => {
+    const debut = promotion.date_debut
+      ? String(promotion.date_debut).slice(0, 10)
+      : null;
+    return !debut || dateActuelle >= debut;
+  });
+
+  const candidates = enCours.length > 0 ? enCours : valides;
+
+  candidates.sort((a, b) =>
+    String(b.date_debut || "").localeCompare(String(a.date_debut || ""))
+  );
+
+  return candidates[0];
+}
+
+function trouverPromotionApplicable(
+  promotions,
+  room,
+  dateDebut,
+  dateFin,
+  nombreNuits,
+  prixSaisonnier
+) {
+  const valides = promotions.filter((promotion) =>
+    promotionValidePourSejour(promotion, room, dateDebut, dateFin, nombreNuits)
+  );
+
+  if (valides.length === 0) return null;
+
+  const calculees = valides.map((promotion) => ({
+    promotion,
+    reduction: calculerReductionPromotion(promotion, prixSaisonnier),
+  }));
+
+  calculees.sort(
+    (a, b) => b.reduction.montantReduction - a.reduction.montantReduction
+  );
+
+  return calculees[0];
+}
+
+// ==================================================
+// CALCUL COMPLET DU PRIX (identique à HomePage)
+// ==================================================
+
+function calculerPrixChambre(
+  room,
+  tarifs,
+  saisons,
+  promotions,
+  dateDebut = getDateAujourdhui(),
+  dateFin = getDateDemain(),
+  dateActuelle = getDateAujourdhui()
+) {
+  const nombreNuits = calculerNombreNuits(dateDebut, dateFin);
+
+  const resultatVide = {
+    disponible: false,
+    prixBase: 0,
+    prixSaisonnier: 0,
+    prixFinal: 0,
+    montantReduction: 0,
+    pourcentageReduction: 0,
+    coefficient: 1,
+    aPromotion: false,
+    prixApercuPromotion: null,
+    montantApercuPromotion: 0,
+    pourcentageApercuPromotion: 0,
+    typeReduction: null,
+    devise: "MAD",
+    tarif: null,
+    saison: null,
+    promotionInfo: null,
+  };
+
+  if (!room || nombreNuits <= 0) return resultatVide;
+
+  const { tarif, saison } = trouverTarifEtSaison(
+    room,
+    tarifs,
+    saisons,
+    dateDebut
+  );
+
+  const prix = calculerPrixSaisonnier(room, tarif, saison);
+
+  if (prix.prixBase <= 0 || prix.prixSaisonnier <= 0) {
+    return {
+      ...resultatVide,
+      devise: tarif?.devise || "MAD",
+      tarif,
+      saison,
+    };
+  }
+
+  const promotionAAfficher = trouverPromotionAAfficher(
+    promotions,
+    room,
+    dateActuelle
+  );
+
+  const reductionApercu = promotionAAfficher
+    ? calculerReductionPromotion(promotionAAfficher, prix.prixSaisonnier)
+    : null;
+
+  const promotionChoisie = trouverPromotionApplicable(
+    promotions,
+    room,
+    dateDebut,
+    dateFin,
+    nombreNuits,
+    prix.prixSaisonnier
+  );
+
+  const reductionAppliquee = promotionChoisie?.reduction || null;
+  const prixFinal = reductionAppliquee
+    ? reductionAppliquee.prixFinal
+    : prix.prixSaisonnier;
+  const montantReduction = reductionAppliquee
+    ? reductionAppliquee.montantReduction
+    : 0;
+  const pourcentageReduction = reductionAppliquee
+    ? reductionAppliquee.pourcentageReduction
+    : 0;
+
+  return {
+    disponible: true,
+    prixBase: Number(prix.prixBase.toFixed(2)),
+    prixSaisonnier: Number(prix.prixSaisonnier.toFixed(2)),
+    prixFinal: Number(Math.max(0, prixFinal).toFixed(2)),
+    montantReduction: Number(montantReduction.toFixed(2)),
+    pourcentageReduction: Number(pourcentageReduction.toFixed(2)),
+    coefficient: prix.coefficient,
+    aPromotion: montantReduction > 0,
+    prixApercuPromotion: reductionApercu
+      ? Number(reductionApercu.prixFinal.toFixed(2))
+      : null,
+    montantApercuPromotion: reductionApercu
+      ? Number(reductionApercu.montantReduction.toFixed(2))
+      : 0,
+    pourcentageApercuPromotion: reductionApercu
+      ? Number(reductionApercu.pourcentageReduction.toFixed(2))
+      : 0,
+    typeReduction: reductionAppliquee?.typeReduction || null,
+    devise: tarif?.devise || "MAD",
+    tarif,
+    saison,
+    promotionInfo: promotionChoisie?.promotion || promotionAAfficher,
+  };
+}
+
+// ==================================================
+// IMAGES
 // ==================================================
 
 const extraireCheminImage = (image) => {
@@ -64,7 +625,6 @@ const extraireCheminImage = (image) => {
 
   if (typeof image === "string") {
     const valeur = image.trim();
-
     if (!valeur) return "";
 
     if (valeur.startsWith("[") || valeur.startsWith("{")) {
@@ -90,25 +650,21 @@ const extraireCheminImage = (image) => {
   if (typeof image === "object") {
     return extraireCheminImage(
       image.url ||
-      image.image_url ||
-      image.path ||
-      image.chemin ||
-      image.chemin_image ||
-      image.filename ||
-      image.file_name ||
-      image.src ||
-      image.image ||
-      image.photo ||
-      ""
+        image.image_url ||
+        image.path ||
+        image.chemin ||
+        image.chemin_image ||
+        image.filename ||
+        image.file_name ||
+        image.src ||
+        image.image ||
+        image.photo ||
+        ""
     );
   }
 
   return "";
 };
-
-// ==================================================
-// CONSTRUCTION DES URL DES IMAGES
-// ==================================================
 
 const getRoomImage = (image) => {
   const chemin = extraireCheminImage(image);
@@ -120,7 +676,6 @@ const getRoomImage = (image) => {
   if (!chemin || typeof chemin !== "string") return "";
 
   const valeur = chemin.trim();
-
   if (!valeur) return "";
 
   if (/^(https?:\/\/|data:|blob:)/i.test(valeur)) {
@@ -135,10 +690,6 @@ const getRoomImage = (image) => {
 
   return `${STORAGE_URL.replace(/\/+$/, "")}/${cheminNettoye}`;
 };
-
-// ==================================================
-// RÉCUPÉRATION DE TOUTES LES IMAGES
-// ==================================================
 
 const getRoomImages = (room) => {
   if (!room) return [DEFAULT_IMAGES[0]];
@@ -169,9 +720,7 @@ const getRoomImages = (room) => {
       const resultat = getRoomImage(image);
       return Array.isArray(resultat) ? resultat : [resultat];
     })
-    .filter(
-      (url) => typeof url === "string" && url.trim().length > 0
-    );
+    .filter((url) => typeof url === "string" && url.trim().length > 0);
 
   if (imagesReelles.length === 0) {
     return [DEFAULT_IMAGES[0]];
@@ -179,198 +728,6 @@ const getRoomImages = (room) => {
 
   return imagesReelles;
 };
-
-// ==================================================
-// FORMATAGE
-// ==================================================
-
-const formatPrix = (valeur) => {
-  const prix = Number(valeur || 0);
-
-  return `${new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(prix) ? prix : 0)} MAD`;
-};
-
-const formaterDateClient = (date) => {
-  if (!date) return "—";
-
-  const [annee, mois, jour] = String(date).slice(0, 10).split("-");
-
-  return `${jour}/${mois}/${annee}`;
-};
-
-const getDateAujourdhui = () => {
-  const date = new Date();
-
-  const annee = date.getFullYear();
-  const mois = String(date.getMonth() + 1).padStart(2, "0");
-  const jour = String(date.getDate()).padStart(2, "0");
-
-  return `${annee}-${mois}-${jour}`;
-};
-
-const lendemain = (dateStr) => {
-  if (!dateStr) return "";
-
-  const [annee, mois, jour] = dateStr.split("-").map(Number);
-
-  const date = new Date(annee, mois - 1, jour);
-  date.setDate(date.getDate() + 1);
-
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-};
-
-// ==================================================
-// CALCUL DES NUITS
-// ==================================================
-
-const nombreNuits = (arrivee, depart) => {
-  if (!arrivee || !depart) return 0;
-
-  const [a1, m1, j1] = arrivee.split("-").map(Number);
-  const [a2, m2, j2] = depart.split("-").map(Number);
-
-  const debut = Date.UTC(a1, m1 - 1, j1);
-  const fin = Date.UTC(a2, m2 - 1, j2);
-
-  const diff = fin - debut;
-
-  return diff > 0 ? Math.round(diff / 86400000) : 0;
-};
-
-const obtenirDatesDuSejour = (arrivee, depart) => {
-  const dates = [];
-
-  if (!arrivee || !depart) return dates;
-
-  const [a1, m1, j1] = arrivee.split("-").map(Number);
-  const [a2, m2, j2] = depart.split("-").map(Number);
-
-  const date = new Date(a1, m1 - 1, j1);
-  const dateFin = new Date(a2, m2 - 1, j2);
-
-  while (date < dateFin) {
-    const annee = date.getFullYear();
-    const mois = String(date.getMonth() + 1).padStart(2, "0");
-    const jour = String(date.getDate()).padStart(2, "0");
-
-    dates.push(`${annee}-${mois}-${jour}`);
-
-    date.setDate(date.getDate() + 1);
-  }
-
-  return dates;
-};
-
-// ==================================================
-// RECHERCHE
-// ==================================================
-
-const normaliserCriteres = (criteres) => {
-  if (!criteres) return null;
-
-  const dateArrivee =
-    criteres.date_debut ||
-    criteres.dateArrivee ||
-    criteres.arrivee ||
-    "";
-
-  const dateDepart =
-    criteres.date_fin ||
-    criteres.dateDepart ||
-    criteres.depart ||
-    "";
-
-  const nombrePersonnes = Number(
-    criteres.adultes ??
-    criteres.nombrePersonnes ??
-    criteres.voyageurs ??
-    1
-  );
-
-  return {
-    dateArrivee,
-    dateDepart,
-    nombrePersonnes:
-      Number.isFinite(nombrePersonnes) && nombrePersonnes > 0
-        ? Math.floor(nombrePersonnes)
-        : 1,
-  };
-};
-
-// ==================================================
-// ÉQUIPEMENTS
-// ==================================================
-
-const extraireEquipements = (equipements) => {
-  if (!equipements) return [];
-
-  if (typeof equipements === "string") {
-    try {
-      equipements = JSON.parse(equipements);
-    } catch {
-      equipements = equipements.split(",").map((e) => e.trim());
-    }
-  }
-
-  return Array.isArray(equipements) ? equipements : [];
-};
-
-// ==================================================
-// STATUTS ET PÉRIODES
-// ==================================================
-
-const normaliserStatut = (value) => {
-  return (
-    value === true ||
-    value === 1 ||
-    ["actif", "active", "1", "true"].includes(
-      String(value ?? "").trim().toLowerCase()
-    )
-  );
-};
-
-const dateDansPeriode = (date, debut, fin) => {
-  if (!date || !debut || !fin) return false;
-
-  const jour = String(date).slice(0, 10);
-  const dateDebut = String(debut).slice(0, 10);
-  const dateFin = String(fin).slice(0, 10);
-
-  return jour >= dateDebut && jour <= dateFin;
-};
-
-// ==================================================
-// CALCUL DES RÉDUCTIONS
-// ==================================================
-
-const calculerReduction = (prix, promotion) => {
-  const valeur = Number(promotion?.valeur || 0);
-
-  if (!promotion || !Number.isFinite(valeur) || valeur <= 0) {
-    return prix;
-  }
-
-  if (promotion.type_reduction === "MONTANT_FIXE") {
-    return Math.max(0, prix - valeur);
-  }
-
-  if (promotion.type_reduction === "POURCENTAGE") {
-    return Math.max(0, prix * (1 - valeur / 100));
-  }
-
-  return prix;
-};
-
-// ==================================================
-// IMAGE CHAMBRE AVEC SECOURS AUTOMATIQUE
-// ==================================================
 
 function ImageChambre({
   src,
@@ -400,6 +757,47 @@ function ImageChambre({
 }
 
 // ==================================================
+// CRITÈRES ET ÉQUIPEMENTS
+// ==================================================
+
+const normaliserCriteres = (criteres) => {
+  if (!criteres) return null;
+
+  const dateArrivee =
+    criteres.date_debut || criteres.dateArrivee || criteres.arrivee || "";
+
+  const dateDepart =
+    criteres.date_fin || criteres.dateDepart || criteres.depart || "";
+
+  const nombrePersonnes = Number(
+    criteres.adultes ?? criteres.nombrePersonnes ?? criteres.voyageurs ?? 1
+  );
+
+  return {
+    dateArrivee,
+    dateDepart,
+    nombrePersonnes:
+      Number.isFinite(nombrePersonnes) && nombrePersonnes > 0
+        ? Math.floor(nombrePersonnes)
+        : 1,
+  };
+};
+
+const extraireEquipements = (equipements) => {
+  if (!equipements) return [];
+
+  if (typeof equipements === "string") {
+    try {
+      equipements = JSON.parse(equipements);
+    } catch {
+      equipements = equipements.split(",").map((e) => e.trim());
+    }
+  }
+
+  return Array.isArray(equipements) ? equipements : [];
+};
+
+// ==================================================
 // PAGE DÉTAIL CHAMBRE
 // ==================================================
 
@@ -409,8 +807,6 @@ function DetailChambrePage() {
   const location = useLocation();
 
   const { isAuthenticated } = useAuth();
-
-  // CRITÈRES DE RECHERCHE
 
   const criteresRecherche = useMemo(
     () => normaliserCriteres(location.state?.criteresRecherche),
@@ -422,21 +818,18 @@ function DetailChambrePage() {
   // ÉTATS CHAMBRE
 
   const [chambre, setChambre] = useState(() => {
-    if (
-      chambreTransmise &&
-      String(chambreTransmise.id) === String(id)
-    ) {
+    if (chambreTransmise && String(chambreTransmise.id) === String(id)) {
       return chambreTransmise;
     }
-
     return null;
   });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ÉTATS TARIFS
+  // ÉTATS TARIFS (mêmes données que HomePage)
 
+  const [tarifs, setTarifs] = useState([]);
   const [saisons, setSaisons] = useState([]);
   const [promotions, setPromotions] = useState([]);
 
@@ -445,18 +838,11 @@ function DetailChambrePage() {
 
   // ÉTATS RÉSERVATION
 
-  const [arrivee, setArrivee] = useState(
-    criteresRecherche?.dateArrivee || ""
-  );
-
-  const [depart, setDepart] = useState(
-    criteresRecherche?.dateDepart || ""
-  );
-
+  const [arrivee, setArrivee] = useState(criteresRecherche?.dateArrivee || "");
+  const [depart, setDepart] = useState(criteresRecherche?.dateDepart || "");
   const [voyageurs, setVoyageurs] = useState(
     criteresRecherche?.nombrePersonnes || 1
   );
-
   const [erreurReservation, setErreurReservation] = useState("");
 
   // GALERIE
@@ -476,21 +862,15 @@ function DetailChambrePage() {
         setError("");
         setLoading(true);
 
-        if (
-          chambreTransmise &&
-          String(chambreTransmise.id) === String(id)
-        ) {
-          if (actif) {
-            setChambre(chambreTransmise);
-          }
-
+        if (chambreTransmise && String(chambreTransmise.id) === String(id)) {
+          if (actif) setChambre(chambreTransmise);
           return;
         }
 
         setChambre(null);
 
         const response = await getChambres();
-        const chambres = extraireListe(response);
+        const chambres = extraireListe(response, ["chambres"]);
 
         const chambreTrouvee = chambres.find(
           (item) => String(item.id) === String(id)
@@ -510,8 +890,8 @@ function DetailChambrePage() {
         if (actif) {
           setError(
             err.response?.data?.message ||
-            err.message ||
-            "Impossible de charger les informations de la chambre."
+              err.message ||
+              "Impossible de charger les informations de la chambre."
           );
         }
       } finally {
@@ -527,8 +907,8 @@ function DetailChambrePage() {
   }, [id, location.key, chambreTransmise]);
 
   // ==================================================
-  // CHARGEMENT SAISONS ET PROMOTIONS
-  // VIA LE SERVICE CENTRALISÉ TARIFS API
+  // CHARGEMENT TARIFS, SAISONS, PROMOTIONS
+  // (mêmes endpoints et mêmes filtres que HomePage)
   // ==================================================
 
   useEffect(() => {
@@ -539,34 +919,35 @@ function DetailChambrePage() {
       setErreurTarifs("");
 
       try {
-        const [saisonsRes, promotionsRes] = await Promise.all([
-          tarifsApi.getAllSaisons(),
-          tarifsApi.getAllPromotions(),
+        const [tarifsRes, saisonsRes, promotionsRes] = await Promise.all([
+          axios.get(`${TARIFS_API}/tarifs`),
+          axios.get(`${TARIFS_API}/saisons`),
+          axios.get(`${TARIFS_API}/promotions`),
         ]);
 
         if (!actif) return;
 
-        setSaisons(extraireListe(saisonsRes));
-        setPromotions(extraireListe(promotionsRes));
-
+        setTarifs(extraireListe(tarifsRes, ["tarifs"]).filter(estActif));
+        setSaisons(extraireListe(saisonsRes, ["saisons"]).filter(estActif));
+        setPromotions(
+          extraireListe(promotionsRes, ["promotions"]).filter(estActif)
+        );
       } catch (err) {
         console.error(
-          "Erreur chargement saisons et promotions :",
-          err.response?.data || err
+          "Erreur chargement tarifs :",
+          err.response?.data || err.message
         );
 
         if (actif) {
-          setErreurTarifs(
-            "Les tarifs promotionnels sont momentanément indisponibles."
-          );
-
+          setTarifs([]);
           setSaisons([]);
           setPromotions([]);
+          setErreurTarifs(
+            "Tarifs saisonniers et promotions indisponibles. Le prix de base de la chambre est affiché."
+          );
         }
       } finally {
-        if (actif) {
-          setChargementTarifs(false);
-        }
+        if (actif) setChargementTarifs(false);
       }
     };
 
@@ -578,13 +959,12 @@ function DetailChambrePage() {
   }, []);
 
   // ==================================================
-  // SYNCHRONISATION CRITÈRES
+  // SYNCHRONISATION DES CRITÈRES
   // ==================================================
 
   useEffect(() => {
     setArrivee(criteresRecherche?.dateArrivee || "");
     setDepart(criteresRecherche?.dateDepart || "");
-
     setVoyageurs(criteresRecherche?.nombrePersonnes || 1);
 
     setIndexActif(0);
@@ -599,52 +979,30 @@ function DetailChambrePage() {
   ]);
 
   // ==================================================
-  // IMAGES
+  // IMAGES / ÉQUIPEMENTS / CAPACITÉ
   // ==================================================
 
-  const images = useMemo(
-    () => getRoomImages(chambre),
-    [chambre]
-  );
-
-  // ==================================================
-  // ÉQUIPEMENTS
-  // ==================================================
+  const images = useMemo(() => getRoomImages(chambre), [chambre]);
 
   const equipements = useMemo(
     () => extraireEquipements(chambre?.equipements),
     [chambre]
   );
 
-  // ==================================================
-  // CAPACITÉ
-  // ==================================================
-
+  // Même fonction que HomePage ; si la capacité est inconnue,
+  // on n'empêche pas la recherche faite sur la page d'accueil.
   const capacite = useMemo(() => {
-    const valeur =
-      chambre?.capacite ??
-      chambre?.nombre_personnes ??
-      chambre?.nb_personnes ??
-      chambre?.capacity ??
-      1;
-
-    const nombre = Number(valeur);
-
-    return Number.isFinite(nombre) && nombre > 0
-      ? Math.floor(nombre)
-      : 1;
-  }, [chambre]);
+    const valeur = getCapaciteChambre(chambre);
+    if (valeur > 0) return valeur;
+    return Math.max(1, criteresRecherche?.nombrePersonnes || 1);
+  }, [chambre, criteresRecherche?.nombrePersonnes]);
 
   useEffect(() => {
     if (!chambre) return;
 
     setVoyageurs((valeur) => {
       const nombre = Number(valeur);
-
-      if (!Number.isFinite(nombre) || nombre < 1) {
-        return 1;
-      }
-
+      if (!Number.isFinite(nombre) || nombre < 1) return 1;
       return Math.min(Math.floor(nombre), capacite);
     });
   }, [chambre, capacite]);
@@ -659,23 +1017,13 @@ function DetailChambrePage() {
     const total = images.length;
 
     const onKey = (e) => {
-      if (e.key === "Escape") {
-        setLightboxOpen(false);
-      }
-
-      if (e.key === "ArrowRight") {
-        setIndexActif((i) => (i + 1) % total);
-      }
-
-      if (e.key === "ArrowLeft") {
-        setIndexActif((i) => (i - 1 + total) % total);
-      }
+      if (e.key === "Escape") setLightboxOpen(false);
+      if (e.key === "ArrowRight") setIndexActif((i) => (i + 1) % total);
+      if (e.key === "ArrowLeft") setIndexActif((i) => (i - 1 + total) % total);
     };
 
     const ancienOverflow = document.body.style.overflow;
-
     document.body.style.overflow = "hidden";
-
     window.addEventListener("keydown", onKey);
 
     return () => {
@@ -685,12 +1033,48 @@ function DetailChambrePage() {
   }, [lightboxOpen, images.length]);
 
   // ==================================================
-  // CALCUL DU SÉJOUR
+  // CALCUL DU PRIX — EXACTEMENT COMME HOMEPAGE
   // ==================================================
 
-  const nuits = nombreNuits(arrivee, depart);
-  const prixNaturel = Number(chambre?.prix_nuit || 0);
+  const nuits = calculerNombreNuits(arrivee, depart);
   const nombreVoyageurs = Number(voyageurs);
+  const dateActuelle = getDateAujourdhui();
+
+  // Sans dates, HomePage affiche le prix d'une nuit (aujourd'hui → demain)
+  const dateDebutCalcul = arrivee || getDateAujourdhui();
+  const dateFinCalcul = depart || getDateDemain();
+
+  const prixInfo = useMemo(
+    () =>
+      calculerPrixChambre(
+        chambre,
+        tarifs,
+        saisons,
+        promotions,
+        dateDebutCalcul,
+        dateFinCalcul,
+        dateActuelle
+      ),
+    [
+      chambre,
+      tarifs,
+      saisons,
+      promotions,
+      dateDebutCalcul,
+      dateFinCalcul,
+      dateActuelle,
+    ]
+  );
+
+  const prixNuitFinal = prixInfo.prixFinal;
+  const prixNuitAvantPromo = prixInfo.prixSaisonnier;
+  const devise = prixInfo.devise || "MAD";
+
+  const sousTotal = Number((prixNuitFinal * nuits).toFixed(2));
+  const totalAvantPromotion = Number((prixNuitAvantPromo * nuits).toFixed(2));
+  const reductionTotale = Number((prixInfo.montantReduction * nuits).toFixed(2));
+
+  const promotionAppliquee = prixInfo.aPromotion ? prixInfo.promotionInfo : null;
 
   const datesSejour = useMemo(
     () => obtenirDatesDuSejour(arrivee, depart),
@@ -698,199 +1082,16 @@ function DetailChambrePage() {
   );
 
   // ==================================================
-  // CALCUL SAISONS ET PROMOTIONS
-  // ==================================================
-
-  const detailsPrix = useMemo(() => {
-    if (
-      !chambre ||
-      !Number.isFinite(prixNaturel) ||
-      prixNaturel <= 0 ||
-      datesSejour.length === 0
-    ) {
-      return {
-        lignes: [],
-        total: 0,
-        totalNaturel: 0,
-        totalAvantPromotion: 0,
-        reductionTotale: 0,
-        prixMoyen: prixNaturel,
-        promotionsUtilisees: [],
-      };
-    }
-
-    const lignes = datesSejour.map((date) => {
-      const saisonsApplicables = saisons
-        .filter((saison) =>
-          dateDansPeriode(date, saison.date_debut, saison.date_fin)
-        )
-        .sort(
-          (a, b) =>
-            new Date(a.date_debut) - new Date(b.date_debut)
-        );
-
-      const saison = saisonsApplicables[0] || null;
-
-      const coefficient =
-        saison && Number(saison.coefficient) > 0
-          ? Number(saison.coefficient)
-          : 1;
-
-      const prixSaison = prixNaturel * coefficient;
-
-      const promotionsApplicables = promotions.filter(
-        (promotion) => {
-          if (
-            !normaliserStatut(
-              promotion.statut ?? promotion.active
-            )
-          ) {
-            return false;
-          }
-
-          if (
-            !dateDansPeriode(
-              date,
-              promotion.date_debut,
-              promotion.date_fin
-            )
-          ) {
-            return false;
-          }
-
-          if (
-            Number(promotion.nuits_min || 1) >
-            datesSejour.length
-          ) {
-            return false;
-          }
-
-          if (
-            promotion.chambre_id !== null &&
-            promotion.chambre_id !== undefined &&
-            promotion.chambre_id !== "" &&
-            String(promotion.chambre_id) !== String(chambre.id)
-          ) {
-            return false;
-          }
-
-          const valeur = Number(promotion.valeur);
-
-          if (!Number.isFinite(valeur) || valeur <= 0) {
-            return false;
-          }
-
-          if (
-            promotion.type_reduction === "POURCENTAGE" &&
-            valeur > 100
-          ) {
-            return false;
-          }
-
-          if (
-            !["POURCENTAGE", "MONTANT_FIXE"].includes(
-              promotion.type_reduction
-            )
-          ) {
-            return false;
-          }
-
-          return true;
-        }
-      );
-
-      const promotionsTriees = promotionsApplicables
-        .map((promotion) => ({
-          promotion,
-          prix: calculerReduction(prixSaison, promotion),
-        }))
-        .sort((a, b) => a.prix - b.prix);
-
-      const meilleurePromotion = promotionsTriees[0] || null;
-
-      const prixFinal = meilleurePromotion
-        ? meilleurePromotion.prix
-        : prixSaison;
-
-      return {
-        date,
-        saison,
-        coefficient,
-        prixNaturel,
-        prixSaison,
-        promotion: meilleurePromotion?.promotion || null,
-        prixFinal,
-        reduction: prixSaison - prixFinal,
-      };
-    });
-
-    const total = lignes.reduce(
-      (somme, ligne) => somme + ligne.prixFinal,
-      0
-    );
-
-    const totalNaturel = lignes.reduce(
-      (somme, ligne) => somme + ligne.prixNaturel,
-      0
-    );
-
-    const totalAvantPromotion = lignes.reduce(
-      (somme, ligne) => somme + ligne.prixSaison,
-      0
-    );
-
-    const reductionTotale = totalAvantPromotion - total;
-
-    const promotionsUtilisees = [
-      ...new Map(
-        lignes
-          .filter((ligne) => ligne.promotion)
-          .map((ligne) => [
-            ligne.promotion.id,
-            ligne.promotion,
-          ])
-      ).values(),
-    ];
-
-    return {
-      lignes,
-      total,
-      totalNaturel,
-      totalAvantPromotion,
-      reductionTotale,
-      prixMoyen: total / lignes.length,
-      promotionsUtilisees,
-    };
-  }, [chambre, prixNaturel, datesSejour, saisons, promotions]);
-
-  const sousTotal = detailsPrix.total;
-
-  // ==================================================
   // CARACTÉRISTIQUES
   // ==================================================
 
   const caracteristiques = chambre
     ? [
-        {
-          icone: "▢",
-          texte: `${chambre.superficie || 0} m²`,
-        },
-        {
-          icone: "☺",
-          texte: `${capacite} voyageur(s)`,
-        },
-        {
-          icone: "↕",
-          texte: `Étage ${chambre.etage ?? "Non précisé"}`,
-        },
-        {
-          icone: "◐",
-          texte: chambre.vue || "Vue non précisée",
-        },
-        {
-          icone: "▭",
-          texte: chambre.type || "Type non précisé",
-        },
+        { icone: "▢", texte: `${chambre.superficie || 0} m²` },
+        { icone: "☺", texte: `${capacite} voyageur(s)` },
+        { icone: "↕", texte: `Étage ${chambre.etage ?? "Non précisé"}` },
+        { icone: "◐", texte: chambre.vue || "Vue non précisée" },
+        { icone: "▭", texte: chambre.type || "Type non précisé" },
       ]
     : [];
 
@@ -903,7 +1104,7 @@ function DetailChambrePage() {
     setErreurReservation("");
 
     if (depart && depart <= nouvelleDate) {
-      setDepart(lendemain(nouvelleDate));
+      setDepart(jourSuivant(nouvelleDate));
     }
   };
 
@@ -931,21 +1132,16 @@ function DetailChambrePage() {
           },
         },
       });
-
       return;
     }
 
     if (!arrivee || !depart) {
-      setErreurReservation(
-        "Veuillez sélectionner les dates de votre séjour."
-      );
+      setErreurReservation("Veuillez sélectionner les dates de votre séjour.");
       return;
     }
 
     if (arrivee < getDateAujourdhui()) {
-      setErreurReservation(
-        "La date d'arrivée ne peut pas être dans le passé."
-      );
+      setErreurReservation("La date d'arrivée ne peut pas être dans le passé.");
       return;
     }
 
@@ -956,90 +1152,87 @@ function DetailChambrePage() {
       return;
     }
 
-    if (
-      nombreVoyageurs < 1 ||
-      nombreVoyageurs > capacite
-    ) {
+    if (nombreVoyageurs < 1 || nombreVoyageurs > capacite) {
       setErreurReservation(
         `Cette chambre accepte maximum ${capacite} voyageurs.`
       );
       return;
     }
 
-    if (prixNaturel <= 0) {
-      setErreurReservation(
-        "Le prix de cette chambre est indisponible."
-      );
+    if (chargementTarifs) {
+      setErreurReservation("Chargement des tarifs en cours. Veuillez patienter.");
       return;
     }
 
-    if (chargementTarifs || erreurTarifs) {
-      setErreurReservation(
-        "Impossible de vérifier les tarifs. Veuillez réessayer."
-      );
+    if (!prixInfo.disponible || prixNuitFinal <= 0) {
+      setErreurReservation("Le prix de cette chambre est indisponible.");
       return;
     }
 
-   navigate("/reservation", {
-  state: {
-    // Informations de la chambre
-    chambreId: chambre.id,
-    chambre,
+    const promotionsUtilisees = promotionAppliquee
+      ? [
+          {
+            id: promotionAppliquee.id,
+            libelle: promotionAppliquee.libelle,
+            valeur: promotionAppliquee.valeur,
+            type_reduction: promotionAppliquee.type_reduction,
+          },
+        ]
+      : [];
 
-    // Informations du séjour
-    dateDebut: arrivee,
-    dateFin: depart,
-    dateArrivee: arrivee,
-    dateDepart: depart,
-    nombrePersonnes: nombreVoyageurs,
+    navigate("/reservation", {
+      state: {
+        // Chambre
+        chambreId: chambre.id,
+        chambre,
 
-    // Prix calculés dans DetailChambrePage
-    prixNuit: prixNaturel,
-    prixTotal: Number(sousTotal.toFixed(2)),
-    prixAvantPromotion: Number(
-      detailsPrix.totalAvantPromotion.toFixed(2)
-    ),
-    reductionTotale: Number(
-      detailsPrix.reductionTotale.toFixed(2)
-    ),
+        // Séjour
+        dateDebut: arrivee,
+        dateFin: depart,
+        dateArrivee: arrivee,
+        dateDepart: depart,
+        nombrePersonnes: nombreVoyageurs,
+        nombreNuits: nuits,
 
-    // Détail des tarifs par nuit
-    detailsTarifs: detailsPrix.lignes.map((ligne) => ({
-      date: ligne.date,
-      prixNaturel: ligne.prixNaturel,
-      prixSaison: ligne.prixSaison,
-      coefficient: ligne.coefficient,
-      saison: ligne.saison?.nom || null,
-      prixFinal: ligne.prixFinal,
-      reduction: ligne.reduction,
-      promotion: ligne.promotion
-        ? {
-            id: ligne.promotion.id,
-            libelle: ligne.promotion.libelle,
-            valeur: ligne.promotion.valeur,
-            type_reduction: ligne.promotion.type_reduction,
-          }
-        : null,
-    })),
+        // Prix (identiques à HomePage)
+        prixInfo,
+        prixNuit: prixNuitFinal,
+        prixMoyen: prixNuitFinal,
+        prixTotal: sousTotal,
+        devise,
+        prixAvantPromotion: totalAvantPromotion,
+        reductionTotale,
 
-    // Promotions utilisées
-    promotionsUtilisees: detailsPrix.promotionsUtilisees.map(
-      (promotion) => ({
-        id: promotion.id,
-        libelle: promotion.libelle,
-        valeur: promotion.valeur,
-        type_reduction: promotion.type_reduction,
-      })
-    ),
+        tarif: {
+          prixNuit: prixNuitFinal,
+          prix_nuit: prixNuitFinal,
+          prixTotal: sousTotal,
+          prixAvantPromotion: totalAvantPromotion,
+          reductionTotale,
+          devise,
+        },
 
-    // Critères de recherche
-    criteresRecherche: {
-      dateArrivee: arrivee,
-      dateDepart: depart,
-      nombrePersonnes: nombreVoyageurs,
-    },
-  },
-});
+        // Détail par nuit (même prix sur toutes les nuits, comme HomePage)
+        detailsTarifs: datesSejour.map((date) => ({
+          date,
+          prixNaturel: prixInfo.prixBase,
+          prixSaison: prixNuitAvantPromo,
+          coefficient: prixInfo.coefficient,
+          saison: prixInfo.saison?.nom || null,
+          prixFinal: prixNuitFinal,
+          reduction: prixInfo.montantReduction,
+          promotion: promotionsUtilisees[0] || null,
+        })),
+
+        promotionsUtilisees,
+
+        criteresRecherche: {
+          dateArrivee: arrivee,
+          dateDepart: depart,
+          nombrePersonnes: nombreVoyageurs,
+        },
+      },
+    });
   };
 
   // ==================================================
@@ -1047,11 +1240,7 @@ function DetailChambrePage() {
   // ==================================================
 
   if (loading) {
-    return (
-      <p className="detail-loading">
-        Chargement de la chambre...
-      </p>
-    );
+    return <p className="detail-loading">Chargement de la chambre...</p>;
   }
 
   if (error) {
@@ -1079,7 +1268,6 @@ function DetailChambrePage() {
   return (
     <div className="detail-chambre-page">
       <div className="detail-container">
-
         {/* GALERIE DES IMAGES */}
 
         <div className="detail-gallery">
@@ -1121,10 +1309,7 @@ function DetailChambrePage() {
         {/* LIGHTBOX */}
 
         {lightboxOpen && images.length > 0 && (
-          <div
-            className="lightbox"
-            onClick={() => setLightboxOpen(false)}
-          >
+          <div className="lightbox" onClick={() => setLightboxOpen(false)}>
             <button
               type="button"
               className="lightbox-close"
@@ -1140,9 +1325,7 @@ function DetailChambrePage() {
               aria-label="Image précédente"
               onClick={(e) => {
                 e.stopPropagation();
-                setIndexActif(
-                  (i) => (i - 1 + images.length) % images.length
-                );
+                setIndexActif((i) => (i - 1 + images.length) % images.length);
               }}
             >
               ‹
@@ -1161,9 +1344,7 @@ function DetailChambrePage() {
               aria-label="Image suivante"
               onClick={(e) => {
                 e.stopPropagation();
-                setIndexActif(
-                  (i) => (i + 1) % images.length
-                );
+                setIndexActif((i) => (i + 1) % images.length);
               }}
             >
               ›
@@ -1195,8 +1376,7 @@ function DetailChambrePage() {
             <h2>{chambre.titre || chambre.type}</h2>
 
             <p className="detail-description">
-              {chambre.description ||
-                "Aucune description disponible."}
+              {chambre.description || "Aucune description disponible."}
             </p>
 
             <h3>Équipements & prestations</h3>
@@ -1223,14 +1403,18 @@ function DetailChambrePage() {
 
           <aside className="detail-reservation">
             <div className="reservation-top">
-              {detailsPrix.promotionsUtilisees.map((promotion) => (
-                <span
-                  key={promotion.id}
-                  className="promotion-nom"
-                >
-                  Offre : {promotion.libelle}
+              {promotionAppliquee && (
+                <span className="promotion-nom">
+                  Offre : {promotionAppliquee.libelle} (
+                  {getLibelleReduction(promotionAppliquee)})
                 </span>
-              ))}
+              )}
+
+              {prixInfo.saison && (
+                <span className="promotion-nom">
+                  Saison : {prixInfo.saison.nom}
+                </span>
+              )}
             </div>
 
             {/* DATES */}
@@ -1254,8 +1438,8 @@ function DetailChambrePage() {
                   value={depart}
                   min={
                     arrivee
-                      ? lendemain(arrivee)
-                      : lendemain(getDateAujourdhui())
+                      ? jourSuivant(arrivee)
+                      : jourSuivant(getDateAujourdhui())
                   }
                   required
                   onChange={(e) => changerDepart(e.target.value)}
@@ -1269,19 +1453,13 @@ function DetailChambrePage() {
               <span>Voyageurs</span>
 
               <select
-                value={Math.min(
-                  Math.max(1, Number(voyageurs) || 1),
-                  capacite
-                )}
+                value={Math.min(Math.max(1, Number(voyageurs) || 1), capacite)}
                 onChange={(e) => {
                   setVoyageurs(Number(e.target.value));
                   setErreurReservation("");
                 }}
               >
-                {Array.from(
-                  { length: capacite },
-                  (_, i) => i + 1
-                ).map((n) => (
+                {Array.from({ length: capacite }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
                     {n} voyageur{n > 1 ? "s" : ""}
                   </option>
@@ -1289,82 +1467,81 @@ function DetailChambrePage() {
               </select>
             </label>
 
-            {/* DÉTAIL DES PRIX */}
+            {/* RÉCAPITULATIF DU SÉJOUR */}
 
             <div className="reservation-lignes">
               {chargementTarifs ? (
                 <p>Calcul des tarifs...</p>
-              ) : erreurTarifs ? (
+              ) : !prixInfo.disponible ? (
                 <p className="reservation-error">
-                  {erreurTarifs}
+                  Prix de la chambre indisponible
                 </p>
               ) : nuits > 0 ? (
                 <>
+                  <h4>Récapitulatif du séjour</h4>
+
                   <div>
-                    <span>Prix naturel / nuit</span>
-                    <span>{formatPrix(prixNaturel)}</span>
+                    <span>Prix par nuit</span>
+                    <strong>
+                      {prixInfo.aPromotion && (
+                        <s style={{ marginRight: 8, opacity: 0.6 }}>
+                          {formaterPrix(prixNuitAvantPromo)} {devise}
+                        </s>
+                      )}
+                      {formaterPrix(prixNuitFinal)} {devise}
+                    </strong>
                   </div>
 
-                  <h4>Détail des tarifs par nuit</h4>
+                  <div>
+                    <span>Nombre de nuits</span>
+                    <strong>{nuits}</strong>
+                  </div>
 
-                  {detailsPrix.lignes.map((ligne, index) => (
-                    <div
-                      className="reservation-detail-nuit"
-                      key={ligne.date}
-                    >
-                      <span>
-                        Nuit {index + 1} –{" "}
-                        {formaterDateClient(ligne.date)}
-                      </span>
+                  {prixInfo.aPromotion && (
+                    <>
+                      <div>
+                        <span>Prix avant promotion</span>
+                        <strong>
+                          {formaterPrix(totalAvantPromotion)} {devise}
+                        </strong>
+                      </div>
 
-                      <strong>{formatPrix(ligne.prixFinal)}</strong>
-
-                      {ligne.saison && (
-                        <small>
-                          {ligne.saison.nom} (×{ligne.coefficient})
-                        </small>
-                      )}
-
-                      {ligne.promotion && (
-                        <small className="reservation-remise">
-                          {ligne.promotion.libelle} :{" "}
-                          {ligne.promotion.type_reduction === "POURCENTAGE"
-                            ? `-${ligne.promotion.valeur}%`
-                            : `-${formatPrix(ligne.promotion.valeur)}`}
-                        </small>
-                      )}
-                    </div>
-                  ))}
-
-                  {detailsPrix.reductionTotale > 0 && (
-                    <div className="reservation-economie">
-                      <span>Réduction totale</span>
-                      <strong>
-                        -{formatPrix(detailsPrix.reductionTotale)}
-                      </strong>
-                    </div>
+                      <div className="reservation-economie">
+                        <span>Réduction totale</span>
+                        <strong>
+                          -{formaterPrix(reductionTotale)} {devise}
+                        </strong>
+                      </div>
+                    </>
                   )}
 
                   <div className="reservation-total">
                     <span>
-                      Total du séjour ({nuits} nuit
-                      {nuits > 1 ? "s" : ""})
+                      Total du séjour ({pluriel(nuits, "nuit", "nuits")})
                     </span>
-                    <strong>{formatPrix(sousTotal)}</strong>
+                    <strong>
+                      {formaterPrix(sousTotal)} {devise}
+                    </strong>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
                     <span>Prix par nuit</span>
-                    <strong>{formatPrix(prixNaturel)}</strong>
+                    <strong>
+                      {formaterPrix(prixNuitFinal)} {devise}
+                    </strong>
                   </div>
 
                   <p className="reservation-info">
-                    Sélectionnez vos dates pour voir le détail
-                    des saisons et des promotions applicables.
+                    Sélectionnez vos dates pour voir le détail des saisons et
+                    des promotions applicables.
                   </p>
                 </>
+              )}
+
+              {erreurTarifs && !chargementTarifs && (
+                <p className="reservation-info">{erreurTarifs}</p>
               )}
             </div>
 
@@ -1382,7 +1559,12 @@ function DetailChambrePage() {
               type="button"
               className="reservation-button"
               onClick={handleReservation}
-              disabled={chargementTarifs || Boolean(erreurTarifs)}
+              disabled={
+                chargementTarifs ||
+                !prixInfo.disponible ||
+                nuits <= 0 ||
+                sousTotal <= 0
+              }
             >
               {isAuthenticated
                 ? "RÉSERVER CE SÉJOUR"
@@ -1394,7 +1576,6 @@ function DetailChambrePage() {
         {/* AVIS CLIENTS */}
 
         <ClientAvisPage />
-
       </div>
     </div>
   );

@@ -516,20 +516,6 @@ export default function ChambresPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="room-detail-book-btn"
-                    onClick={() => {
-                      alert(
-                        `Réservation initiée pour la ${
-                          selectedRoom.nom || "Chambre N° " + selectedRoom.numero
-                        }. Un conseiller HotelHub vous contactera.`
-                      );
-                      setSelectedRoom(null);
-                    }}
-                  >
-                    Réserver ce séjour
-                  </button>
                 </div>
               </div>
             </div>

@@ -23,7 +23,6 @@ const STATUT_INACTIF = "inactive";
 
 function obtenirDateLocale() {
   const maintenant = new Date();
-
   const annee = maintenant.getFullYear();
   const mois = String(maintenant.getMonth() + 1).padStart(2, "0");
   const jour = String(maintenant.getDate()).padStart(2, "0");
@@ -33,8 +32,6 @@ function obtenirDateLocale() {
 
 const EMPTY_TARIF = {
   numero_chambre: "",
-  saison_id: "",
-  coefficient_saison: 1,
   promotion_id: "",
   date_application: obtenirDateLocale(),
   statut: STATUT_ACTIF,
@@ -70,9 +67,7 @@ function getToken() {
   );
 }
 
-const api = axios.create({
-  timeout: 15000,
-});
+const api = axios.create({ timeout: 15000 });
 
 api.interceptors.request.use((config) => {
   const token = getToken();
@@ -94,7 +89,7 @@ api.interceptors.request.use((config) => {
 function extraireListe(response) {
   let data = response?.data ?? response;
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i += 1) {
     if (Array.isArray(data)) return data;
 
     if (Array.isArray(data?.data)) {
@@ -138,9 +133,9 @@ function formaterPrix(value) {
 function formaterDate(value) {
   if (!value) return "—";
 
-  const date = new Date(`${value}`.slice(0, 10) + "T00:00:00");
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
 
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return String(value);
 
   return date.toLocaleDateString("fr-FR");
 }
@@ -160,9 +155,7 @@ function normaliserStatut(value) {
 }
 
 function statutActif(item) {
-  return (
-    normaliserStatut(item?.statut ?? item?.active) === STATUT_ACTIF
-  );
+  return normaliserStatut(item?.statut ?? item?.active) === STATUT_ACTIF;
 }
 
 function dateEstDansPeriode(date, debut, fin) {
@@ -172,7 +165,13 @@ function dateEstDansPeriode(date, debut, fin) {
   const dateDebut = String(debut).slice(0, 10);
   const dateFin = String(fin).slice(0, 10);
 
+  // Les dates ISO YYYY-MM-DD peuvent être comparées directement.
   return jour >= dateDebut && jour <= dateFin;
+}
+
+function valeurNumerique(value, valeurParDefaut = 0) {
+  const nombre = Number(value);
+  return Number.isFinite(nombre) ? nombre : valeurParDefaut;
 }
 
 // =====================================================
@@ -187,15 +186,12 @@ function obtenirNumeroChambre(chambre) {
     chambre?.numeroChambre ??
     chambre?.chambre_numero;
 
-  return numero === null || numero === undefined
-    ? ""
-    : String(numero);
+  return numero === null || numero === undefined ? "" : String(numero);
 }
 
 function trouverChambreParNumero(chambres, numero) {
   return chambres.find(
-    (chambre) =>
-      obtenirNumeroChambre(chambre) === String(numero)
+    (chambre) => obtenirNumeroChambre(chambre) === String(numero)
   );
 }
 
@@ -210,40 +206,65 @@ function nomChambre(chambre) {
   if (numero && type) return `Chambre ${numero} - ${type}`;
   if (numero) return `Chambre ${numero}`;
 
-  return `Chambre #${chambre?.id}`;
+  return `Chambre #${chambre?.id ?? "?"}`;
 }
 
 function obtenirPrixNaturel(chambre) {
-  const prix = Number(chambre?.prix_nuit);
-
-  return Number.isFinite(prix) && prix > 0 ? prix : 0;
+  const prix = valeurNumerique(chambre?.prix_nuit, 0);
+  return prix > 0 ? prix : 0;
 }
 
 // =====================================================
 // GESTION DES SAISONS
 // =====================================================
 
-function saisonEstActive(saison) {
+function saisonApplicable(saison, date) {
+  if (!saison) return false;
+
+  // Certaines API ne possèdent pas de statut pour les saisons.
+  // Si le champ existe, il doit obligatoirement être actif.
+  if (
+    (saison.statut !== undefined || saison.active !== undefined) &&
+    !statutActif(saison)
+  ) {
+    return false;
+  }
+
   return dateEstDansPeriode(
-    obtenirDateLocale(),
-    saison?.date_debut,
-    saison?.date_fin
+    date,
+    saison.date_debut,
+    saison.date_fin
   );
 }
 
-function saisonApplicable(saison, date) {
-  return dateEstDansPeriode(
-    date,
-    saison?.date_debut,
-    saison?.date_fin
-  );
+function saisonEstActive(saison) {
+  return saisonApplicable(saison, obtenirDateLocale());
+}
+
+function trouverSaisonApplicable(saisons, date) {
+  const saisonsValides = saisons
+    .filter((saison) => saisonApplicable(saison, date))
+    .sort((a, b) =>
+      String(b.date_debut).slice(0, 10).localeCompare(
+        String(a.date_debut).slice(0, 10)
+      )
+    );
+
+  // En cas de périodes qui se chevauchent, on retient
+  // la saison dont la date de début est la plus récente.
+  return saisonsValides[0] || null;
 }
 
 // =====================================================
 // GESTION DES PROMOTIONS
 // =====================================================
 
-function promotionApplicable(promotion, numeroChambre, date) {
+function promotionApplicable(
+  promotion,
+  chambreId,
+  date,
+  nombreNuits = 1
+) {
   if (!promotion || !statutActif(promotion)) return false;
 
   if (
@@ -256,19 +277,27 @@ function promotionApplicable(promotion, numeroChambre, date) {
     return false;
   }
 
+  // Une promotion avec chambre_id = null concerne toutes les chambres.
+  // Sinon, elle concerne uniquement la chambre indiquée.
   if (
     promotion.chambre_id !== null &&
     promotion.chambre_id !== undefined &&
     promotion.chambre_id !== ""
   ) {
-    const chambreSelectionnee = numeroChambre
-      ? String(numeroChambre)
-      : "";
-
-    if (!chambreSelectionnee) return false;
+    if (
+      !chambreId ||
+      String(promotion.chambre_id) !== String(chambreId)
+    ) {
+      return false;
+    }
   }
 
-  if (Number(promotion.nuits_min || 1) > 1) return false;
+  if (
+    Number(nombreNuits) <
+    Number(promotion.nuits_min || 1)
+  ) {
+    return false;
+  }
 
   return true;
 }
@@ -278,17 +307,10 @@ function promotionApplicable(promotion, numeroChambre, date) {
 // =====================================================
 
 function calculerPrixFinal(prixNaturel, coefficient, promotion) {
-  const base = Number(prixNaturel || 0);
-  const coef = Number(coefficient || 1);
+  const base = valeurNumerique(prixNaturel, 0);
+  const coef = valeurNumerique(coefficient, 1);
 
-  if (
-    !Number.isFinite(base) ||
-    !Number.isFinite(coef) ||
-    base <= 0 ||
-    coef <= 0
-  ) {
-    return 0;
-  }
+  if (base <= 0 || coef <= 0) return 0;
 
   const prixSaison = base * coef;
 
@@ -296,13 +318,12 @@ function calculerPrixFinal(prixNaturel, coefficient, promotion) {
     return Math.max(0, prixSaison);
   }
 
-  const valeur = Number(promotion.valeur || 0);
-
+  const valeur = valeurNumerique(promotion.valeur, 0);
   let prixFinal = prixSaison;
 
   if (promotion.type_reduction === "MONTANT_FIXE") {
     prixFinal = prixSaison - valeur;
-  } else {
+  } else if (promotion.type_reduction === "POURCENTAGE") {
     prixFinal = prixSaison * (1 - valeur / 100);
   }
 
@@ -376,7 +397,6 @@ export default function AdminTarifsPage() {
         "Erreur chargement :",
         err?.response?.data || err
       );
-
       setError(extraireErreur(err));
     } finally {
       setLoading(false);
@@ -388,7 +408,7 @@ export default function AdminTarifsPage() {
   }, [chargerDonnees]);
 
   // ===================================================
-  // CHAMBRE SÉLECTIONNÉE PAR NUMÉRO
+  // CHAMBRE SÉLECTIONNÉE
   // ===================================================
 
   const chambreSelectionnee = useMemo(
@@ -406,32 +426,33 @@ export default function AdminTarifsPage() {
   );
 
   // ===================================================
-  // SAISON SÉLECTIONNÉE
+  // SAISON AUTOMATIQUE SELON LA DATE
   // ===================================================
 
   const saisonSelectionnee = useMemo(
     () =>
-      saisons.find(
-        (saison) =>
-          String(saison.id) === String(tarifForm.saison_id)
+      trouverSaisonApplicable(
+        saisons,
+        tarifForm.date_application
       ),
-    [saisons, tarifForm.saison_id]
+    [saisons, tarifForm.date_application]
   );
 
   const coefficientActuel = saisonSelectionnee
-    ? Number(saisonSelectionnee.coefficient || 1)
+    ? valeurNumerique(saisonSelectionnee.coefficient, 1)
     : 1;
 
   // ===================================================
-  // PROMOTION SÉLECTIONNÉE
+  // PROMOTION SÉLECTIONNÉE ET VALIDITÉ
   // ===================================================
 
   const promotionSelectionnee = useMemo(
     () =>
       promotions.find(
         (promotion) =>
-          String(promotion.id) === String(tarifForm.promotion_id)
-      ),
+          String(promotion.id) ===
+          String(tarifForm.promotion_id)
+      ) || null,
     [promotions, tarifForm.promotion_id]
   );
 
@@ -440,32 +461,15 @@ export default function AdminTarifsPage() {
       return false;
     }
 
-    if (
-      !promotionApplicable(
-        promotionSelectionnee,
-        tarifForm.numero_chambre,
-        tarifForm.date_application
-      )
-    ) {
-      return false;
-    }
-
-    if (
-      promotionSelectionnee.chambre_id !== null &&
-      promotionSelectionnee.chambre_id !== undefined &&
-      promotionSelectionnee.chambre_id !== ""
-    ) {
-      return (
-        String(promotionSelectionnee.chambre_id) ===
-        String(chambreSelectionnee.id)
-      );
-    }
-
-    return true;
+    return promotionApplicable(
+      promotionSelectionnee,
+      chambreSelectionnee.id,
+      tarifForm.date_application,
+      1
+    );
   }, [
     promotionSelectionnee,
     chambreSelectionnee,
-    tarifForm.numero_chambre,
     tarifForm.date_application,
   ]);
 
@@ -499,7 +503,7 @@ export default function AdminTarifsPage() {
     const prixMoyen = tarifs.length
       ? tarifs.reduce(
           (total, tarif) =>
-            total + Number(tarif.prix_nuit || 0),
+            total + valeurNumerique(tarif.prix_nuit, 0),
           0
         ) / tarifs.length
       : 0;
@@ -625,8 +629,6 @@ export default function AdminTarifsPage() {
         numero_chambre:
           item.numero_chambre ||
           obtenirNumeroChambre(chambre),
-        saison_id: item.saison_id ?? "",
-        coefficient_saison: item.coefficient_saison ?? 1,
         promotion_id: item.promotion_id ?? "",
         date_application: item.date_application
           ? String(item.date_application).slice(0, 10)
@@ -678,7 +680,7 @@ export default function AdminTarifsPage() {
   }
 
   // ===================================================
-  // MODIFICATION DU FORMULAIRE TARIF
+  // MODIFICATION DES FORMULAIRES
   // ===================================================
 
   function modifierTarif(champ, valeur) {
@@ -688,39 +690,11 @@ export default function AdminTarifsPage() {
     }));
   }
 
-  // ===================================================
-  // NOUVEAU : SÉLECTION AUTOMATIQUE DE LA SAISON
-  // ===================================================
-
-  function selectionnerSaison(saisonId) {
-    const saison = saisons.find(
-      (item) => String(item.id) === String(saisonId)
-    );
-
-    setTarifForm((previous) => ({
-      ...previous,
-      saison_id: saisonId,
-      date_application: saison?.date_debut
-        ? String(saison.date_debut).slice(0, 10)
-        : previous.date_application,
-    }));
-  }
-
-  // ===================================================
-  // NOUVEAU : SÉLECTION AUTOMATIQUE DE LA PROMOTION
-  // ===================================================
-
   function selectionnerPromotion(promotionId) {
-    const promotion = promotions.find(
-      (item) => String(item.id) === String(promotionId)
-    );
-
+    // Le choix d'une promotion ne modifie jamais la date.
     setTarifForm((previous) => ({
       ...previous,
       promotion_id: promotionId,
-      date_application: promotion?.date_debut
-        ? String(promotion.date_debut).slice(0, 10)
-        : previous.date_application,
     }));
   }
 
@@ -746,18 +720,8 @@ export default function AdminTarifsPage() {
         return "Veuillez renseigner la date d'application.";
       }
 
-      if (
-        saisonSelectionnee &&
-        !saisonApplicable(
-          saisonSelectionnee,
-          tarifForm.date_application
-        )
-      ) {
-        return "La date d'application ne correspond pas à la période de cette saison.";
-      }
-
       if (promotionSelectionnee && !promotionValide) {
-        return "La promotion sélectionnée n'est pas applicable à cette chambre ou à cette date.";
+        return "La promotion sélectionnée n'est pas applicable à cette chambre ou à cette date. Choisissez une autre promotion ou sélectionnez « Sans promotion ».";
       }
 
       if (prixPrevisionnel <= 0) {
@@ -816,6 +780,16 @@ export default function AdminTarifsPage() {
       if (Number(promotionForm.nuits_min) < 1) {
         return "Le nombre minimum de nuits doit être au moins égal à 1.";
       }
+
+      if (
+        promotionForm.chambre_id &&
+        !chambres.some(
+          (chambre) =>
+            String(chambre.id) === String(promotionForm.chambre_id)
+        )
+      ) {
+        return "La chambre sélectionnée pour cette promotion est introuvable.";
+      }
     }
 
     return "";
@@ -849,34 +823,29 @@ export default function AdminTarifsPage() {
     let payload = {};
 
     if (activeTab === "tarifs") {
+      // La saison est déterminée par la date d'application.
+      // Si aucune saison ne correspond, saison_id = null et coefficient = 1.
+      const saison = saisonSelectionnee;
       const promotion = promotionPourCalcul;
 
       payload = {
         chambre_id: Number(chambreSelectionnee.id),
-
         numero_chambre: obtenirNumeroChambre(chambreSelectionnee),
 
-        saison_id: tarifForm.saison_id
-          ? Number(tarifForm.saison_id)
-          : null,
+        saison_id: saison ? Number(saison.id) : null,
+        coefficient_saison: saison
+          ? Number(saison.coefficient || 1)
+          : 1,
 
-        coefficient_saison: Number(coefficientActuel),
-
-        promotion_id: promotion
-          ? Number(promotion.id)
-          : null,
-
+        promotion_id: promotion ? Number(promotion.id) : null,
         promotion_pourcent:
           promotion?.type_reduction === "POURCENTAGE"
             ? Number(promotion.valeur)
             : 0,
 
         date_application: tarifForm.date_application,
-
         prix_base: Number(prixNaturel.toFixed(2)),
-
         prix_nuit: Number(prixPrevisionnel.toFixed(2)),
-
         devise: "MAD",
         statut: normaliserStatut(tarifForm.statut),
       };
@@ -897,11 +866,9 @@ export default function AdminTarifsPage() {
         type_reduction: promotionForm.type_reduction,
         valeur: Number(promotionForm.valeur),
         nuits_min: Number(promotionForm.nuits_min || 1),
-
         chambre_id: promotionForm.chambre_id
           ? Number(promotionForm.chambre_id)
           : null,
-
         date_debut: promotionForm.date_debut,
         date_fin: promotionForm.date_fin,
         statut: normaliserStatut(promotionForm.statut),
@@ -916,11 +883,9 @@ export default function AdminTarifsPage() {
           `${TARIFS_API}/${base}/${editingItem.id}`,
           payload
         );
-
         setSuccess("Modification effectuée avec succès.");
       } else {
         await api.post(`${TARIFS_API}/${base}`, payload);
-
         setSuccess("Enregistrement effectué avec succès.");
       }
 
@@ -933,7 +898,6 @@ export default function AdminTarifsPage() {
         "Erreur API :",
         err?.response?.data || err
       );
-
       setError(extraireErreur(err));
     } finally {
       setSaving(false);
@@ -947,11 +911,7 @@ export default function AdminTarifsPage() {
   async function supprimer(item) {
     const nom = item.nom || item.libelle || `#${item.id}`;
 
-    if (
-      !window.confirm(
-        `Voulez-vous vraiment supprimer "${nom}" ?`
-      )
-    ) {
+    if (!window.confirm(`Voulez-vous vraiment supprimer "${nom}" ?`)) {
       return;
     }
 
@@ -967,16 +927,13 @@ export default function AdminTarifsPage() {
 
     try {
       await api.delete(`${TARIFS_API}/${base}/${item.id}`);
-
       setSuccess("Suppression effectuée avec succès.");
-
       await chargerDonnees();
     } catch (err) {
       console.error(
         "Erreur suppression :",
         err?.response?.data || err
       );
-
       setError(extraireErreur(err));
     }
   }
@@ -1000,7 +957,7 @@ export default function AdminTarifsPage() {
 
     return (
       <span className={`tarifs-badge ${actif ? "active" : "inactive"}`}>
-        {actif ? "Actif" : "Inactif"}
+        {actif ? "En cours" : "Hors période"}
       </span>
     );
   }
@@ -1016,6 +973,74 @@ export default function AdminTarifsPage() {
         ? nomChambre(chambre)
         : `Chambre #${tarif.chambre_id}`)
     );
+  }
+
+  // ===================================================
+  // CALCUL DU PRIX D'UN TARIF POUR LE TABLEAU
+  // ===================================================
+
+  function calculerPrixTarifAffiche(tarif) {
+    const chambre = chambres.find(
+      (item) => String(item.id) === String(tarif.chambre_id)
+    );
+
+    // On privilégie le prix_base enregistré pour conserver
+    // la base historique du tarif. Sinon, on utilise le prix chambre.
+    const prixBaseEnregistre = valeurNumerique(tarif.prix_base, 0);
+    const prixBase =
+      prixBaseEnregistre > 0
+        ? prixBaseEnregistre
+        : obtenirPrixNaturel(chambre);
+
+    const date = tarif.date_application
+      ? String(tarif.date_application).slice(0, 10)
+      : "";
+
+    const saison = trouverSaisonApplicable(saisons, date);
+    const coefficient = saison
+      ? valeurNumerique(saison.coefficient, 1)
+      : 1;
+
+    const promotion = promotions.find(
+      (item) =>
+        String(item.id) === String(tarif.promotion_id)
+    );
+
+    const promotionValide = promotionApplicable(
+      promotion,
+      tarif.chambre_id,
+      date,
+      1
+    );
+
+    return calculerPrixFinal(
+      prixBase,
+      coefficient,
+      promotionValide ? promotion : null
+    );
+  }
+
+  function obtenirSaisonTarif(tarif) {
+    return trouverSaisonApplicable(
+      saisons,
+      tarif.date_application
+    );
+  }
+
+  function obtenirPromotionTarif(tarif) {
+    const promotion = promotions.find(
+      (item) =>
+        String(item.id) === String(tarif.promotion_id)
+    );
+
+    return promotionApplicable(
+      promotion,
+      tarif.chambre_id,
+      tarif.date_application,
+      1
+    )
+      ? promotion
+      : null;
   }
 
   // ===================================================
@@ -1053,26 +1078,23 @@ export default function AdminTarifsPage() {
                     String(c.id) === String(tarif.chambre_id)
                 );
 
-                const saison = saisons.find(
-                  (s) =>
-                    String(s.id) === String(tarif.saison_id)
-                );
+                const saison = obtenirSaisonTarif(tarif);
+                const promotion = obtenirPromotionTarif(tarif);
 
-                const promotion = promotions.find(
-                  (p) =>
-                    String(p.id) === String(tarif.promotion_id)
-                );
+                const prixNaturelChambre =
+                  valeurNumerique(tarif.prix_base, 0) > 0
+                    ? Number(tarif.prix_base)
+                    : chambre
+                      ? obtenirPrixNaturel(chambre)
+                      : 0;
 
-                const prixNaturelChambre = chambre
-                  ? obtenirPrixNaturel(chambre)
-                  : Number(tarif.prix_base || 0);
+                const prixCalcule = calculerPrixTarifAffiche(tarif);
 
                 return (
                   <tr key={tarif.id}>
                     <td>
                       <div className="tarifs-room-info">
                         <div className="tarifs-room-icon">🛏</div>
-
                         <div>
                           <strong>{nomChambreTarif(tarif)}</strong>
                           <small>ID : {tarif.chambre_id}</small>
@@ -1091,10 +1113,6 @@ export default function AdminTarifsPage() {
                             ? `-${promotion.valeur}%`
                             : `-${formaterPrix(promotion.valeur)}`}
                         </span>
-                      ) : Number(tarif.promotion_pourcent || 0) > 0 ? (
-                        <span className="tarifs-discount">
-                          -{tarif.promotion_pourcent}%
-                        </span>
                       ) : (
                         "—"
                       )}
@@ -1102,12 +1120,11 @@ export default function AdminTarifsPage() {
 
                     <td>
                       <strong className="tarifs-price">
-                        {formaterPrix(tarif.prix_nuit)}
+                        {formaterPrix(prixCalcule)}
                       </strong>
                     </td>
 
                     <td>{formaterDate(tarif.date_application)}</td>
-
                     <td>{badgeStatut(tarif)}</td>
 
                     <td>
@@ -1155,6 +1172,7 @@ export default function AdminTarifsPage() {
               <th>Coefficient</th>
               <th>Date de début</th>
               <th>Date de fin</th>
+              <th>État actuel</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -1181,6 +1199,7 @@ export default function AdminTarifsPage() {
 
                   <td>{formaterDate(saison.date_debut)}</td>
                   <td>{formaterDate(saison.date_fin)}</td>
+                  <td>{badgeStatutSaison(saison)}</td>
 
                   <td>
                     <div className="tarifs-actions">
@@ -1226,6 +1245,7 @@ export default function AdminTarifsPage() {
               <th>Type</th>
               <th>Valeur</th>
               <th>Nuits minimum</th>
+              <th>Chambre concernée</th>
               <th>Période</th>
               <th>Statut</th>
               <th>Actions</th>
@@ -1235,66 +1255,84 @@ export default function AdminTarifsPage() {
           <tbody>
             {donneesPage.length === 0 ? (
               <tr>
-                <td colSpan="7" className="tarifs-empty">
+                <td colSpan="8" className="tarifs-empty">
                   Aucune promotion trouvée.
                 </td>
               </tr>
             ) : (
-              donneesPage.map((promotion) => (
-                <tr key={promotion.id}>
-                  <td>
-                    <strong>{promotion.libelle}</strong>
-                  </td>
+              donneesPage.map((promotion) => {
+                const chambrePromo = promotion.chambre_id
+                  ? chambres.find(
+                      (chambre) =>
+                        String(chambre.id) ===
+                        String(promotion.chambre_id)
+                    )
+                  : null;
 
-                  <td>
-                    <span className="tarifs-badge promotion">
-                      {promotion.type_reduction === "POURCENTAGE"
-                        ? "POURCENTAGE"
-                        : "MONTANT FIXE"}
-                    </span>
-                  </td>
+                return (
+                  <tr key={promotion.id}>
+                    <td>
+                      <strong>{promotion.libelle}</strong>
+                    </td>
 
-                  <td>
-                    <strong className="tarifs-discount">
-                      {promotion.type_reduction === "POURCENTAGE"
-                        ? `${promotion.valeur}%`
-                        : formaterPrix(promotion.valeur)}
-                    </strong>
-                  </td>
+                    <td>
+                      <span className="tarifs-badge promotion">
+                        {promotion.type_reduction === "POURCENTAGE"
+                          ? "POURCENTAGE"
+                          : "MONTANT FIXE"}
+                      </span>
+                    </td>
 
-                  <td>{promotion.nuits_min || 1}</td>
+                    <td>
+                      <strong className="tarifs-discount">
+                        {promotion.type_reduction === "POURCENTAGE"
+                          ? `${promotion.valeur}%`
+                          : formaterPrix(promotion.valeur)}
+                      </strong>
+                    </td>
 
-                  <td>
-                    {formaterDate(promotion.date_debut)}
-                    {" - "}
-                    {formaterDate(promotion.date_fin)}
-                  </td>
+                    <td>{promotion.nuits_min || 1}</td>
 
-                  <td>{badgeStatut(promotion)}</td>
+                    <td>
+                      {chambrePromo
+                        ? nomChambre(chambrePromo)
+                        : promotion.chambre_id
+                          ? `Chambre #${promotion.chambre_id}`
+                          : "Toutes les chambres"}
+                    </td>
 
-                  <td>
-                    <div className="tarifs-actions">
-                      <button
-                        type="button"
-                        className="tarifs-action-btn"
-                        title="Modifier"
-                        onClick={() => ouvrirModification(promotion)}
-                      >
-                        ✎
-                      </button>
+                    <td>
+                      {formaterDate(promotion.date_debut)}
+                      {" - "}
+                      {formaterDate(promotion.date_fin)}
+                    </td>
 
-                      <button
-                        type="button"
-                        className="tarifs-action-btn delete"
-                        title="Supprimer"
-                        onClick={() => supprimer(promotion)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    <td>{badgeStatut(promotion)}</td>
+
+                    <td>
+                      <div className="tarifs-actions">
+                        <button
+                          type="button"
+                          className="tarifs-action-btn"
+                          title="Modifier"
+                          onClick={() => ouvrirModification(promotion)}
+                        >
+                          ✎
+                        </button>
+
+                        <button
+                          type="button"
+                          className="tarifs-action-btn delete"
+                          title="Supprimer"
+                          onClick={() => supprimer(promotion)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -1347,20 +1385,17 @@ export default function AdminTarifsPage() {
         </div>
 
         <div className="tarifs-form-group">
-          <label>Saison</label>
+          <label>Saison applicable automatiquement</label>
 
-          <select
-            value={tarifForm.saison_id}
-            onChange={(e) => selectionnerSaison(e.target.value)}
-          >
-            <option value="">Sans saison</option>
-
-            {saisons.map((saison) => (
-              <option key={saison.id} value={saison.id}>
-                {saison.nom} (×{saison.coefficient})
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={
+              saisonSelectionnee
+                ? `${saisonSelectionnee.nom} (×${saisonSelectionnee.coefficient})`
+                : "Aucune saison - Prix normal"
+            }
+            readOnly
+          />
         </div>
 
         <div className="tarifs-form-group">
@@ -1374,32 +1409,26 @@ export default function AdminTarifsPage() {
         </div>
 
         <div className="tarifs-form-group">
-          <label>Promotion</label>
+          <label>Promotion applicable</label>
 
           <select
             value={tarifForm.promotion_id}
-            onChange={(e) => selectionnerPromotion(e.target.value)}
+            onChange={(e) =>
+              selectionnerPromotion(e.target.value)
+            }
           >
             <option value="">Sans promotion</option>
 
             {promotions
               .filter((promotion) => {
-                if (!statutActif(promotion)) return false;
+                if (!chambreSelectionnee) return false;
 
-                if (Number(promotion.nuits_min || 1) > 1) {
-                  return false;
-                }
-
-                if (
-                  promotion.chambre_id &&
-                  chambreSelectionnee &&
-                  String(promotion.chambre_id) !==
-                    String(chambreSelectionnee.id)
-                ) {
-                  return false;
-                }
-
-                return true;
+                return promotionApplicable(
+                  promotion,
+                  chambreSelectionnee.id,
+                  tarifForm.date_application,
+                  1
+                );
               })
               .map((promotion) => (
                 <option key={promotion.id} value={promotion.id}>
@@ -1453,21 +1482,25 @@ export default function AdminTarifsPage() {
 
         {promotionSelectionnee && !promotionValide && (
           <div className="tarifs-error full">
-            La promotion sélectionnée n'est pas applicable à cette
-            chambre ou à cette date.
+            La promotion sélectionnée n'est plus applicable à cette
+            chambre ou à cette date. Sélectionnez « Sans promotion »
+            ou choisissez une promotion valide.
           </div>
         )}
 
-        {saisonSelectionnee &&
-          !saisonApplicable(
-            saisonSelectionnee,
-            tarifForm.date_application
-          ) && (
-            <div className="tarifs-error full">
-              La date d'application est hors de la période de cette
-              saison.
-            </div>
-          )}
+        {saisonSelectionnee && (
+          <div className="tarifs-info full">
+            La saison « {saisonSelectionnee.nom} » est appliquée
+            automatiquement pour cette date.
+          </div>
+        )}
+
+        {!saisonSelectionnee && tarifForm.date_application && (
+          <div className="tarifs-info full">
+            Aucune saison ne couvre cette date : le prix naturel est
+            appliqué avec un coefficient ×1.
+          </div>
+        )}
 
         <div className="tarifs-form-actions">
           <button
@@ -1509,10 +1542,10 @@ export default function AdminTarifsPage() {
             type="text"
             value={saisonForm.nom}
             onChange={(e) =>
-              setSaisonForm({
-                ...saisonForm,
+              setSaisonForm((previous) => ({
+                ...previous,
                 nom: e.target.value,
-              })
+              }))
             }
             placeholder="Ex : Haute saison"
             required
@@ -1528,10 +1561,10 @@ export default function AdminTarifsPage() {
             step="0.01"
             value={saisonForm.coefficient}
             onChange={(e) =>
-              setSaisonForm({
-                ...saisonForm,
+              setSaisonForm((previous) => ({
+                ...previous,
                 coefficient: e.target.value,
-              })
+              }))
             }
             placeholder="Ex : 1.5"
             required
@@ -1545,10 +1578,10 @@ export default function AdminTarifsPage() {
             type="date"
             value={saisonForm.date_debut}
             onChange={(e) =>
-              setSaisonForm({
-                ...saisonForm,
+              setSaisonForm((previous) => ({
+                ...previous,
                 date_debut: e.target.value,
-              })
+              }))
             }
             required
           />
@@ -1561,10 +1594,10 @@ export default function AdminTarifsPage() {
             type="date"
             value={saisonForm.date_fin}
             onChange={(e) =>
-              setSaisonForm({
-                ...saisonForm,
+              setSaisonForm((previous) => ({
+                ...previous,
                 date_fin: e.target.value,
-              })
+              }))
             }
             required
           />
@@ -1610,10 +1643,10 @@ export default function AdminTarifsPage() {
             type="text"
             value={promotionForm.libelle}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 libelle: e.target.value,
-              })
+              }))
             }
             placeholder="Ex : Offre été"
             required
@@ -1626,10 +1659,10 @@ export default function AdminTarifsPage() {
           <select
             value={promotionForm.type_reduction}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 type_reduction: e.target.value,
-              })
+              }))
             }
             required
           >
@@ -1652,10 +1685,10 @@ export default function AdminTarifsPage() {
             }
             value={promotionForm.valeur}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 valeur: e.target.value,
-              })
+              }))
             }
             placeholder="Ex : 15"
             required
@@ -1668,13 +1701,15 @@ export default function AdminTarifsPage() {
           <input
             type="number"
             min="1"
+            step="1"
             value={promotionForm.nuits_min}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 nuits_min: e.target.value,
-              })
+              }))
             }
+            required
           />
         </div>
 
@@ -1684,10 +1719,10 @@ export default function AdminTarifsPage() {
           <select
             value={promotionForm.chambre_id}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 chambre_id: e.target.value,
-              })
+              }))
             }
           >
             <option value="">Toutes les chambres</option>
@@ -1707,10 +1742,10 @@ export default function AdminTarifsPage() {
             type="date"
             value={promotionForm.date_debut}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 date_debut: e.target.value,
-              })
+              }))
             }
             required
           />
@@ -1723,10 +1758,10 @@ export default function AdminTarifsPage() {
             type="date"
             value={promotionForm.date_fin}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 date_fin: e.target.value,
-              })
+              }))
             }
             required
           />
@@ -1738,10 +1773,10 @@ export default function AdminTarifsPage() {
           <select
             value={promotionForm.statut}
             onChange={(e) =>
-              setPromotionForm({
-                ...promotionForm,
+              setPromotionForm((previous) => ({
+                ...previous,
                 statut: e.target.value,
-              })
+              }))
             }
           >
             <option value={STATUT_ACTIF}>Actif</option>
@@ -1887,7 +1922,7 @@ export default function AdminTarifsPage() {
           <div className="tarifs-stat-top">
             <div className="tarifs-stat-icon">✧</div>
             <span className="tarifs-stat-label">
-              SAISONS ACTIVES
+              SAISONS EN COURS
             </span>
           </div>
 

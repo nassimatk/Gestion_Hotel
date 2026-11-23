@@ -35,6 +35,5 @@ Route::middleware('jwt:admin')->group(function () {
     Route::post('/promotions', [PromotionController::class, 'store']);
     Route::put('/promotions/{id}', [PromotionController::class, 'update'])->whereNumber('id');
     Route::delete('/promotions/{id}', [PromotionController::class, 'destroy'])->whereNumber('id');
-    Route::get('/tarifs/chambre-numero/{numero}', [TarifCalculController::class, 'prixParNumero']);
-Route::post('/tarifs/simuler', [TarifCalculController::class, 'simuler']);
+
 });

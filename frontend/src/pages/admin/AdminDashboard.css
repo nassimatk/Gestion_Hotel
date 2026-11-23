@@ -1,0 +1,736 @@
+
+/* Police de la maquette : ajoutez dans index.html
+   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"> */
+
+/* ---------- Couleurs générales ---------- */
+
+.dash {
+  --bg: #f7f6f2;
+  --card: #ffffff;
+  --line: #ebe9e3;
+  --text: #263844;
+  --muted: #858b88;
+
+  --blue: #203b49;
+  --blue-soft: #e9eef0;
+
+  --green: #1fa971;
+  --green-soft: #e3f6ee;
+
+  --amber: #b28b50;
+  --amber-soft: #f8f0e3;
+
+  --red: #c64d48;
+  --red-soft: #fdeaea;
+
+  --indigo: #526b79;
+  --indigo-soft: #eaf0f2;
+
+  font-family: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  padding: 24px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.dash *,
+.dash *::before,
+.dash *::after {
+  box-sizing: border-box;
+}
+
+.dash h1,
+.dash h2,
+.dash p {
+  margin: 0;
+}
+
+.dash small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* ---------- En-tête ---------- */
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.dash-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #263844;
+}
+
+.dash-header p {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 460px;
+}
+
+.dash-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-tabs {
+  display: inline-flex;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.dash-tabs button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.dash-tabs button.active {
+  background: var(--blue);
+  color: #fff;
+}
+
+.dash-tabs button:focus-visible,
+.dash-refresh:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.dash-refresh {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.dash-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dash-spin {
+  animation: dash-rotate 0.9s linear infinite;
+}
+
+@keyframes dash-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Alerte ---------- */
+
+.dash-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--amber-soft);
+  color: #89652e;
+  border: 1px solid #eadbc1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.dash-alert span {
+  flex: 1;
+}
+
+.dash-alert button {
+  border: 0;
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ---------- KPI ---------- */
+
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.dash-kpi {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dash-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dash-kpi-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.dash-kpi-icon.blue {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.dash-kpi-icon.green {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.dash-kpi-icon.indigo {
+  background: var(--indigo-soft);
+  color: var(--indigo);
+}
+
+.dash-kpi-icon.amber {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.dash-kpi-value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dash-kpi-value em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.dash-kpi-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.dash-kpi .dash-stars {
+  font-size: 13px;
+  margin-left: 2px;
+}
+
+/* ---------- Mise en page ---------- */
+
+.dash-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dash-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.dash-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dash-panel-head h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dash-panel-head p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.dash-panel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dash-panel-link:hover {
+  color: var(--amber);
+}
+
+.dash-empty {
+  padding: 28px 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- Tableau ---------- */
+
+.dash-table-wrap {
+  overflow-x: auto;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.dash-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.dash-table td {
+  padding: 11px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.dash-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.dash-table td strong {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dash-table td small {
+  display: block;
+}
+
+.dash-amount {
+  font-weight: 600;
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+.dash-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.dash-pill.green {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.dash-pill.blue {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.dash-pill.orange {
+  background: var(--amber-soft);
+  color: #89652e;
+}
+
+.dash-pill.red {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* ---------- Statut des chambres ---------- */
+
+.dash-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dash-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  background: var(--green);
+}
+
+.dash-legend .occupee::before {
+  background: var(--blue);
+}
+
+.dash-legend .menage::before {
+  background: var(--amber);
+}
+
+.dash-rooms {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dash-room {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  border-left: 3px solid var(--green);
+}
+
+.dash-room.occupee,
+.dash-room.depart {
+  border-left-color: var(--blue);
+}
+
+.dash-room.menage {
+  border-left-color: var(--amber);
+  background: #fbf8f1;
+}
+
+.dash-room.libre {
+  background: #f5faf7;
+}
+
+.dash-room-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dash-room-top strong {
+  font-size: 15px;
+}
+
+.dash-room-top i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.dash-room.occupee .dash-room-top i,
+.dash-room.depart .dash-room-top i {
+  background: var(--blue);
+}
+
+.dash-room.menage .dash-room-top i {
+  background: var(--amber);
+}
+
+.dash-room-type {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.dash-room small {
+  font-size: 10px;
+}
+
+.dash-room:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ---------- Clients ---------- */
+
+.dash-clients,
+.dash-reviews {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-client {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.dash-avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dash-client-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-client-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-client-row strong {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-badge {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.dash-badge.gold {
+  background: var(--amber-soft);
+  color: #89652e;
+}
+
+.dash-badge.soft {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+/* ---------- Avis ---------- */
+
+.dash-delta {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.dash-delta.up {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.dash-delta.down {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.dash-review {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.dash-review-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+.dash-review-head strong {
+  font-weight: 600;
+}
+
+.dash-review-head span {
+  color: var(--muted);
+}
+
+.dash-review-head .dash-stars {
+  margin-left: auto;
+}
+
+.dash-review p {
+  margin: 6px 0 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #58656b;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dash-review-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dash-review-foot a {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.dash-review-foot a:hover {
+  color: var(--amber);
+}
+
+.dash-stars {
+  color: var(--amber);
+  font-size: 11px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.dash-stars i {
+  font-style: normal;
+  color: #dfe3df;
+}
+
+.dash-btn-block {
+  display: block;
+  margin-top: 12px;
+  text-align: center;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: .2s;
+}
+
+.dash-btn-block:hover {
+  background: #dce5e8;
+  color: #203b49;
+}
+
+/* ---------- Squelette ---------- */
+
+.dash-skeleton {
+  display: inline-block;
+  height: 0.9em;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    #ebe9e3 25%,
+    #f7f6f2 50%,
+    #ebe9e3 75%
+  );
+  background-size: 200% 100%;
+  animation: dash-shimmer 1.2s infinite;
+}
+
+@keyframes dash-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .dash-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dash {
+    padding: 14px;
+  }
+
+  .dash-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dash-rooms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-spin,
+  .dash-skeleton {
+    animation: none;
+  }
+}

@@ -9,7 +9,7 @@ const adminLinks = [
   { label: "Réservations",       to: "/admin/reservations", icon: "📅", end: false },
   { label: "Clients",            to: "/admin/clients",   icon: "👥", end: false },
   { label: "Avis",               to: "/admin/avis",      icon: "☆", end: false },
-  { label: "Paramètres",         to: "/admin/parametres", icon: "⚙", end: false },
+  { label: "Tarifs",             to: "/admin/tarifs",    icon: "📊", end: false },
 ];
 
 export default function AdminLayout() {
