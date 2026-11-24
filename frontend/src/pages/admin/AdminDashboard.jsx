@@ -432,6 +432,7 @@ export default function AdminDashboard() {
     ).size;
 
     return {
+      total: reels.length,
       surPlace,
       vip: enrichis.filter((c) => c.total >= SEUIL_VIP).length,
       liste: enrichis
@@ -589,7 +590,7 @@ export default function AdminDashboard() {
           icon={Users}
           tone="indigo"
           label="Clients"
-          value={clients.surPlace}
+          value={clients.total}
           hint={`${clients.vip} client(s) VIP (${SEUIL_VIP}+ séjours)`}
           loading={loading}
         />
