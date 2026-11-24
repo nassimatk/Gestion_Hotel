@@ -18,6 +18,8 @@ __pycache__/
 .venv/
 # Security Audit
 security-audit/reports/
+# E2E Test Reports
+tests-e2e/reports/
 # IDE / OS
 .idea/
 .vscode/
