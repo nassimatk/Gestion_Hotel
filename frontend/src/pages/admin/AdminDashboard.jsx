@@ -630,7 +630,6 @@ export default function AdminDashboard() {
                       <th>Client</th>
                       <th>Chambre</th>
                       <th>Dates</th>
-                      <th>Montant</th>
                       <th>Statut</th>
                     </tr>
                   </thead>
@@ -638,7 +637,6 @@ export default function AdminDashboard() {
                     {resa.periode.map((r) => {
                       const ch = infosChambre(resChambre(r));
                       const st = statutReservation(r, aujourdhui);
-                      const montant = resMontant(r);
                       return (
                         <tr key={r.id}>
                           <td>
@@ -657,9 +655,6 @@ export default function AdminDashboard() {
                               ({nuits(resDebut(r), resFin(r))} nuit
                               {nuits(resDebut(r), resFin(r)) > 1 ? "s" : ""})
                             </small>
-                          </td>
-                          <td className="dash-amount">
-                            {montant != null ? formaterPrix(montant) : "—"}
                           </td>
                           <td>
                             <span className={`dash-pill ${st.tone}`}>
