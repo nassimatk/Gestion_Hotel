@@ -284,7 +284,7 @@ export default function AdminDisponibilitesPage() {
       <div className="adm-res__checker">
         <div className="adm-res__checker-head">
           <h2>Vérifier l&apos;occupation sur une période</h2>
-          <span>Endpoint : GET /api/disponibilites</span>
+          {/* <span>Endpoint : GET /api/disponibilites</span> */}
         </div>
 
         <form className="adm-res__checker-form" onSubmit={handleVerifierDispo}>
