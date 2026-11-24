@@ -6,8 +6,7 @@ Ce dossier contient l'outillage et les rapports d'analyse de sécurité des dép
 
 ## 1. Tableau de Bord en Ligne (Snyk Cloud)
 
-Tous les services ont été synchronisés avec votre tableau de bord en ligne Snyk :
-👉 **Lien direct global :** [https://app.snyk.io/org/ntaikouk/projects](https://app.snyk.io/org/ntaikouk/projects)
+👉 **Lien direct de tableau de bord en ligne Snyk global :** [https://app.snyk.io/org/ntaikouk/projects](https://app.snyk.io/org/ntaikouk/projects)
 
 ### Liens directs par service sur Snyk Cloud :
 - **Frontend (React)** : [Projet Snyk Frontend](https://app.snyk.io/org/ntaikouk/project/dba89ca0-fb3e-4155-820c-96382c30140d)
@@ -43,7 +42,6 @@ Tous les services ont été synchronisés avec votre tableau de bord en ligne Sn
 - **Chambres Service (1 vulnérabilité moyenne)** :
   - **Package vulnérable :** `firebase/php-jwt@6.11.1`
   - **Type de vulnérabilité :** *Inadequate Encryption Strength* (Sévérité : **Medium**)
-  - **Recommandation :** Aligner la version sur `^7.2` (version déjà utilisée avec succès dans `auth-service` et `avis-service`).
 
 ---
 
