@@ -4,6 +4,7 @@ import com.hotel.disponibilites.client.AuthClient;
 import com.hotel.disponibilites.client.AuthClient.UserInfo;
 import com.hotel.disponibilites.client.ChambreClient;
 import com.hotel.disponibilites.client.ChambreClient.ChambreInfo;
+import com.hotel.disponibilites.client.TarifsClient;
 import com.hotel.disponibilites.dto.ReservationRequest;
 import com.hotel.disponibilites.dto.ReservationResponse;
 import com.hotel.disponibilites.model.Reservation;
@@ -25,13 +26,16 @@ public class DisponibiliteService {
     private final ReservationRepository reservationRepository;
     private final ChambreClient chambreClient;
     private final AuthClient authClient;
+    private final TarifsClient tarifsClient;
 
     public DisponibiliteService(ReservationRepository reservationRepository,
                                 ChambreClient chambreClient,
-                                AuthClient authClient) {
+                                AuthClient authClient,
+                                TarifsClient tarifsClient) {
         this.reservationRepository = reservationRepository;
         this.chambreClient = chambreClient;
         this.authClient = authClient;
+        this.tarifsClient = tarifsClient;
     }
 
     public boolean estLibre(Long chambreId, LocalDate dateDebut, LocalDate dateFin) {
@@ -71,6 +75,8 @@ public class DisponibiliteService {
                     "Chambre deja reservee sur cette periode");
         }
 
+        Double montant = tarifsClient.obtenirPrix(req.chambreId(), req.dateDebut(), req.dateFin());
+
         Reservation reservation = new Reservation();
         reservation.setChambreId(req.chambreId());
         reservation.setClientId(clientId);
@@ -78,6 +84,7 @@ public class DisponibiliteService {
         reservation.setDateFin(req.dateFin());
         reservation.setNombrePersonnes(req.nombrePersonnes());
         reservation.setTelephone(req.telephone().trim());
+        reservation.setMontant(montant);
         return reservationRepository.save(reservation);
     }
 
