@@ -16,6 +16,8 @@ build/
 __pycache__/
 .pytest_cache/
 .venv/
+# Security Audit
+security-audit/reports/
 # IDE / OS
 .idea/
 .vscode/
