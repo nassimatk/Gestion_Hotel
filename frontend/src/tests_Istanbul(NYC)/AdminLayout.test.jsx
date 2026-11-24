@@ -1,0 +1,22 @@
+import React from 'react';
+import { describe,it,expect,vi,beforeEach,afterEach } from 'vitest';
+import { render,screen,fireEvent,cleanup } from '@testing-library/react';
+import { MemoryRouter,Routes,Route } from 'react-router-dom';
+import AdminLayout from '../pages/admin/AdminLayout';
+import { useAuth } from '../context/AuthContext';
+vi.mock('../context/AuthContext',()=>({useAuth:vi.fn()}));
+const logout=vi.fn();
+const start=(path='/admin')=>render(<MemoryRouter initialEntries={[path]} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><Routes><Route path='/admin' element={<AdminLayout/>}><Route index element={<div>Contenu admin</div>}/><Route path='*' element={<div>Contenu admin</div>}/></Route><Route path='/login' element={<div>Page connexion</div>}/></Routes></MemoryRouter>);
+beforeEach(()=>{vi.resetAllMocks();useAuth.mockReturnValue({user:{name:'Sara Atlas',email:'sara@example.test',role:'admin'},logout});});
+afterEach(cleanup);
+describe('AdminLayout',()=>{
+it('affiche la marque et le contenu enfant',()=>{start();expect(screen.getByText('HotelHub Prestige')).toBeTruthy();expect(screen.getByText('Contenu admin')).toBeTruthy();});
+it('affiche le profil',()=>{start();expect(screen.getByText('Sara Atlas')).toBeTruthy();expect(screen.getByText('sara@example.test')).toBeTruthy();});
+it('utilise le rôle par défaut',()=>{useAuth.mockReturnValue({user:{name:'Sara'},logout});start();expect(screen.getByText('admin')).toBeTruthy();});
+it('gère un utilisateur absent',()=>{useAuth.mockReturnValue({user:null,logout});start();expect(screen.queryByText('Sara Atlas')).toBeNull();});
+it.each([['Dashboard','/admin'],['Gestion des chambres','/admin/chambres'],['Réservations','/admin/reservations'],['Clients','/admin/clients'],['Avis','/admin/avis'],['Tarifs','/admin/tarifs'],['Ajouter une chambre','/admin/chambres/ajouter']])('lien %s vers %s',(label,path)=>{start();expect(screen.getByText(label).closest('a').getAttribute('href')).toBe(path);});
+it('active le menu parent sur une route enfant',()=>{start('/admin/chambres/modifier/7');expect(screen.getByText('Gestion des chambres').closest('a').classList.contains('active')).toBe(true);expect(screen.getByText('Dashboard').closest('a').classList.contains('active')).toBe(false);});
+it('navigue vers les clients',()=>{start();fireEvent.click(screen.getByText('Clients'));expect(screen.getByText('Clients').closest('a').classList.contains('active')).toBe(true);});
+it('affiche le contact support',()=>{start();expect(screen.getByText('Assistance 24/7').closest('a').getAttribute('href')).toBe('mailto:support@hotelhub.com');});
+it('déconnecte et redirige',async()=>{start();fireEvent.click(screen.getByRole('button',{name:/Déconnexion/}));expect(logout).toHaveBeenCalledTimes(1);expect(await screen.findByText('Page connexion')).toBeTruthy();});
+});

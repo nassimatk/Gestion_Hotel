@@ -30,9 +30,10 @@ Chaque service est indépendant (code, Dockerfile, migrations, base de données)
 | avis-service | Avis et notes des clients | 8002 | `avis` |
 | disponibilites-service | Disponibilité des chambres par date | 8003 | `disponibilites` |
 | tarifs-service | Prix, saisons, promotions | 8004 | `tarifs` |
+| pgadmin | Interface web d'administration de la BDD | 5050 | Tous |
 | frontend | Interface React (client + admin) | 3000 | - |
 
-Détails : [`docs/architecture.md`](docs/architecture.md), [`docs/conventions.md`](docs/conventions.md), [`docs/database.md`](docs/database.md).
+Détails : [`docs/architecture.md`](docs/architecture.md), [`docs/conventions.md`](docs/conventions.md), [`docs/DB.md`](docs/DB.md), [`docs/database.md`](docs/database.md).
 
 ## Technologies
 - **Backend** : au choix de chaque membre (Laravel, Spring Boot, ...), tant que les conventions de `docs/conventions.md` sont respectées.
@@ -67,6 +68,7 @@ docker compose --env-file .env -f infra/compose/docker-compose.yml up --build
 
 Vérification :
 - Frontend : http://localhost:3000
+- pgAdmin : http://localhost:5050 (préconfiguré, voir [`docs/DB.md`](docs/DB.md))
 - Santé des services : http://localhost:8001/api/health (idem 8002, 8003, 8004, 8005)
 
 Arrêter : `docker compose --env-file .env -f infra/compose/docker-compose.yml down`

@@ -14,8 +14,16 @@ build/
 *.class
 # Python
 __pycache__/
+.pytest_cache/
 .venv/
+# Security Audit
+security-audit/reports/
+# E2E Test Reports
+tests-e2e/reports/
 # IDE / OS
 .idea/
 .vscode/
 .DS_Store
+/database/*.sqlite
+/storage/logs/*.log
+/bootstrap/cache/*.php

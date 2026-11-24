@@ -1,0 +1,21 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+import Page from '../pages/client/ForgotPasswordPage';
+import { changePasswordDirect } from '../services/authApi';
+vi.mock('../services/authApi', () => ({ changePasswordDirect: vi.fn() }));
+const setup = (url = '/forgot-password') => render(<MemoryRouter initialEntries={[url]}><Page /></MemoryRouter>);
+const form = async () => { await waitFor(() => expect(document.querySelector('form')).not.toBeNull()); return document.querySelector('form'); };
+const fill = async (values) => { const f = await form(); [...f.querySelectorAll('input')].forEach((el,i) => fireEvent.change(el, {target:{value:values[i] || ''}})); return f; };
+beforeEach(() => { vi.resetAllMocks(); changePasswordDirect.mockResolvedValue({});  });
+describe('ForgotPasswordPage', () => {
+ it('refuse les champs vides', async () => { setup(); fireEvent.submit(await form()); expect(await screen.findByText(/Veuillez remplir tous les champs|Veuillez renseigner tous les champs/)).toBeTruthy(); expect(changePasswordDirect).not.toHaveBeenCalled(); });
+ it('refuse un mot de passe court', async () => { setup(); fireEvent.submit(await fill(['ancien','abc','abc'])); expect(await screen.findByText(/au moins 8 caractères/)).toBeTruthy(); });
+ it('refuse une confirmation différente', async () => { setup(); fireEvent.submit(await fill(['ancien','StrongPass123!','different'])); expect(await screen.findByText(/confirmation du mot de passe ne correspond pas/)).toBeTruthy(); });
+ it('envoie le payload et affiche le succès', async () => { setup(); fireEvent.submit(await fill(['OldPass123!', 'StrongPass123!', 'StrongPass123!'])); await waitFor(() => expect(changePasswordDirect).toHaveBeenCalledWith({current_password:'OldPass123!',new_password:'StrongPass123!',new_password_confirmation:'StrongPass123!'})); expect(await screen.findByText(/Mot de passe mis à jour avec succès/)).toBeTruthy(); });
+ it('affiche une erreur du serveur', async () => { changePasswordDirect.mockRejectedValue({response:{data:{error:'Erreur test'}}}); setup(); fireEvent.submit(await fill(['OldPass123!', 'StrongPass123!', 'StrongPass123!'])); expect(await screen.findByText('Erreur test')).toBeTruthy(); });
+ it('affiche une erreur générique', async () => { changePasswordDirect.mockRejectedValue(new Error('network')); setup(); fireEvent.submit(await fill(['OldPass123!', 'StrongPass123!', 'StrongPass123!'])); expect(await screen.findByText(/Erreur lors de la/)).toBeTruthy(); });
+ it('évalue la robustesse', async () => { setup(); await fill(['ancien','StrongPass123!','StrongPass123!']); expect(screen.getByText('Robuste')).toBeTruthy(); });
+});

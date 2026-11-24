@@ -1,0 +1,99 @@
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import "./Navbar.css";
+
+export default function Navbar() {
+  const { pathname } = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
+
+  const isAdmin = user?.role === "admin" || user?.role?.name === "admin";
+
+const links = [
+    { to: "/", label: "Accueil" },
+    { to: "/chambres", label: "Chambres" },
+    { to: "/reservation", label: "Disponibilités" },
+    ...(!isAuthenticated
+      ? [
+          { to: "/apropos", label: "À propos" },
+          { to: "/contact", label: "Contact" },
+        ]
+      : []),
+    ...(isAuthenticated ? [{ to: "/mes-reservations", label: "Mes réservations" }] : []),
+    ...(isAdmin ? [{ to: "/admin", label: "Dashboard" }] : []),
+  ];
+
+  return (
+    <nav className="navbar">
+      {/* Logo */}
+      <Link to="/" className="navbar__logo">
+        <span className="navbar__logo-icon">H</span>
+        HotelHub
+      </Link>
+
+      {/* Liens de navigation */}
+      <ul className="navbar__links">
+        {links.map(({ to, label }) => (
+          <li key={to}>
+            <Link
+              to={to}
+              className={`navbar__link ${pathname === to ? "active" : ""}`}
+            >
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {/* Actions droite */}
+      <div className="navbar__actions">
+        {/* Icone langue */}
+        <button className="navbar__globe" aria-label="Changer de langue">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z" />
+          </svg>
+        </button>
+
+        {isAuthenticated ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "13.5px", fontWeight: "500", color: "var(--color-dark)" }}>
+              Bonjour, <strong>{user?.name?.split(" ")[0]}</strong>
+              {isAdmin && (
+                <span style={{
+                  marginLeft: "6px",
+                  fontSize: "10px",
+                  background: "var(--color-gold)",
+                  color: "#fff",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  textTransform: "uppercase",
+                  fontWeight: "700"
+                }}>
+                  Admin
+                </span>
+              )}
+            </span>
+            <button
+              onClick={logout}
+              className="navbar__connexion"
+              style={{ color: "#dc2626" }}
+            >
+              Déconnexion
+            </button>
+          </div>
+        ) : (
+          <>
+            <Link to="/login" className="navbar__connexion">
+              Connexion
+            </Link>
+            <Link to="/register" className="navbar__inscription">
+              Inscription
+            </Link>
+          </>
+        )}
+      </div>
+    </nav>
+  );
+}

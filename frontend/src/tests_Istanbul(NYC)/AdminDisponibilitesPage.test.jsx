@@ -1,0 +1,25 @@
+import React from 'react';
+import {describe,it,expect,vi,beforeEach,afterEach} from 'vitest';
+import {render,screen,fireEvent,waitFor,within,cleanup} from '@testing-library/react';
+import Page from '../pages/admin/disponibilites/AdminDisponibilitesPage';
+import {toutesReservations,annulerReservation,getDisponibilites} from '../services/disponibilitesApi';
+vi.mock('../services/disponibilitesApi',()=>({toutesReservations:vi.fn(),annulerReservation:vi.fn(),getDisponibilites:vi.fn()}));
+const records=[{id:11,chambre_id:7,client_id:1,statut:'CONFIRMEE',date_debut:'2026-12-01',date_fin:'2026-12-04',telephone:'0612345678',nombre_personnes:2,created_at:[2026,11,20,10,0]},{id:12,chambreId:8,clientId:2,statut:'ANNULEE',dateDebut:'2026-12-01',dateFin:'2026-12-02',createdAt:'invalid'}];
+const start=async()=>{render(<Page/>);await screen.findByText('#11');};
+const check=()=>{const dates=document.querySelectorAll('input[type=date]');fireEvent.change(dates[0],{target:{value:'2026-12-01'}});fireEvent.change(dates[1],{target:{value:'2026-12-04'}});fireEvent.submit(document.querySelector('form'));};
+beforeEach(()=>{vi.resetAllMocks();toutesReservations.mockResolvedValue({data:records});annulerReservation.mockResolvedValue({});getDisponibilites.mockResolvedValue({data:{chambres_occupees:[7,99]}});vi.stubGlobal('fetch',vi.fn(async url=>({ok:true,json:async()=>url.includes('/users/')?{name:url.endsWith('/1')?'Ahmed Atlas':'Sara Souss',email:'client@test.ma'}:[{id:7,numero:'301',type:'suite'}]})));vi.spyOn(window,'confirm').mockReturnValue(true);localStorage.setItem('token','test-jwt');});
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();localStorage.clear();});
+describe('AdminDisponibilitesPage',()=>{
+it('charge et enrichit les réservations',async()=>{await start();expect(screen.getByText('Ahmed Atlas')).toBeTruthy();expect(screen.getByText('Chambre N° 301 (suite)')).toBeTruthy();expect(screen.getByText('3 nuits')).toBeTruthy();expect(fetch).toHaveBeenCalledWith(expect.any(String),{headers:{Accept:'application/json',Authorization:'Bearer test-jwt'}});});
+it('filtre les réservations par statut',async()=>{await start();fireEvent.click(screen.getByRole('button',{name:/Annulées/}));expect(screen.queryByText('#11')).toBeNull();expect(screen.getByText('#12')).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:/Confirmées/}));expect(screen.getByText('#11')).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:/Toutes/}));expect(screen.getByText('#12')).toBeTruthy();});
+it.each(['Ahmed','301','0612345678','11'])('recherche %s',async q=>{await start();fireEvent.change(screen.getByPlaceholderText(/Rechercher/),{target:{value:q}});expect(screen.getByText('#11')).toBeTruthy();expect(screen.queryByText('#12')).toBeNull();});
+it('annulation refusée',async()=>{await start();window.confirm.mockReturnValue(false);fireEvent.click(screen.getByRole('button',{name:'Annuler'}));expect(annulerReservation).not.toHaveBeenCalled();});
+it('annule et actualise',async()=>{await start();toutesReservations.mockResolvedValue({data:[]});fireEvent.click(screen.getByRole('button',{name:'Annuler'}));expect(await screen.findByText(/a été annulée avec succès/)).toBeTruthy();await waitFor(()=>expect(screen.queryByText('#11')).toBeNull());expect(annulerReservation).toHaveBeenCalledWith(11);});
+it('gère un refus API',async()=>{await start();annulerReservation.mockRejectedValue({response:{status:403}});fireEvent.click(screen.getByRole('button',{name:'Annuler'}));expect(await screen.findByText(/droits administrateur requis/)).toBeTruthy();});
+it('vérifie les chambres occupées',async()=>{await start();check();expect(await screen.findByText(/Chambre N° 301, Chambre #99/)).toBeTruthy();expect(getDisponibilites).toHaveBeenCalledWith({date_debut:'2026-12-01',date_fin:'2026-12-04'});});
+it('aucune chambre occupée',async()=>{getDisponibilites.mockResolvedValue({data:{chambres_occupees:[]}});await start();check();expect(await screen.findByText(/Aucune chambre occupée/)).toBeTruthy();});
+it('erreur de vérification',async()=>{getDisponibilites.mockRejectedValue({response:{data:{message:'Dates invalides'}}});await start();check();expect(await screen.findByText('Dates invalides')).toBeTruthy();});
+it('session expirée',async()=>{toutesReservations.mockRejectedValue({response:{status:401}});render(<Page/>);expect(await screen.findByText(/Session expirée/)).toBeTruthy();});
+it('utilise les identifiants si les services annexes échouent',async()=>{fetch.mockRejectedValue(new Error('offline'));await start();expect(screen.getByText('Client #1')).toBeTruthy();expect(screen.getByText('Chambre #7')).toBeTruthy();});
+it('actualise la liste',async()=>{await start();fireEvent.click(screen.getByRole('button',{name:/Actualiser/}));await waitFor(()=>expect(toutesReservations).toHaveBeenCalledTimes(2));await screen.findByText('#11');});
+});

@@ -1,0 +1,21 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+import Page from '../pages/client/ResetPasswordPage';
+import { resetPassword, validateResetToken } from '../services/authApi';
+vi.mock('../services/authApi', () => ({ resetPassword: vi.fn(), validateResetToken: vi.fn() }));
+const setup = (url = '/reset-password?token=test-token') => render(<MemoryRouter initialEntries={[url]}><Page /></MemoryRouter>);
+const form = async () => { await waitFor(() => expect(document.querySelector('form')).not.toBeNull()); return document.querySelector('form'); };
+const fill = async (values) => { const f = await form(); [...f.querySelectorAll('input')].forEach((el,i) => fireEvent.change(el, {target:{value:values[i] || ''}})); return f; };
+beforeEach(() => { vi.resetAllMocks(); resetPassword.mockResolvedValue({}); validateResetToken.mockResolvedValue({}); });
+describe('ResetPasswordPage', () => {
+ it('refuse les champs vides', async () => { setup(); fireEvent.submit(await form()); expect(await screen.findByText(/Veuillez remplir tous les champs|Veuillez renseigner tous les champs/)).toBeTruthy(); expect(resetPassword).not.toHaveBeenCalled(); });
+ it('refuse un mot de passe court', async () => { setup(); fireEvent.submit(await fill(['abc','abc'])); expect(await screen.findByText(/au moins 8 caractères/)).toBeTruthy(); });
+ it('refuse une confirmation différente', async () => { setup(); fireEvent.submit(await fill(['StrongPass123!','different'])); expect(await screen.findByText(/confirmation du mot de passe ne correspond pas/)).toBeTruthy(); });
+ it('envoie le payload et affiche le succès', async () => { setup(); fireEvent.submit(await fill(['StrongPass123!', 'StrongPass123!'])); await waitFor(() => expect(resetPassword).toHaveBeenCalledWith({token:'test-token',password:'StrongPass123!',password_confirmation:'StrongPass123!'})); expect(await screen.findByText(/Mot de passe mis à jour avec succès/)).toBeTruthy(); });
+ it('affiche une erreur du serveur', async () => { resetPassword.mockRejectedValue({response:{data:{error:'Erreur test'}}}); setup(); fireEvent.submit(await fill(['StrongPass123!', 'StrongPass123!'])); expect(await screen.findByText('Erreur test')).toBeTruthy(); });
+ it('affiche une erreur générique', async () => { resetPassword.mockRejectedValue(new Error('network')); setup(); fireEvent.submit(await fill(['StrongPass123!', 'StrongPass123!'])); expect(await screen.findByText(/Erreur lors de la/)).toBeTruthy(); });
+ it('refuse un jeton absent', async () => { setup('/reset-password'); expect(await screen.findByText(/Jeton de réinitialisation manquant/)).toBeTruthy(); expect(validateResetToken).not.toHaveBeenCalled(); }); it('refuse un jeton expiré', async () => { validateResetToken.mockRejectedValue(new Error('expired')); setup(); expect(await screen.findByText(/invalide ou expiré/)).toBeTruthy(); });
+});
