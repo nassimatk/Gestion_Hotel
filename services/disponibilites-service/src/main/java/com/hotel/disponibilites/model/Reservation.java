@@ -31,6 +31,9 @@ public class Reservation {
     @Column(nullable = false)
     private String telephone;
 
+    @Column
+    private Double montant;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutReservation statut = StatutReservation.CONFIRMEE;
@@ -62,6 +65,9 @@ public class Reservation {
 
     public String getTelephone() { return telephone; }
     public void setTelephone(String telephone) { this.telephone = telephone; }
+
+    public Double getMontant() { return montant; }
+    public void setMontant(Double montant) { this.montant = montant; }
 
     public StatutReservation getStatut() { return statut; }
     public void setStatut(StatutReservation statut) { this.statut = statut; }

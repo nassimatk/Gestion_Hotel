@@ -20,6 +20,7 @@ public record ReservationResponse(
         LocalDate dateFin,
         Integer nombrePersonnes,
         String telephone,
+        Double montant,
         StatutReservation statut,
         LocalDateTime createdAt
 ) {
@@ -55,6 +56,7 @@ public record ReservationResponse(
                 r.getDateFin(),
                 r.getNombrePersonnes(),
                 r.getTelephone(),
+                r.getMontant(),
                 r.getStatut(),
                 r.getCreatedAt()
         );

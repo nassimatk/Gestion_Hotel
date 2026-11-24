@@ -2,6 +2,7 @@ package com.hotel.disponibilites.service;
 
 import com.hotel.disponibilites.client.AuthClient;
 import com.hotel.disponibilites.client.ChambreClient;
+import com.hotel.disponibilites.client.TarifsClient;
 import com.hotel.disponibilites.dto.ReservationRequest;
 import com.hotel.disponibilites.model.Reservation;
 import com.hotel.disponibilites.model.StatutReservation;
@@ -39,11 +40,14 @@ class DisponibiliteServiceTest {
     @Mock
     private AuthClient authClient;
 
+    @Mock
+    private TarifsClient tarifsClient;
+
     private DisponibiliteService service;
 
     @BeforeEach
     void setUp() {
-        service = new DisponibiliteService(reservationRepository, chambreClient, authClient);
+        service = new DisponibiliteService(reservationRepository, chambreClient, authClient, tarifsClient);
     }
 
     @Test
@@ -97,6 +101,7 @@ class DisponibiliteServiceTest {
         when(chambreClient.getCapacite(3L)).thenReturn(Optional.of(2));
         when(reservationRepository.compterChevauchements(3L, StatutReservation.CONFIRMEE, debut, fin))
                 .thenReturn(0L);
+        when(tarifsClient.obtenirPrix(3L, debut, fin)).thenReturn(1500.0);
         when(reservationRepository.save(any(Reservation.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -106,6 +111,7 @@ class DisponibiliteServiceTest {
         assertEquals(3L, resultat.getChambreId());
         assertEquals(15L, resultat.getClientId());
         assertEquals("0612345678", resultat.getTelephone());
+        assertEquals(1500.0, resultat.getMontant());
         verify(reservationRepository).save(any(Reservation.class));
     }
 
