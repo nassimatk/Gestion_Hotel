@@ -1,0 +1,28 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import AdminChambresPage from '../pages/admin/chambres/AdminChambresPage';
+import { getChambres, deleteChambre } from '../services/chambresApi';
+vi.mock('../services/chambresApi', () => ({ getChambres: vi.fn(), deleteChambre: vi.fn(), createChambre: vi.fn(), updateChambre: vi.fn() }));
+const rooms = [ {id:1, nom:'Suite Atlas', numero:'101', statut:'disponible', etage:2, capacite:3, superficie:60, prix_nuit:1200, images:['https://example.com/atlas.jpg']}, {id:2, nom:'Suite Mer', numero:'102', statut:'occupee'}, {id:3, numero:'103', type:'double', statut:'maintenance'} ];
+const start = () => render(<MemoryRouter future={{v7_startTransition:true,v7_relativeSplatPath:true}}><AdminChambresPage /></MemoryRouter>);
+const loaded = async () => { start(); await screen.findByRole('heading',{name:'Suite Atlas'}); };
+const archive = () => within(screen.getByRole('heading',{name:'Suite Atlas'}).closest('.room-card-prestige')).getByTitle('Archiver cette chambre');
+beforeEach(()=>{vi.resetAllMocks(); getChambres.mockResolvedValue(rooms); deleteChambre.mockResolvedValue(true); vi.spyOn(window,'confirm').mockReturnValue(true); vi.spyOn(window,'alert').mockImplementation(()=>{});});
+afterEach(()=>{cleanup();vi.restoreAllMocks();});
+describe('AdminChambresPage',()=>{
+ it('affiche le chargement',()=>{getChambres.mockReturnValue(new Promise(()=>{}));start();expect(screen.getByText(/Chargement des chambres/)).toBeTruthy();});
+ it('charge les chambres et leurs statuts',async()=>{await loaded();expect(getChambres).toHaveBeenCalled();expect(screen.getByText('DISPONIBLE')).toBeTruthy();expect(screen.getByText('OCCUPÉE')).toBeTruthy();expect(screen.getByText('MAINTENANCE')).toBeTruthy();});
+ it('affiche les caractéristiques',async()=>{await loaded();expect(screen.getByText('3 adultes')).toBeTruthy();expect(screen.getByText('60 m²')).toBeTruthy();});
+ it('utilise un titre et une image de secours',async()=>{await loaded();expect(screen.getByRole('heading',{name:'Chambre DOUBLE N° 103'})).toBeTruthy();expect(screen.getByAltText('Suite Mer').getAttribute('src')).toContain('unsplash');});
+ it('remplace une image en erreur',async()=>{await loaded();const img=screen.getByAltText('Suite Atlas');fireEvent.error(img);expect(img.src).toContain('unsplash');});
+ it('affiche une erreur API',async()=>{getChambres.mockRejectedValue(new Error('Serveur indisponible'));start();expect(await screen.findByText(/Serveur indisponible/)).toBeTruthy();});
+ it.each([[],null,{}])('gère une liste vide ou invalide %#',async(data)=>{getChambres.mockResolvedValue(data);start();await waitFor(()=>expect(screen.queryByText(/Chargement des chambres/)).toBeNull());expect(screen.queryAllByRole('heading',{level:3})).toHaveLength(0);});
+ it('ferme la notification',async()=>{await loaded();fireEvent.click(screen.getByRole('button',{name:'Fermer'}));expect(screen.queryByText(/mise à jour avec succès/)).toBeNull();});
+ it('propose un lien de modification correct',async()=>{await loaded();expect(screen.getAllByRole('link',{name:/Modifier/})[0].getAttribute('href')).toBe('/admin/chambres/modifier/1');});
+ it('annule la suppression',async()=>{window.confirm.mockReturnValue(false);await loaded();fireEvent.click(archive());expect(deleteChambre).not.toHaveBeenCalled();});
+ it('archive puis recharge la liste',async()=>{getChambres.mockResolvedValueOnce(rooms).mockResolvedValueOnce(rooms.slice(1));await loaded();fireEvent.click(archive());await waitFor(()=>expect(deleteChambre).toHaveBeenCalledWith(1));expect(await screen.findByText(/101 a été supprimée avec succès/)).toBeTruthy();await waitFor(()=>expect(screen.queryByRole('heading',{name:'Suite Atlas'})).toBeNull());expect(getChambres).toHaveBeenCalledTimes(2);});
+ it('gère une erreur de suppression',async()=>{deleteChambre.mockRejectedValue(new Error('Interdit'));await loaded();fireEvent.click(archive());await waitFor(()=>expect(window.alert).toHaveBeenCalledWith('Erreur lors de la suppression : Interdit'));expect(screen.getByRole('heading',{name:'Suite Atlas'})).toBeTruthy();});
+ it('navigue entre les pages',async()=>{getChambres.mockResolvedValue(Array.from({length:8},(_,i)=>({id:i+1,numero:String(i+1),nom:`Chambre test ${i+1}`})));start();await screen.findByRole('heading',{name:'Chambre test 1'});expect(screen.queryAllByRole('heading',{level:3})).toHaveLength(6);fireEvent.click(screen.getByRole('button',{name:'›'}));expect(screen.getByRole('heading',{name:'Chambre test 8'})).toBeTruthy();expect(screen.getByRole('button',{name:'›'}).disabled).toBe(true);fireEvent.click(screen.getByRole('button',{name:'‹'}));expect(screen.getByRole('heading',{name:'Chambre test 1'})).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'2'}));expect(screen.queryAllByRole('heading',{level:3})).toHaveLength(2);});
+});

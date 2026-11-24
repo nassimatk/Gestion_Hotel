@@ -1,0 +1,20 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+import Page from '../pages/client/MesReservationsPage';
+import { mesReservations, annulerReservation } from '../services/disponibilitesApi';
+vi.mock('../services/disponibilitesApi',()=>({mesReservations:vi.fn(),annulerReservation:vi.fn()}));
+const r={id:7,chambre_nom:'Suite Atlas',statut:'CONFIRMEE',date_debut:'2027-01-01',date_fin:'2027-01-03',nombre_personnes:2,telephone:'0600000000'};
+const setup=()=>render(<MemoryRouter><Page/></MemoryRouter>);
+beforeEach(()=>{vi.resetAllMocks();mesReservations.mockResolvedValue({data:[r]});annulerReservation.mockResolvedValue({});});
+describe('MesReservationsPage',()=>{
+ it('charge et affiche les réservations',async()=>{setup();expect(await screen.findByText('Suite Atlas')).toBeTruthy();expect(screen.getByText('2 nuits')).toBeTruthy();expect(screen.getByText('2 personnes')).toBeTruthy();});
+ it('affiche une liste vide',async()=>{mesReservations.mockResolvedValue({data:[]});setup();expect(await screen.findByText(/Aucune réservation/)).toBeTruthy();});
+ it('gère une session expirée',async()=>{mesReservations.mockRejectedValue({response:{status:401}});setup();expect(await screen.findByText(/Veuillez vous connecter/)).toBeTruthy();});
+ it('gère une erreur réseau',async()=>{mesReservations.mockRejectedValue(new Error('network'));setup();expect(await screen.findByText(/Une erreur est survenue/)).toBeTruthy();});
+ it('annule la confirmation',async()=>{vi.spyOn(window,'confirm').mockReturnValue(false);setup();fireEvent.click(await screen.findByRole('button',{name:'Annuler la réservation'}));expect(annulerReservation).not.toHaveBeenCalled();});
+ it('annule puis recharge',async()=>{vi.spyOn(window,'confirm').mockReturnValue(true);mesReservations.mockResolvedValueOnce({data:[r]}).mockResolvedValueOnce({data:{data:[{...r,statut:'ANNULEE'}]}});setup();fireEvent.click(await screen.findByRole('button',{name:'Annuler la réservation'}));expect(await screen.findByText('Annulée')).toBeTruthy();expect(annulerReservation).toHaveBeenCalledWith(7);expect(screen.queryByRole('button',{name:'Annuler la réservation'})).toBeNull();});
+ it('affiche une erreur d’annulation',async()=>{vi.spyOn(window,'confirm').mockReturnValue(true);annulerReservation.mockRejectedValue({response:{data:{message:'Annulation refusée'}}});setup();fireEvent.click(await screen.findByRole('button',{name:'Annuler la réservation'}));expect(await screen.findByText('Annulation refusée')).toBeTruthy();});
+});

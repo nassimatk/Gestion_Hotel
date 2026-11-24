@@ -1,0 +1,27 @@
+import React from 'react';
+import { describe,it,expect,vi,beforeEach,afterEach } from 'vitest';
+import { render,screen,fireEvent,waitFor,within,cleanup } from '@testing-library/react';
+import Page from '../pages/admin/client/AdminClientsPage';
+import {getAllUsers,deleteUser} from '../services/authApi';
+import {toutesReservations} from '../services/disponibilitesApi';
+vi.mock('../services/authApi',()=>({getAllUsers:vi.fn(),deleteUser:vi.fn()}));
+vi.mock('../services/disponibilitesApi',()=>({toutesReservations:vi.fn()}));
+const users=[{id:1,name:'Ahmed Atlas',email:'atlas@test.ma',role:'client',created_at:new Date().toISOString()},{id:2,name:'Sara Admin',email:'admin@test.ma',role:{name:'admin'}},{id:3,name:'Nora Souss',email:'souss@test.ma',role:'client',created_at:'invalid'}];
+const reservations=[1,2,3].map(id=>({id,client_id:1}));
+const table=()=>within(screen.getByRole('table'));
+const row=()=>table().getByText('Ahmed Atlas').closest('tr');
+const start=async()=>{render(<Page/>);await waitFor(()=>expect(table().getByText('Ahmed Atlas')).toBeTruthy());};
+beforeEach(()=>{vi.resetAllMocks();getAllUsers.mockResolvedValue({data:users});toutesReservations.mockResolvedValue({data:reservations});deleteUser.mockResolvedValue({});vi.spyOn(window,'confirm').mockReturnValue(true);vi.spyOn(window,'alert').mockImplementation(()=>{});});
+afterEach(()=>{cleanup();vi.restoreAllMocks();});
+describe('AdminClientsPage',()=>{
+it('charge les utilisateurs et calcule le statut VIP',async()=>{await start();expect(within(row()).getByText('VIP')).toBeTruthy();expect(table().getByText('Administrateur')).toBeTruthy();expect(deleteUser).not.toHaveBeenCalled();});
+it.each(['Ahmed','ATLAS@TEST.MA','1'])('recherche par %s',async q=>{await start();fireEvent.change(screen.getByPlaceholderText(/Rechercher un nom/),{target:{value:q}});expect(table().getByText('Ahmed Atlas')).toBeTruthy();expect(table().queryByText('Nora Souss')).toBeNull();});
+it('filtre les administrateurs',async()=>{await start();fireEvent.change(screen.getByRole('combobox'),{target:{value:'admin'}});expect(table().getByText('Sara Admin')).toBeTruthy();expect(table().queryByText('Ahmed Atlas')).toBeNull();expect(table().queryByRole('button',{name:/Désactiver/})).toBeNull();});
+it('annule la désactivation',async()=>{await start();window.confirm.mockReturnValue(false);fireEvent.click(within(row()).getByTitle('Désactiver le compte'));expect(deleteUser).not.toHaveBeenCalled();});
+it('désactive puis recharge',async()=>{await start();getAllUsers.mockResolvedValue({data:users.slice(1)});fireEvent.click(within(row()).getByTitle('Désactiver le compte'));await waitFor(()=>expect(table().queryByText('Ahmed Atlas')).toBeNull());expect(deleteUser).toHaveBeenCalledWith(1);expect(getAllUsers).toHaveBeenCalledTimes(2);});
+it('affiche une erreur de désactivation',async()=>{await start();deleteUser.mockRejectedValue({response:{data:{error:'Compte protégé'}}});fireEvent.click(within(row()).getByTitle('Désactiver le compte'));await waitFor(()=>expect(window.alert).toHaveBeenCalledWith('Compte protégé'));expect(row()).toBeTruthy();});
+it('charge les utilisateurs malgré une panne des réservations',async()=>{toutesReservations.mockRejectedValue(new Error('offline'));await start();expect(screen.getByText(/impossible de récupérer les réservations/)).toBeTruthy();expect(within(row()).getByText('Régulier')).toBeTruthy();});
+it('gère une erreur de chargement',async()=>{getAllUsers.mockRejectedValue({response:{data:{message:'Service indisponible'}}});render(<Page/>);expect(await screen.findByText('Service indisponible')).toBeTruthy();});
+it('affiche une liste vide',async()=>{getAllUsers.mockResolvedValue({data:[]});render(<Page/>);expect(await screen.findByText('Aucun utilisateur trouvé.')).toBeTruthy();});
+it('pagine les comptes',async()=>{getAllUsers.mockResolvedValue({data:Array.from({length:10},(_,i)=>({id:i+1,name:`Compte ${i+1}`,role:'client'}))});render(<Page/>);await waitFor(()=>expect(table().getByText('Compte 1')).toBeTruthy());const buttons=document.querySelectorAll('.clients-pagination button');fireEvent.click(buttons[1]);expect(table().getByText('Compte 10')).toBeTruthy();fireEvent.click(buttons[0]);expect(table().getByText('Compte 1')).toBeTruthy();});
+});
