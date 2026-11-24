@@ -367,8 +367,6 @@ export default function AdminDashboard() {
         let label = "Disponible";
 
         if (/menage|nettoy/.test(brut)) {
-          cle = "menage";
-          label = "Ménage en cours";
         } else if (resa.departsAujourdhui.has(id)) {
           cle = "depart";
           label = "Départ aujourd'hui";
@@ -583,7 +581,7 @@ export default function AdminDashboard() {
           tone="green"
           label="Chambres"
           value={manque("chambres", "reservations") ? "—" : `${tauxOccupation}%`}
-          hint={`${chambres.libres} libre(s) • ${chambres.occupees} occupée(s) • ${chambres.menage} ménage`}
+          hint={`${chambres.libres} libre(s) • ${chambres.occupees} occupée(s)`}
           loading={loading}
         />
         <Kpi
@@ -684,7 +682,6 @@ export default function AdminDashboard() {
               <div className="dash-legend">
                 <span className="libre">Disponible ({chambres.libres})</span>
                 <span className="occupee">Occupée ({chambres.occupees})</span>
-                <span className="menage">Ménage ({chambres.menage})</span>
               </div>
             }
           >

@@ -702,3 +702,307 @@
   border-color: var(--color-gold, #c5a880);
   box-shadow: 0 0 0 2px rgba(197, 168, 128, 0.4);
 }
+
+
+
+/* =====================================================
+   TARIFS ET PROMOTIONS - CHAMBRES CLIENT
+===================================================== */
+
+.room-price-details {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 16px;
+  padding: 13px;
+  background: #f8f7f4;
+  border: 1px solid #eee8dc;
+  border-radius: 10px;
+}
+
+.room-card__promotion-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.room-card__discount-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  color: #fff;
+  background: #a77b38;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.room-card__countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  color: #795d31;
+  background: #f0e8d9;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.room-card__countdown-badge.is-last-day {
+  color: #9b3f32;
+  background: #f8e5df;
+}
+
+.room-card__season {
+  margin: 0;
+  color: #777064;
+  font-size: 12px;
+}
+
+.room-card__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.room-card__old-price {
+  color: #89847b;
+  font-size: 13px;
+  text-decoration: line-through;
+}
+
+.room-card__price-amount {
+  color: #9b7438;
+  font-size: 21px;
+  font-weight: 750;
+}
+
+.room-card__price-unit {
+  color: #817b70;
+  font-size: 12px;
+}
+
+.room-card__promotion-status {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.room-card__promotion-status.is-applied {
+  color: #54734c;
+}
+
+.room-card__promotion-status.is-preview {
+  color: #98733b;
+}
+
+.room-card__total {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid #e9e2d7;
+  color: #61594e;
+  font-size: 12px;
+}
+
+.room-card__total strong {
+  color: #87652f;
+}
+
+.room-card__season strong {
+  color: #87652f;
+}
+
+.room-card__unavailable {
+  color: #a34d40;
+  font-size: 12px;
+}
+
+/* Bouton de la carte */
+.room-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+/* Message de chargement des tarifs */
+.tarifs-loading,
+.tarifs-unavailable {
+  margin: 15px 0;
+  padding: 12px 15px;
+  color: #766344;
+  background: #f8f4eb;
+  border: 1px solid #e9dfcc;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.tarifs-unavailable button {
+  margin-top: 8px;
+  padding: 7px 13px;
+  color: #fff;
+  background: #9b7438;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* =====================================================
+   TARIFICATION DANS LA MODALE
+===================================================== */
+
+.room-detail-pricing-section {
+  margin-top: 22px;
+  padding: 18px;
+  background: #f8f7f4;
+  border: 1px solid #eee8dc;
+  border-radius: 12px;
+}
+
+.room-detail-pricing-section h4 {
+  margin: 0 0 14px;
+  color: #4d4539;
+  font-size: 16px;
+}
+
+.room-detail-price-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.room-detail-price-lines p {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: #746d62;
+  font-size: 13px;
+}
+
+.room-detail-price-lines strong {
+  color: #80602e;
+}
+
+.room-detail-pricing-section .room-price-details {
+  margin-top: 0;
+}
+
+.room-detail-price-period {
+  margin: 12px 0 0;
+  color: #898176;
+  font-size: 11px;
+}
+
+/* =====================================================
+   PROMOTION SUR LA PHOTO DE LA CHAMBRE
+===================================================== */
+
+.room-card__image {
+  position: relative;
+}
+
+.room-card__promo-overlay {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.room-card__promo-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: #9b7438;
+  color: #fff;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.room-card__promo-discount {
+  padding: 6px 11px;
+  background: #fff;
+  color: #9b3f32;
+  border-radius: 5px;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.room-card__promo-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: rgba(15, 29, 45, 0.9);
+  color: #fff;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(5px);
+}
+
+.room-card__promo-countdown.is-last-day {
+  background: #a33c32;
+}
+
+@media (max-width: 640px) {
+  .room-card__promo-overlay {
+    top: 10px;
+    right: 10px;
+    gap: 5px;
+  }
+
+  .room-card__promo-label {
+    padding: 5px 9px;
+    font-size: 9px;
+  }
+
+  .room-card__promo-discount {
+    padding: 5px 9px;
+    font-size: 13px;
+  }
+
+  .room-card__promo-countdown {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .room-price-details {
+    padding: 11px;
+  }
+
+  .room-card__price-amount {
+    font-size: 19px;
+  }
+
+  .room-detail-pricing-section {
+    padding: 13px;
+  }
+
+  .room-card__footer {
+    justify-content: stretch;
+  }
+
+  .room-card__footer .room-card__btn {
+    width: 100%;
+  }
+}
