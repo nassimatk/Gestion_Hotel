@@ -336,8 +336,9 @@ export default function ReservationPage() {
 
   const [prixTotalTarifs, setPrixTotalTarifs] = useState(
     prixTransmisValide ? Number(prixInitialTransmis) : null
+    
   );
-
+  const [promoTarif, setPromoTarif] = useState(null); 
   const [loadingTarifs, setLoadingTarifs] = useState(false);
 
   // ==================================================
@@ -471,6 +472,7 @@ export default function ReservationPage() {
     async function calculerTarif() {
       setLoadingTarifs(true);
       setPrixTotalTarifs(null);
+      setPromoTarif(null);
 
       try {
         const res = await getTarifs({
@@ -481,12 +483,30 @@ export default function ReservationPage() {
 
         if (!actif) return;
 
+        const data = res?.data && typeof res.data === "object" ? res.data : res;
         const total = extraireTotalTarifs(res);
+        const sousTotal = Number(data?.sous_total);
+        const libellePromo = data?.promotion_appliquee || null;
+
         setPrixTotalTarifs(total !== null ? total : prixChambre(selectedChambre) * nuits);
+
+        if (
+          libellePromo &&
+          Number.isFinite(sousTotal) &&
+          total !== null &&
+          sousTotal > total
+        ) {
+          setPromoTarif({
+            libelle: libellePromo,
+            sousTotal,
+            reduction: Number((sousTotal - total).toFixed(2)),
+          });
+        }
       } catch (err) {
         console.error("Erreur calcul tarif :", err);
         if (actif) {
           setPrixTotalTarifs(prixChambre(selectedChambre) * nuits);
+          setPromoTarif(null);
         }
       
       } finally {
@@ -1331,6 +1351,32 @@ export default function ReservationPage() {
 
          
               </div>
+
+              {!loadingTarifs && promoTarif && (
+                <div
+                  style={{
+                    backgroundColor: "#eef7f0",
+                    color: "#1e6b34",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    marginBottom: "12px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <span>Prix avant promotion</span>
+                    <span style={{ textDecoration: "line-through", opacity: 0.8 }}>
+                      {formaterPrix(promoTarif.sousTotal)} {devise}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                    <span>Promotion appliquée ({promoTarif.libelle})</span>
+                    <span>-{formaterPrix(promoTarif.reduction)} {devise}</span>
+                  </div>
+                </div>
+              )}
+
+         
 
               {/* TOTAL */}
 

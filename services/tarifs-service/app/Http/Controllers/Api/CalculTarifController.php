@@ -41,13 +41,18 @@ class CalculTarifController extends Controller
             return $erreur;
         }
 
-        // 1. Tarif standard actif de la chambre (saison_id IS NULL)
+  
+     // 1. Tarif standard actif de la chambre (ou prix de base de la chambre)
         $tarifStandard = Tarif::where('chambre_id', $chambreId)
             ->whereNull('saison_id')
             ->where('statut', 'active')
             ->first();
 
-        if (!$tarifStandard) {
+        $prixStandard = $tarifStandard
+            ? (float) $tarifStandard->prix_nuit
+            : (float) ($this->chambreTrouvee['prix_nuit'] ?? 0);
+
+        if ($prixStandard <= 0) {
             return response()->json([
                 'success' => false,
                 'error' => 'Aucun tarif standard actif trouvé pour cette chambre.',
@@ -75,8 +80,8 @@ class CalculTarifController extends Controller
         $nbNuits = $this->calculPrixService->nombreNuits($arrivee, $depart);
 
         $promoModel = Promotion::where('statut', 'active')
-            ->where('date_debut', '<=', $arrivee)
-            ->where('date_fin', '>=', $arrivee)
+            ->whereDate('date_debut', '<=', $arrivee)
+            ->whereDate('date_fin', '>=', $arrivee)
             ->where('nuits_min', '<=', $nbNuits)
             ->where(function ($q) use ($chambreId) {
                 $q->where('chambre_id', $chambreId)->orWhereNull('chambre_id');
@@ -95,7 +100,7 @@ class CalculTarifController extends Controller
             $resultat = $this->calculPrixService->calculerSejour(
                 $arrivee,
                 $depart,
-                (float) $tarifStandard->prix_nuit,
+                $prixStandard,
                 $saisons,
                 $promotion
             );
@@ -107,7 +112,7 @@ class CalculTarifController extends Controller
                     'chambre' => $this->chambreTrouvee
                         ? ['id' => $chambreId, 'nom' => ChambreClientService::nom($this->chambreTrouvee)]
                         : null,
-                    'devise' => $tarifStandard->devise,
+                    'devise' => $tarifStandard?->devise ?? ($this->chambreTrouvee['devise'] ?? 'MAD'),
                     'promotion_appliquee' => $promoModel?->libelle,
                 ]),
             ], 200);
