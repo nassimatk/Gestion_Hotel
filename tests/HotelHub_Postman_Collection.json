@@ -1,0 +1,265 @@
+{
+  "info": {
+    "name": "HotelHub - Tests API Microservices",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "jwt_token", "value": "" },
+    { "key": "chambre_id", "value": "1" },
+    { "key": "test_email", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Health - Auth Service (:8005)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Auth Service OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8005/api/health" }
+    },
+    {
+      "name": "2. Health - Chambres Service (:8001)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Chambres Service OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8001/api/health" }
+    },
+    {
+      "name": "3. Health - Avis Service (:8002)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Avis Service OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8002/api/health" }
+    },
+    {
+      "name": "4. Health - Disponibilites Service (:8003)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Disponibilites Service OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8003/api/health" }
+    },
+    {
+      "name": "5. Health - Tarifs Service (:8004)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Tarifs Service OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8004/api/health" }
+    },
+    {
+      "name": "6. Auth - Inscription Client (POST /api/register)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('test_email', 'test_ql_' + Date.now() + '@hotelhub.ma');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Inscription reussie (200/201)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+              "const res = pm.response.json();",
+              "const tok = res.token || res.access_token || (res.data && res.data.token);",
+              "if (tok) pm.collectionVariables.set('jwt_token', tok);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Client Test QL\",\"email\":\"{{test_email}}\",\"password\":\"Password123!\",\"password_confirmation\":\"Password123!\"}"
+        },
+        "url": "http://localhost:8005/api/register"
+      }
+    },
+    {
+      "name": "7. Auth - Connexion & Emission JWT (POST /api/login)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Connexion OK (200)', () => pm.response.to.have.status(200));",
+              "const res = pm.response.json();",
+              "const tok = res.token || res.access_token || (res.data && res.data.token);",
+              "pm.test('Jeton JWT recu', () => pm.expect(tok).to.be.a('string').and.not.empty);",
+              "if (tok) pm.collectionVariables.set('jwt_token', tok);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{test_email}}\",\"password\":\"Password123!\"}"
+        },
+        "url": "http://localhost:8005/api/login"
+      }
+    },
+    {
+      "name": "8. Auth - Profil Connecte avec JWT (GET /api/me)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Profil JWT valide (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+        "url": "http://localhost:8005/api/me"
+      }
+    },
+    {
+      "name": "9. Chambres - Catalogue Public (GET /api/chambres)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Liste chambres OK (200)', () => pm.response.to.have.status(200));",
+              "const res = pm.response.json();",
+              "const list = Array.isArray(res) ? res : (res.data || []);",
+              "if (list.length > 0 && list[0].id) pm.collectionVariables.set('chambre_id', list[0].id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8001/api/chambres"
+      }
+    },
+    {
+      "name": "10. Tarifs - Liste des Tarifs (GET /api/tarifs)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Liste tarifs OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8004/api/tarifs" }
+    },
+    {
+      "name": "11. Disponibilites - Verification Periode (GET /api/disponibilites)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Disponibilites OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8003/api/disponibilites?date_debut=2026-12-10&date_fin=2026-12-13"
+      }
+    },
+    {
+      "name": "12. Securite - Reservation sans JWT bloquee (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Acces non authentifie refuse (401/403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"chambre_id\":1,\"date_debut\":\"2026-12-10\",\"date_fin\":\"2026-12-12\",\"nombre_personnes\":1,\"telephone\":\"0600000000\"}"
+        },
+        "url": "http://localhost:8003/api/reservations"
+      }
+    },
+    {
+      "name": "13. Reservations - Mes Reservations avec JWT (GET /api/reservations/mes)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Mes reservations JWT OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+        "url": "http://localhost:8003/api/reservations/mes"
+      }
+    },
+    {
+      "name": "14. Avis - Consultation des Avis (GET /api/avis)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Liste avis OK (200)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "http://localhost:8002/api/avis" }
+    }
+  ]
+}
